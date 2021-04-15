@@ -1,0 +1,16 @@
+[package]
+name = "enterpolation"
+version = "0.1.0"
+authors = ["Nicolas Klenert <klenert.nicolas@gmail.com>"]
+exclude = ["examples/*", ".gitignore", "CHANGELOG.md", "CONTRIBUTING.md"]
+edition = "2018"
+description = "Makes all kinds of interpolation flexible and easy to understand."
+license = "MIT OR Apache-2.0"
+#documentation = "https://docs.rs/palette/0.5.0/palette/"
+#repository = "https://github.com/Ogeon/palette"
+readme = "README.md"
+keywords = ["interpolation", "curve", "spline", "lerp", "surface"]
+categories = ["graphics", "mathematics", "no-std"]
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
