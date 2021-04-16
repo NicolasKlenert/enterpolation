@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate assert_float_eq;
+
 pub mod linear;
 
 // Scalar which represents an inbetween two points (usually between 0.0 and 1.0) (from and to constants?!)
@@ -17,25 +20,6 @@ pub trait Interpolation {
     }
     fn take(&self, samples: usize) -> Extractor<Self, Stepper> {
         self.extract(Stepper::new(samples))
-    }
-}
-
-// TODO: This construct is a way to make something multidimensional, however it does not feel good....
-// TODO: maybe there is another cleaner way to do mutlidimensional interpolations...
-// TODO: Think about API first -> I would want a get method with either get(x,y) OR get([x,y]) OR get(Point) with Point generic....
-// TODO: how to achieve hard constant dimensionality inside of traits etc...
-// TODO: const generics could be the best Option -> Interpolation<const N> with get(Point<N>) and Point<N> has get_raw() -> [scalar; N] OR Point<N> as N scalars ([] with scalar)
-/// Trait for all Interpolations, especially multidimensional ones
-pub trait MultiInterpolation<const N: usize> {
-    type Output;
-    fn get(&self, components: &[InterScalar]) -> Self::Output;
-    //TODO: make Extractor generic over Item of Iterator
-}
-
-impl<T> MultiInterpolation<1> for T where T: Interpolation {
-    type Output = <T as Interpolation>::Output;
-    fn get(&self, components: &[InterScalar]) -> Self::Output {
-        <Self as Interpolation>::get(self, *components.last().expect("Not enough components were given for this dimensionality!"))
     }
 }
 
@@ -123,7 +107,7 @@ mod test {
         let res = vec![0.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0];
         for i in 0..=10 {
             let val = stepper.next().unwrap();
-            assert!((val - res[i]).abs() < 0.001, "stepper: {}, should be: {}", val, res[i]);
+            assert_f64_near!(val,res[i]);
         }
     }
 

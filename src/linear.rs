@@ -118,16 +118,18 @@ mod test {
         let expected = [20.0,60.0,100.0,50.0,0.0,100.0,200.0];
         for i in 0..=6 {
             let val = iter.next().unwrap();
-            assert!((val - expected[i]).abs() < 0.001, "linear: {}, should be: {}", val, expected[i]);
+            assert_f64_near!(val, expected[i]);
         }
     }
 
     #[test]
     fn extrapolation() {
         //TODO: test non-uniform domain and extrapolation
-        let lin = Linear::new(vec![20.0,100.0,0.0,200.0]);
-        //add https://docs.rs/assert_float_eq/1.1.3/assert_float_eq/
-
+        let lin = Linear::with_knots(vec![(20.0,1.0),(100.0,2.0),(0.0,3.0),(200.0,4.0)]);
+        assert_f64_near!(lin.get(1.5), 60.0);
+        assert_f64_near!(lin.get(2.5), 50.0);
+        assert_f64_near!(lin.get(-1.0), -140.0);
+        assert_f64_near!(lin.get(5.0), 400.0);
         // for i in 0..=6 {
         //     let val = iter.next().unwrap();
         //     assert!((val - expected[i]).abs() < 0.001, "linear: {}, should be: {}", val, expected[i]);
