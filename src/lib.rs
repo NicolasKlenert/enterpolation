@@ -2,9 +2,16 @@
 extern crate assert_float_eq;
 
 pub mod linear;
+pub mod bezier;
 
 // Scalar which represents an inbetween two points (usually between 0.0 and 1.0) (from and to constants?!)
 type InterScalar = f64;
+
+/// Trait for all 1-dim Interpolations, which gets mutated when asked for an interpolation (to make them more efficient)
+pub trait MutInterpolation {
+    type Output;
+    fn get(&mut self, scalar: InterScalar) -> Self::Output;
+}
 
 /// Trait for all 1-dim Interpolations
 pub trait Interpolation {
@@ -69,34 +76,6 @@ impl Iterator for Stepper {
     }
 }
 
-/// Find the indices in which the given element is in between.
-/// We assume that the collection is non-empty and ordered, to use binary search.
-/// If one or more elements in the collections are exactly equal to the element,
-/// the function will return a border in which either index returned
-/// will be the index of an element equal to the element given.
-/// If the given element is smaller/bigger than every element in the collection, then
-/// the borders given will the the smallest/biggest possible
-fn find_borders<C,T>(collection: C, element: T) -> (usize, usize)
-where
-    C: AsRef<[T]>,
-    T: PartialOrd + Copy
-{
-    let mut min_index = 0;
-    let mut max_index = collection.as_ref().len() - 1;
-
-    while min_index < max_index - 1 {
-        let index = min_index + (max_index - min_index) / 2;
-        let sample = collection.as_ref()[index];
-
-        if element < sample {
-            max_index = index;
-        } else {
-            min_index = index;
-        }
-    }
-    (min_index, max_index)
-}
-
 #[cfg(test)]
 mod test {
     use super::*;
@@ -109,17 +88,6 @@ mod test {
             let val = stepper.next().unwrap();
             assert_f64_near!(val,res[i]);
         }
-    }
-
-    #[test]
-    fn find_borders() {
-        let vec = vec![0.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0];
-        assert_eq!(super::find_borders(&vec,0.35),(3,4));
-        assert_eq!(super::find_borders(&vec,-1.0),(0,1));
-        assert_eq!(super::find_borders(&vec,20.0),(9,10));
-        // test if element given es equal to a knot
-        let borders = super::find_borders(&vec,0.5);
-        assert!(borders.0 == 5 || borders.1 == 5);
     }
 
 }
