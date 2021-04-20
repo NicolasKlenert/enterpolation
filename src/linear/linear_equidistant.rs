@@ -22,9 +22,6 @@ where
 /// Linear interpolation/extrapolation with elements, assumed to be equally far away and sorted.
 /// Domain of the interpolation is [0.0,1.0].
 pub struct LinearEquidistant<E,T>
-where
-    E: AsRef<[T]>,
-    T: Add<Output = T> + Mul<f64, Output = T>
 {
     elements: E,
     element: PhantomData<T>
@@ -76,6 +73,21 @@ where
     }
 }
 
+// N has to be at least one element!
+impl<T, const N: usize> LinearEquidistant<[T;N],T>
+{
+    /// Create a linear interpolation with an array of elements.
+    /// There has to be at least 1 element, which is NOT checked.
+    /// Should be used if one wants to create a constant Interpolation
+    pub const fn new_unchecked(elements: [T;N]) -> Self
+    {
+        LinearEquidistant {
+            elements,
+            element: PhantomData
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -99,6 +111,17 @@ mod test {
         assert_f64_near!(constant.get(-1.0), 5.0);
         assert_f64_near!(constant.get(10.0), 5.0);
         assert_f64_near!(constant.get(0.5), 5.0);
+    }
+
+    #[test]
+    fn const_creation(){
+        const LIN : LinearEquidistant<[f64;4],f64> = LinearEquidistant::new_unchecked([20.0,100.0,0.0,200.0]);
+        let mut iter = LIN.take(7);
+        let expected = [20.0,60.0,100.0,50.0,0.0,100.0,200.0];
+        for i in 0..=6 {
+            let val = iter.next().unwrap();
+            assert_f64_near!(val, expected[i]);
+        }
     }
 
 }

@@ -4,7 +4,7 @@ pub mod linear_equidistant;
 
 use core::ops::{Add, Mul};
 use core::marker::PhantomData;
-use crate::{Interpolation, Stepper};
+use crate::{Interpolation, Stepper, EnterpolationError};
 
 /// Find the indices in which the given element is in between.
 /// We assume that the collection is non-empty and ordered, to use binary search.
@@ -21,7 +21,7 @@ where
     let mut min_index = 0;
     let mut max_index = collection.as_ref().len() - 1;
 
-    while min_index < max_index - 1 {
+    while max_index - min_index > 1 {
         let index = min_index + (max_index - min_index) / 2;
         let sample = collection.as_ref()[index];
 
@@ -83,38 +83,53 @@ where
 {
     /// Creates a linear interpolation of elements given with equidistant knots.
     /// There has to be at least 2 elements.
-    pub fn new<C>(collection: C) -> Self
+    pub fn from_collection<C>(collection: C) -> Result<Self, EnterpolationError>
     where C: IntoIterator<Item = T>
     {
         let elements: Vec<T> = collection.into_iter().collect();
-        assert!(elements.len() > 1);
-        Linear {
+        if elements.len() < 2 {
+            return Err(EnterpolationError::ToFewElements{
+                name: "Linear".to_string(),
+                found: elements.len(),
+                expected: 2,
+            });
+        }
+        Ok(Linear {
             knots: Stepper::new(elements.len()).into_iter().collect(),
             elements,
             element: PhantomData
-        }
+        })
     }
 
     /// Create a linear interpolation with at least 2 elements.
     /// Knots are calculated with the given closure, which takes the index and the reference to the element.
+    /// Knots should be in increasing order. This is not checked.
     /// For a constant speed of the curve, the distance between the elements should be used.
-    pub fn new_with<C,F>(collection: C, func: F) -> Self
+    pub fn from_collection_with<C,F>(collection: C, func: F) -> Result<Self, EnterpolationError>
     where
         C: IntoIterator<Item = T>,
         F: FnMut((usize,&T)) -> f64,
     {
         let elements: Vec<T> = collection.into_iter().collect();
+        if elements.len() < 2 {
+            return Err(EnterpolationError::ToFewElements{
+                name: "Linear".to_string(),
+                found: elements.len(),
+                expected: 2,
+            });
+        }
         let knots: Vec<f64> = elements.iter().enumerate().map(func).collect();
-        Linear {
+        Ok(Linear {
             elements,
             knots,
             element: PhantomData
-        }
+        })
     }
 
     /// Create a linear interpolation of the elements with given knots.
     /// Knots should be in increasing order and there has to be at least 2 elements.
-    pub fn with_knots<C>(collection: C) -> Self
+    /// The increasing order of knots is not checked.
+    pub fn from_collection_with_knots<C>(collection: C) -> Result<Self, EnterpolationError>
     where C: IntoIterator<Item = (T, f64)>
     {
         let iter = collection.into_iter();
@@ -124,12 +139,18 @@ where
             elements.push(elem);
             knots.push(knot);
         }
-        assert!(elements.len() > 1);
-        Linear {
+        if elements.len() < 2 {
+            return Err(EnterpolationError::ToFewElements{
+                name: "Linear".to_string(),
+                found: elements.len(),
+                expected: 2,
+            });
+        }
+        Ok(Linear {
             elements,
             knots,
             element: PhantomData
-        }
+        })
     }
 }
 
@@ -140,17 +161,29 @@ where
     T: Add<Output = T> + Mul<f64, Output = T> + Copy
 {
     /// Create a linear interpolation with slice-like collections of elements and knots.
-    /// As well as the restriction to the knots explained in [with_knots](Linear::with_knots)
-    /// there is also the restriction that the length of elements and knots do have to be the same!
-    pub fn with_raw(elements: P, knots: K) -> Self
+    /// Knots should be in increasing order (not checked), there should be as many knots as elements
+    /// and there has to be at least 2 elements.
+    pub fn new(elements: P, knots: K) -> Result<Self, EnterpolationError>
     {
-        assert!(elements.as_ref().len() > 1);
-        assert_eq!(knots.as_ref().len(), elements.as_ref().len());
-        Linear {
+        if elements.as_ref().len() < 2 {
+            return Err(EnterpolationError::ToFewElements{
+                name: "Linear".to_string(),
+                found: elements.as_ref().len(),
+                expected: 2,
+            });
+        }
+        if knots.as_ref().len() != elements.as_ref().len() {
+            return Err(EnterpolationError::InvalidNumberKnots{
+                name: "Linear".to_string(),
+                found: knots.as_ref().len(),
+                expected: "same amount as elements".to_string(),
+            });
+        }
+        Ok(Linear {
             elements,
             knots,
             element: PhantomData
-        }
+        })
     }
 }
 
@@ -161,7 +194,7 @@ mod test {
 
     #[test]
     fn linear() {
-        let lin = Linear::new(vec![20.0,100.0,0.0,200.0]);
+        let lin = Linear::from_collection(vec![20.0,100.0,0.0,200.0]).unwrap();
         let mut iter = lin.take(7);
         let expected = [20.0,60.0,100.0,50.0,0.0,100.0,200.0];
         for i in 0..=6 {
@@ -173,7 +206,7 @@ mod test {
     #[test]
     fn extrapolation() {
         //TODO: test non-uniform domain and extrapolation
-        let lin = Linear::with_knots(vec![(20.0,1.0),(100.0,2.0),(0.0,3.0),(200.0,4.0)]);
+        let lin = Linear::from_collection_with_knots(vec![(20.0,1.0),(100.0,2.0),(0.0,3.0),(200.0,4.0)]).unwrap();
         assert_f64_near!(lin.get(1.5), 60.0);
         assert_f64_near!(lin.get(2.5), 50.0);
         assert_f64_near!(lin.get(-1.0), -140.0);
@@ -183,12 +216,15 @@ mod test {
 
     #[test]
     fn find_borders() {
-        let vec = vec![0.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0];
-        assert_eq!(super::find_borders(&vec,0.35),(3,4));
-        assert_eq!(super::find_borders(&vec,-1.0),(0,1));
-        assert_eq!(super::find_borders(&vec,20.0),(9,10));
+        let arr = [0.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0];
+        assert_eq!(super::find_borders(&arr,0.35),(3,4));
+        assert_eq!(super::find_borders(&arr,-1.0),(0,1));
+        assert_eq!(super::find_borders(&arr,20.0),(9,10));
         // test if element given es equal to a knot
-        let borders = super::find_borders(&vec,0.5);
+        let borders = super::find_borders(&arr,0.5);
         assert!(borders.0 == 5 || borders.1 == 5);
+        // test if find_borders works with only 1 element
+        let arr = [5.0];
+        assert_eq!(super::find_borders(&arr,0.5), (0,0));
     }
 }

@@ -3,6 +3,9 @@ extern crate assert_float_eq;
 
 pub mod linear;
 pub mod bezier;
+pub mod utils;
+
+use thiserror::Error;
 
 // Scalar which represents an inbetween two points (usually between 0.0 and 1.0) (from and to constants?!)
 type InterScalar = f64;
@@ -28,6 +31,22 @@ pub trait Interpolation {
     fn take(&self, samples: usize) -> Extractor<Self, Stepper> {
         self.extract(Stepper::new(samples))
     }
+}
+
+#[derive(Error, Debug)]
+pub enum EnterpolationError {
+    #[error("To few elements given for creation of `{name}`, {found} elements given, but at least {expected} are necessary.")]
+    ToFewElements{
+        name: String,
+        found: usize,
+        expected: usize
+    },
+    #[error("The amount of knots given for creation of `{name}` are not correct, {found} knots given, but {expected} necessary.")]
+    InvalidNumberKnots{
+        name: String,
+        found: usize,
+        expected: String
+    },
 }
 
 /// Iterator adaptor, which transforms an iterator with InterScalar items to an iterator with the correspondending values of the interpolation

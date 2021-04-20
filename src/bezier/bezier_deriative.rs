@@ -1,10 +1,17 @@
 // TODO: creation of Interpolations should not panic, instead it should return a Result!
 // TODO: create LinearEquidistant Interpolation from Bezier, when a constant speed is wished for
 // TODO: -> see https://www.researchgate.net/post/How-can-I-assign-a-specific-velocity-to-a-point-moving-on-a-Bezier-curve
+// TODO: add elevate like in Bezier -> works exaclty the same, we only need to pass in slices...?! -> try to use bezier_elevate...
+
+// traits which should be implemented are:
+// P: AsRef<[T]> + AsMut<[T]>,
+// T: Add<Output = T> + Sub<Output = T> + Mul<f64, Output = T> + Copy
 
 use core::ops::{Add, Mul, Sub};
+use core::iter::repeat;
 use core::marker::PhantomData;
 use crate::MutInterpolation;
+use crate::utils::{triangle_folding, triangle_folding_inline};
 
 //TODO: one can use bezier as static function (with const generics and AsMut<[T;N]>)
 //TODO: and we do not have to mutate the input and do the copying in the function
@@ -26,15 +33,8 @@ where
 {
     type Output = T;
     fn get(&mut self, scalar: f64) -> T {
-        let mut counter = 0;
-        for k in (1..self.degree).rev(){
-            for _ in 0..k{
-                self.calculation.as_mut()[counter + k + 1] = self.calculation.as_mut()[counter]*(1.0-scalar)+self.calculation.as_mut()[counter+1];
-                counter += 1;
-            }
-            counter +=1;
-        }
-        self.calculation.as_mut()[counter]
+        let last = triangle_folding(self.calculation.as_mut(), |first, second| first * (1.0-scalar) + second * scalar , self.degree);
+        self.calculation.as_mut()[last]
     }
 }
 
@@ -50,92 +50,135 @@ where
         let prod : usize = (self.degree-degree+1..=self.degree).product();
         let start = (degree+2..=self.degree+1).sum();
         let mut calc = self.calculation.as_ref()[start..=start+degree].to_owned();
-        for k in 1..calc.len() {
-            for i in 0..calc.len()-k {
-                calc[i] = calc[i+1]-calc[i];
-            }
-        }
+        let len = calc.len();
+        triangle_folding_inline(&mut calc, |first, second| second - first, len);
         calc[0] * prod as f64
     }
 }
 
-//
-// impl<T> Linear<Vec<T>,T,Vec<f64>>
-// where
-//     T: Add<Output = T> + Mul<f64, Output = T> + Copy
-// {
-//     /// Creates a linear interpolation of elements given with equidistant knots.
-//     /// There has to be at least 2 elements.
-//     pub fn new<C>(collection: C) -> Self
-//     where C: IntoIterator<Item = T>
-//     {
-//         let points: Vec<T> = collection.into_iter().collect();
-//         assert!(points.len() > 1);
-//         Linear {
-//             knots: Stepper::new(points.len()).into_iter().collect(),
-//             points,
-//             element: PhantomData
-//         }
-//     }
-//
-//     /// Create a linear interpolation with at least 2 elements.
-//     /// Knots are calculated with the given closure, which takes the index and the reference to the element.
-//     /// For a constant speed of the curve, the distance between the elements should be used.
-//     pub fn new_with<C,F>(collection: C, func: F) -> Self
-//     where
-//         C: IntoIterator<Item = T>,
-//         F: FnMut((usize,&T)) -> f64,
-//     {
-//         let elements: Vec<T> = collection.into_iter().collect();
-//         let knots: Vec<f64> = elements.iter().enumerate().map(func).collect();
-//         Linear {
-//             points: elements,
-//             knots,
-//             element: PhantomData
-//         }
-//     }
-//
-//     /// Create a linear interpolation of the elements with given knots.
-//     /// Knots should be in increasing order and there has to be at least 2 elements.
-//     pub fn with_knots<C>(collection: C) -> Self
-//     where C: IntoIterator<Item = (T, f64)>
-//     {
-//         let iter = collection.into_iter();
-//         let mut points: Vec<T> = Vec::with_capacity(iter.size_hint().0);
-//         let mut knots: Vec<f64> = Vec::with_capacity(iter.size_hint().0);
-//         for (elem, knot) in iter {
-//             points.push(elem);
-//             knots.push(knot);
-//         }
-//         assert!(points.len() > 1);
-//         Linear {
-//             points,
-//             knots,
-//             element: PhantomData
-//         }
-//     }
-// }
-//
-// impl<P,T,K> Linear<P,T,K>
-// where
-//     P: AsRef<[T]>,
-//     K: AsRef<[f64]>,
-//     T: Add<Output = T> + Mul<f64, Output = T> + Copy
-// {
-//     /// Create a linear interpolation with slice-like collections of points and knots.
-//     /// As well as the restriction to the knots explained in [with_knots](Linear::with_knots)
-//     /// there is also the restriction that the length of points and knots do have to be the same!
-//     pub fn with_raw(points: P, knots: K) -> Self
-//     {
-//         assert!(points.as_ref().len() > 1);
-//         assert_eq!(knots.as_ref().len(), points.as_ref().len());
-//         Linear {
-//             points,
-//             knots,
-//             element: PhantomData
-//         }
-//     }
-// }
+impl<P,T> BezierDeriative<P,T>
+where
+    P: AsRef<[T]>,
+    T: Copy
+{
+    /// Divide the Bezier Curve to create two Bezier Curves which "cut" the current Bezier Curve
+    /// at the last point returned by get.
+    /// The two new Bezier Curves are pasted into the buffers given.
+    /// Both buffer do have to be at least of length (1..degree+1).sum().
+    pub fn divide_with_buffers<Q>(&self, mut first_buffer: Q, mut second_buffer: Q) -> (BezierDeriative<Q,T>, BezierDeriative<Q,T>)
+    where Q: AsRef<[T]> + AsMut<[T]>
+    {
+        let mut counter = 0;
+        let mut iteration_counter = 0;
+        for k in (0..self.degree).rev(){
+            first_buffer.as_mut()[iteration_counter] = self.calculation.as_ref()[counter];
+            second_buffer.as_mut()[iteration_counter] = self.calculation.as_ref()[counter+k];
+            counter += k+1;
+            iteration_counter += 1;
+        }
+        (BezierDeriative::new(first_buffer, self.degree), BezierDeriative::new(second_buffer, self.degree))
+    }
+}
+
+impl<P,T> BezierDeriative<P,T>
+where
+    P: AsMut<[T]>,
+    T: Copy
+{
+    /// Divide the Bezier Curve to create two Bezier Curves at the last point returned by get.
+    /// The Bezier Curve from [0.0,u] is pasted onto the current Bezier Curve, the other one is pasted onto the given buffer.
+    /// The given buffer do have to be at least of length (1..degree+1).sum().
+    pub fn divide_with_buffer_inline<Q>(&mut self, mut buffer: Q) -> BezierDeriative<Q,T>
+    where Q: AsRef<[T]> + AsMut<[T]>
+    {
+        let mut counter = 0;
+        let mut iteration_counter = 0;
+        for k in (0..self.degree).rev(){
+            self.calculation.as_mut()[iteration_counter] = self.calculation.as_mut()[counter];
+            buffer.as_mut()[iteration_counter] = self.calculation.as_mut()[counter+k];
+            counter += k+1;
+            iteration_counter += 1;
+        }
+        BezierDeriative::new(buffer, self.degree)
+    }
+}
+
+impl<T> BezierDeriative<Vec<T>,T>
+where T: Copy
+{
+    /// Divide the Bezier Curve to create two Bezier Curves at the last point returned by get.
+    pub fn divide(&self) -> (Self, Self)
+    {
+        let mut first_vec = self.calculation.clone();
+        let mut second_vec = self.calculation.clone();
+        let mut counter = 0;
+        let mut iteration_counter = 0;
+        for k in (0..self.degree).rev(){
+            first_vec[iteration_counter] = self.calculation[counter];
+            second_vec[iteration_counter] = self.calculation[counter+k];
+            counter += k+1;
+            iteration_counter += 1;
+        }
+        (BezierDeriative::new(first_vec, self.degree), BezierDeriative::new(second_vec, self.degree))
+    }
+
+    /// Divide the Bezier Curve to create two Bezier Curves at the last point returned by get.
+    /// The Bezier Curve from [0.0,u] is pasted onto the current Bezier Curve.
+    pub fn divide_inline(&mut self) -> Self {
+        let mut vec = self.calculation.clone();
+        let mut counter = 0;
+        let mut iteration_counter = 0;
+        for k in (0..self.degree).rev(){
+            self.calculation[iteration_counter] = self.calculation[counter];
+            vec[iteration_counter] = self.calculation[counter+k];
+            counter += k+1;
+            iteration_counter += 1;
+        }
+        BezierDeriative::new(vec, self.degree)
+    }
+}
+
+
+
+impl<T> BezierDeriative<Vec<T>,T>
+where T: Copy + Default
+{
+    /// Creates a bezier interpolation of elements given.
+    /// There has to be at least 2 elements.
+    pub fn from_collection<C>(collection: C) -> Self
+    where C: IntoIterator<Item = T>
+    {
+        let mut calculation: Vec<T> = collection.into_iter().collect();
+        let length = calculation.len();
+        assert!(length > 1);
+        calculation.extend(repeat(T::default()).take((1..length).sum()));
+        BezierDeriative {
+            calculation,
+            degree: length - 1,
+            element: PhantomData
+        }
+    }
+}
+
+impl<P,T> BezierDeriative<P,T>
+where
+    P: AsRef<[T]>
+{
+    /// Creates a bezier interpolation with given calculation space.
+    /// The first degree + 1 elements in the calculation space will be used as elements.
+    /// The calculation space has to have at least a length of (1..degree+1).sum().
+    /// There has to be at least 2 elements.
+    pub fn new(calculation: P, degree: usize) -> Self
+    {
+        assert!(degree > 0);
+        assert!(calculation.as_ref().len() >= (1..degree+1).sum());
+        BezierDeriative {
+            calculation,
+            degree,
+            element: PhantomData
+        }
+    }
+}
 //
 // #[cfg(test)]
 // mod test {
