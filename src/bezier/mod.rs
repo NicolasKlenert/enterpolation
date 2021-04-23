@@ -5,12 +5,17 @@ pub mod bezier_deriative;
 
 use core::ops::{Add, Mul, Sub};
 use core::marker::PhantomData;
+use core::mem::MaybeUninit;
 use crate::{Interpolation, Stepper};
-use crate::utils::triangle_folding_inline;
+use crate::utils::{triangle_folding_inline, lower_triangle_folding_inline};
 
-//TODO: one can use bezier as static function (with const generics and AsMut<[T;N]>)
-//TODO: and we do not have to mutate the input and do the copying in the function
-
+// TODO: this function could in theory take a collection of references, create it's own container
+// TODO: and generate directly in the container. This could have better performance.
+// TODO: However for this to work, we would have to create a collection space with a length of 1 less
+// TODO: then the given collection. Such we would have to differentiate between
+// TODO: static and dynamic size OR create a trait in which this is handled for us
+// TODO: -> the trait would have something like toOwned for creation (a specific with_capacity function)
+// TODO: which would return a collection of MaybeUnInit. This would be unsafe, however improve (possibly) performace
 /// Bezier curve interpolate/extrapolate with the elements given.
 /// This mutates the elements, such copying them first is necessary!
 /// Panics if not at least 1 element exists.
@@ -24,10 +29,16 @@ where
     elements.as_mut()[0]
 }
 
+// TODO: instead of bezier_with_tangent have a bezier_with_deriatives
+// TODO: which would take a number (const usize or usize) and return an array with [get, first deriative, second ...]
+// TODO: this can be easily done as first we do our normale get algo and then after n-k steps we would copy the collection
+// TODO: from here on out we would calculate the deriative (to the last place of the collection)
+// TODO: then we would do a step of the get algo and then copy all elements to the collection (the last place is safe
+// TODO: as we have 1 element less). This goes on until we ware finished -> a lot of for loops but otherwise safe!
 /// Bezier curve interpolate/extrapolate and tangent calculation with the elements given.
 /// This mutates the elements, such copying them first is necessary!
 /// Panics if not at least 2 elements exist.
-pub fn bezier_with_tangent<P,T>(mut elements: P, scalar: f64) -> (T,T)
+pub fn bezier_with_tangent<P,T>(mut elements: P, scalar: f64) -> [T;2]
 where
     P: AsMut<[T]>,
     T: Add<Output = T> + Mul<f64, Output = T> + Sub<Output = T> + Copy
@@ -37,7 +48,56 @@ where
     let elements = elements.as_mut();
     let tangent = (elements[1] - elements[0]) * len as f64;
     let result = elements[0]*(1.0-scalar)+elements[1]*scalar;
-    (result, tangent)
+    [result, tangent]
+}
+
+unsafe fn transmute_maybe_uninit_array<T, const N: usize>(mut arr: [MaybeUninit<T>;N]) -> [T;N] {
+    // Using &mut as an assertion of unique "ownership"
+    let res = (&mut arr as *mut _ as *mut [T; N]).read();
+    core::mem::forget(arr);
+    res
+}
+
+/// Bezier curve interpolation and deriative calculation with the elements given.
+/// This mutates the elements, such copying them first is necessary!
+/// Panics if not at least K+1 elements exist.
+/// This function works with a hack right now, so be careful using it.
+pub fn bezier_with_deriatives<P,T,const K: usize>(mut elements: P, scalar: f64) -> [T;K]
+where
+    P: AsMut<[T]>,
+    T: Add<Output = T> + Mul<f64, Output = T> + Sub<Output = T> + Copy
+{
+    let len = elements.as_mut().len();
+    triangle_folding_inline(elements.as_mut(), |first, second| first * (1.0-scalar) + second * scalar, len - K);
+    // Create an uninitialized array of `MaybeUninit`, such `T` must not implement `Default`.
+    // The `assume_init` is safe because the type we are claiming to have initialized here is a
+    // bunch of `MaybeUninit`s, which do not require initialization.
+    let mut grad : [MaybeUninit<T>; K] = unsafe {
+        MaybeUninit::uninit().assume_init()
+    };
+    // Copy every element over. Theoretically we could calulcate the first step here.
+    // Before doing this, some benchmarks should be done. Optimasation is too early.
+    // Dropping a `MaybeUninit` does nothing, thus using indexing assignment instead of `ptr::write` is fine.
+    // if there is a panic during this loop, we have a memory leak, but there is no memory safety issue.
+    for i in 0..K {
+        grad[i] = MaybeUninit::new(elements.as_mut()[i]);
+    }
+    // Everyting is initialized. Transmuting should be fine.
+    // Again this is not working because of https://github.com/rust-lang/rust/issues/61956
+    // let mut grad = unsafe {mem::transmute::<_, [T;K]>(grad)};
+    // use hack instead:
+    let mut grad = unsafe {transmute_maybe_uninit_array(grad)};
+    for k in 0..K {
+        let grad_slice = &mut grad[k..];
+        lower_triangle_folding_inline(grad_slice, |first, second| second - first, K-k);
+        // do one step of the normal folding
+        triangle_folding_inline(elements.as_mut(), |first, second| first * (1.0-scalar) + second * scalar, 1);
+        // copy the necessary data over to grad
+        for i in 0..K-k {
+            grad[i] = elements.as_mut()[i];
+        }
+    }
+    grad
 }
 
 /// Elevates the curve such that it's degree increases by one.
@@ -84,22 +144,24 @@ pub struct Bezier<P,T>
 
 impl<P,T> Interpolation for Bezier<P,T>
 where
-    P: AsRef<[T]>,
+    P: AsRef<[T]> + ToOwned,
+    P::Owned: AsMut<[T]>,
     T: Add<Output = T> + Mul<f64, Output = T> + Copy
 {
     type Output = T;
     fn get(&self, scalar: f64) -> T {
-        bezier(self.elements.as_ref().to_owned(), scalar)
+        bezier(self.elements.to_owned(), scalar)
     }
 }
 
 impl<P,T> Bezier<P,T>
 where
-    P: AsRef<[T]>,
+    P: AsRef<[T]> + ToOwned,
+    P::Owned: AsMut<[T]>,
     T: Add<Output = T> + Mul<f64, Output = T> + Sub<Output = T> + Copy
 {
-    pub fn get_with_tangent(&self, scalar: f64) -> (T,T) {
-        bezier_with_tangent(self.elements.as_ref().to_owned(), scalar)
+    pub fn get_with_tangent(&self, scalar: f64) -> [T;2] {
+        bezier_with_tangent(self.elements.to_owned(), scalar)
     }
 }
 
@@ -186,11 +248,11 @@ mod test {
     fn constant() {
         let bez = Bezier::new([5.0,5.0]);
         let res = bez.get_with_tangent(0.25);
-        assert_f64_near!(res.0, 5.0);
-        assert_f64_near!(res.1, 0.0);
+        assert_f64_near!(res[0], 5.0);
+        assert_f64_near!(res[1], 0.0);
         let res = bez.get_with_tangent(0.75);
-        assert_f64_near!(res.0, 5.0);
-        assert_f64_near!(res.1, 0.0);
+        assert_f64_near!(res[0], 5.0);
+        assert_f64_near!(res[1], 0.0);
     }
 
 }
