@@ -76,6 +76,28 @@ where
     grad
 }
 
+/// Trims the given bezier curve at the point given by scalar.
+/// Mutates the given elements such that they represent the right half of the bezier curve.
+pub fn bezier_trim_left<P,T>(mut elements: P, scalar: f64)
+where
+    P: AsMut<[T]>,
+    T: Add<Output = T> + Mul<f64, Output = T> + Copy
+{
+    let len = elements.as_mut().len();
+    lower_triangle_folding_inline(elements.as_mut(), |first, second| first * (1.0-scalar) + second * scalar, len);
+}
+
+/// Trims the given bezier curve at the point given by scalar.
+/// Mutates the given elements such that they represent the left half of the bezier curve.
+pub fn bezier_trim_right<P,T>(mut elements: P, scalar: f64)
+where
+    P: AsMut<[T]>,
+    T: Add<Output = T> + Mul<f64, Output = T> + Copy
+{
+    let len = elements.as_mut().len();
+    triangle_folding_inline(elements.as_mut(), |first, second| first * (1.0-scalar) + second * scalar, len);
+}
+
 /// Elevates the curve such that it's degree increases by one.
 pub fn bezier_elevate_inplace<T>(elements: &mut Vec<T>)
 where T: Add<Output = T> + Mul<f64, Output = T> + Copy
@@ -139,6 +161,10 @@ where
     pub fn get_with_tangent(&self, scalar: f64) -> [T;2] {
         bezier_with_tangent(self.elements.to_owned(), scalar)
     }
+
+    pub fn get_with_deriatives<const K: usize>(&self, scalar: f64) -> [T;K] {
+        bezier_with_deriatives(self.elements.to_owned(), scalar)
+    }
 }
 
 impl<T> Bezier<Vec<T>,T>
@@ -194,6 +220,20 @@ where
     {
         bezier_elevate(self.elements.as_ref(),elements.as_mut());
         Bezier::new(elements)
+    }
+}
+
+impl<P,T> Bezier<P,T>
+where
+    P: AsMut<[T]>,
+    T: Add<Output = T> + Mul<f64, Output = T> + Copy
+{
+    pub fn trim_left(&mut self, scalar: f64){
+        bezier_trim_left(self.elements.as_mut(), scalar)
+    }
+
+    pub fn trim_right(&mut self, scalar: f64){
+        bezier_trim_right(self.elements.as_mut(), scalar)
     }
 }
 
