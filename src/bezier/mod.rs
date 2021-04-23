@@ -5,7 +5,6 @@ pub mod bezier_deriative;
 
 use core::ops::{Add, Mul, Sub};
 use core::marker::PhantomData;
-use core::mem::MaybeUninit;
 use crate::{Interpolation, Stepper};
 use crate::utils::{triangle_folding_inline, lower_triangle_folding_inline};
 
@@ -51,17 +50,10 @@ where
     [result, tangent]
 }
 
-unsafe fn transmute_maybe_uninit_array<T, const N: usize>(mut arr: [MaybeUninit<T>;N]) -> [T;N] {
-    // Using &mut as an assertion of unique "ownership"
-    let res = (&mut arr as *mut _ as *mut [T; N]).read();
-    core::mem::forget(arr);
-    res
-}
-
 /// Bezier curve interpolation and deriative calculation with the elements given.
+/// This returns an array [v,d1,d2,..] with v interpolated value, d1 as the first deriative and so on.
 /// This mutates the elements, such copying them first is necessary!
 /// Panics if not at least K+1 elements exist.
-/// This function works with a hack right now, so be careful using it.
 pub fn bezier_with_deriatives<P,T,const K: usize>(mut elements: P, scalar: f64) -> [T;K]
 where
     P: AsMut<[T]>,
@@ -69,31 +61,15 @@ where
 {
     let len = elements.as_mut().len();
     triangle_folding_inline(elements.as_mut(), |first, second| first * (1.0-scalar) + second * scalar, len - K);
-    // Create an uninitialized array of `MaybeUninit`, such `T` must not implement `Default`.
-    // The `assume_init` is safe because the type we are claiming to have initialized here is a
-    // bunch of `MaybeUninit`s, which do not require initialization.
-    let mut grad : [MaybeUninit<T>; K] = unsafe {
-        MaybeUninit::uninit().assume_init()
-    };
-    // Copy every element over. Theoretically we could calulcate the first step here.
-    // Before doing this, some benchmarks should be done. Optimasation is too early.
-    // Dropping a `MaybeUninit` does nothing, thus using indexing assignment instead of `ptr::write` is fine.
-    // if there is a panic during this loop, we have a memory leak, but there is no memory safety issue.
-    for i in 0..K {
-        grad[i] = MaybeUninit::new(elements.as_mut()[i]);
-    }
-    // Everyting is initialized. Transmuting should be fine.
-    // Again this is not working because of https://github.com/rust-lang/rust/issues/61956
-    // let mut grad = unsafe {mem::transmute::<_, [T;K]>(grad)};
-    // use hack instead:
-    let mut grad = unsafe {transmute_maybe_uninit_array(grad)};
-    for k in 0..K {
-        let grad_slice = &mut grad[k..];
-        lower_triangle_folding_inline(grad_slice, |first, second| second - first, K-k);
+    // take the first element which can be copied to initialise the array
+    let mut grad = [elements.as_mut()[0];K];
+    for k in (1..=K).rev() {
+        let grad_slice = &mut grad[..k];
+        lower_triangle_folding_inline(grad_slice, |first, second| second - first, k);
         // do one step of the normal folding
         triangle_folding_inline(elements.as_mut(), |first, second| first * (1.0-scalar) + second * scalar, 1);
         // copy the necessary data over to grad
-        for i in 0..K-k {
+        for i in 0..k {
             grad[i] = elements.as_mut()[i];
         }
     }
