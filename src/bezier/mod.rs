@@ -64,8 +64,12 @@ where
     // take the first element which can be copied to initialise the array
     let mut grad = [elements.as_mut()[0];K];
     for k in (1..=K).rev() {
+        //calculate difference folding
         let grad_slice = &mut grad[..k];
         lower_triangle_folding_inline(grad_slice, |first, second| second - first, k);
+        //the multiplication with f64 loses precision, there could be a better way
+        let prod : f64 = (len-k..len).product::<usize>() as f64;
+        grad[k] = grad[k] * prod;
         // do one step of the normal folding
         triangle_folding_inline(elements.as_mut(), |first, second| first * (1.0-scalar) + second * scalar, 1);
         // copy the necessary data over to grad
@@ -146,6 +150,7 @@ where
     P::Owned: AsMut<[T]>,
     T: Add<Output = T> + Mul<f64, Output = T> + Copy
 {
+    type Input = f64;
     type Output = T;
     fn get(&self, scalar: f64) -> T {
         bezier(self.elements.to_owned(), scalar)
@@ -240,7 +245,7 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::Interpolation;
+    use crate::{Interpolation, Curve};
 
     #[test]
     fn linear() {

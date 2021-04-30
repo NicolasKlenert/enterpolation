@@ -16,18 +16,30 @@ pub trait MutInterpolation {
     fn get(&mut self, scalar: InterScalar) -> Self::Output;
 }
 
-/// Trait for all 1-dim Interpolations
+/// Trait for all Interpolations
 pub trait Interpolation {
+    type Input;
     type Output;
-    fn get(&self, scalar: InterScalar) -> Self::Output;
+    fn get(&self, scalar: Self::Input) -> Self::Output;
     fn extract<I>(&self, iterator: I) -> Extractor<Self, I>
-    where I: Iterator<Item = InterScalar>
+    where I: Iterator<Item = Self::Input>
     {
         Extractor {
             interpolation: self,
-            iterator
+            iterator,
         }
     }
+}
+
+/// Trait for all Interpolation which accept InterScalar (1-dim Interpolation) (mostly Curves)
+pub trait Curve {
+    //TODO: when we have an InterScalar trait, add it here as input necessity
+    type Output;
+    fn take(&self, samples: usize) -> Extractor<Self, Stepper>;
+}
+
+impl<T> Curve for T where T: Interpolation<Input = f64>{
+    type Output = <T as Interpolation>::Output;
     fn take(&self, samples: usize) -> Extractor<Self, Stepper> {
         self.extract(Stepper::new(samples))
     }
@@ -50,15 +62,15 @@ pub enum EnterpolationError {
 }
 
 /// Iterator adaptor, which transforms an iterator with InterScalar items to an iterator with the correspondending values of the interpolation
-pub struct Extractor<'a, T: ?Sized,I> {
+pub struct Extractor<'a, T: ?Sized, I> {
     interpolation: &'a T,
-    iterator: I
+    iterator: I,
 }
 
 impl<'a, T, I> Iterator for Extractor<'a, T, I>
 where
     T: Interpolation,
-    I: Iterator<Item = InterScalar>
+    I: Iterator<Item = T::Input>
 {
     type Item = T::Output;
     fn next(&mut self) -> Option<Self::Item> {
@@ -70,7 +82,7 @@ where
 pub struct Stepper {
     current: usize,
     amount: usize,
-    inverse_amount: InterScalar,
+    inverse_amount: f64,
 }
 
 impl Stepper {
@@ -78,18 +90,18 @@ impl Stepper {
         Stepper {
             current: 0,
             amount: steps - 1,
-            inverse_amount: 1.0 / (steps - 1) as InterScalar
+            inverse_amount: 1.0 / (steps - 1) as f64
         }
     }
 }
 
 impl Iterator for Stepper {
-    type Item = InterScalar;
+    type Item = f64;
     fn next(&mut self) -> Option<Self::Item> {
         if self.current > self.amount {
             return None;
         }
-        let res = self.current as InterScalar * self.inverse_amount;
+        let res = self.current as f64 * self.inverse_amount;
         self.current += 1;
         Some(res)
     }

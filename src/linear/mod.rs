@@ -71,6 +71,7 @@ where
     K: AsRef<[f64]>,
     T: Add<Output = T> + Mul<f64, Output = T> + Copy
 {
+    type Input = f64;
     type Output = T;
     fn get(&self, scalar: f64) -> T {
         linear(&self.elements, &self.knots, scalar)
@@ -190,7 +191,7 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::Interpolation;
+    use crate::{Interpolation, Curve};
 
     #[test]
     fn linear() {

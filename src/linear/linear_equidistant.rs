@@ -32,6 +32,7 @@ where
     E: AsRef<[T]>,
     T: Add<Output = T> + Mul<f64, Output = T> + Copy
 {
+    type Input = f64;
     type Output = T;
     fn get(&self, scalar: f64) -> T {
         linear(&self.elements, scalar)
@@ -91,7 +92,7 @@ impl<T, const N: usize> LinearEquidistant<[T;N],T>
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::Interpolation;
+    use crate::{Interpolation, Curve};
 
     #[test]
     fn linear() {
