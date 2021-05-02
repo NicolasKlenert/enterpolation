@@ -5,6 +5,8 @@ pub mod linear_equidistant;
 use core::ops::{Add, Mul};
 use core::marker::PhantomData;
 use crate::{Interpolation, Stepper, EnterpolationError};
+use crate::real::Real;
+use num_traits::cast::FromPrimitive;
 
 /// Find the indices in which the given element is in between.
 /// We assume that the collection is non-empty and ordered, to use binary search.
@@ -39,11 +41,12 @@ where
 /// Knots should be in increasing order and there has to be at least 2 knots.
 /// Also there has to be the same amount of elements and knots.
 /// These constrains are not checked!
-pub fn linear<E,T,K>(elements: E, knots: K, scalar: f64) -> T
+pub fn linear<R,E,T,K>(elements: E, knots: K, scalar: R) -> T
 where
     E: AsRef<[T]>,
-    K: AsRef<[f64]>,
-    T: Add<Output = T> + Mul<f64, Output = T> + Copy
+    K: AsRef<[R]>,
+    T: Add<Output = T> + Mul<R, Output = T> + Copy,
+    R: Real
 {
     let (min_index, max_index) = find_borders(&knots, scalar);
     let min = knots.as_ref()[min_index];
@@ -51,36 +54,34 @@ where
     let min_point = elements.as_ref()[min_index];
     let max_point = elements.as_ref()[max_index];
     let factor = (scalar - min) / (max - min);
-    min_point * (1.0 - factor) + max_point * factor
+    min_point * (R::one() - factor) + max_point * factor
 }
 
-pub struct Linear<E,T,K>
-where
-    E: AsRef<[T]>,
-    K: AsRef<[f64]>,
-    T: Add<Output = T> + Mul<f64, Output = T>
+pub struct Linear<R,E,T,K>
 {
     elements: E,
     knots: K,
-    element: PhantomData<T>
+    _phantoms: (PhantomData<R>, PhantomData<T>)
 }
 
-impl<E,T,K> Interpolation for Linear<E,T,K>
+impl<R,E,T,K> Interpolation for Linear<R,E,T,K>
 where
     E: AsRef<[T]>,
-    K: AsRef<[f64]>,
-    T: Add<Output = T> + Mul<f64, Output = T> + Copy
+    K: AsRef<[R]>,
+    T: Add<Output = T> + Mul<R, Output = T> + Copy,
+    R: Real
 {
-    type Input = f64;
+    type Input = R;
     type Output = T;
-    fn get(&self, scalar: f64) -> T {
+    fn get(&self, scalar: R) -> T {
         linear(&self.elements, &self.knots, scalar)
     }
 }
 
-impl<T> Linear<Vec<T>,T,Vec<f64>>
+impl<R,T> Linear<R,Vec<T>,T,Vec<R>>
 where
-    T: Add<Output = T> + Mul<f64, Output = T> + Copy
+    T: Add<Output = T> + Mul<R, Output = T> + Copy,
+    R: Real + FromPrimitive
 {
     /// Creates a linear interpolation of elements given with equidistant knots.
     /// There has to be at least 2 elements.
@@ -98,7 +99,7 @@ where
         Ok(Linear {
             knots: Stepper::new(elements.len()).into_iter().collect(),
             elements,
-            element: PhantomData
+            _phantoms: (PhantomData, PhantomData)
         })
     }
 
@@ -109,7 +110,7 @@ where
     pub fn from_collection_with<C,F>(collection: C, func: F) -> Result<Self, EnterpolationError>
     where
         C: IntoIterator<Item = T>,
-        F: FnMut((usize,&T)) -> f64,
+        F: FnMut((usize,&T)) -> R,
     {
         let elements: Vec<T> = collection.into_iter().collect();
         if elements.len() < 2 {
@@ -119,11 +120,11 @@ where
                 expected: 2,
             });
         }
-        let knots: Vec<f64> = elements.iter().enumerate().map(func).collect();
+        let knots: Vec<R> = elements.iter().enumerate().map(func).collect();
         Ok(Linear {
             elements,
             knots,
-            element: PhantomData
+            _phantoms: (PhantomData, PhantomData)
         })
     }
 
@@ -131,11 +132,11 @@ where
     /// Knots should be in increasing order and there has to be at least 2 elements.
     /// The increasing order of knots is not checked.
     pub fn from_collection_with_knots<C>(collection: C) -> Result<Self, EnterpolationError>
-    where C: IntoIterator<Item = (T, f64)>
+    where C: IntoIterator<Item = (T, R)>
     {
         let iter = collection.into_iter();
         let mut elements: Vec<T> = Vec::with_capacity(iter.size_hint().0);
-        let mut knots: Vec<f64> = Vec::with_capacity(iter.size_hint().0);
+        let mut knots: Vec<R> = Vec::with_capacity(iter.size_hint().0);
         for (elem, knot) in iter {
             elements.push(elem);
             knots.push(knot);
@@ -150,16 +151,17 @@ where
         Ok(Linear {
             elements,
             knots,
-            element: PhantomData
+            _phantoms: (PhantomData, PhantomData)
         })
     }
 }
 
-impl<P,T,K> Linear<P,T,K>
+impl<R,P,T,K> Linear<R,P,T,K>
 where
     P: AsRef<[T]>,
-    K: AsRef<[f64]>,
-    T: Add<Output = T> + Mul<f64, Output = T> + Copy
+    K: AsRef<[R]>,
+    T: Add<Output = T> + Mul<R, Output = T> + Copy,
+    R: Real
 {
     /// Create a linear interpolation with slice-like collections of elements and knots.
     /// Knots should be in increasing order (not checked), there should be as many knots as elements
@@ -183,7 +185,7 @@ where
         Ok(Linear {
             elements,
             knots,
-            element: PhantomData
+            _phantoms: (PhantomData, PhantomData)
         })
     }
 }
@@ -195,7 +197,7 @@ mod test {
 
     #[test]
     fn linear() {
-        let lin = Linear::from_collection(vec![20.0,100.0,0.0,200.0]).unwrap();
+        let lin = Linear::<f64,_,_,_>::from_collection(vec![20.0,100.0,0.0,200.0]).unwrap();
         let mut iter = lin.take(7);
         let expected = [20.0,60.0,100.0,50.0,0.0,100.0,200.0];
         for i in 0..=6 {
@@ -206,7 +208,6 @@ mod test {
 
     #[test]
     fn extrapolation() {
-        //TODO: test non-uniform domain and extrapolation
         let lin = Linear::from_collection_with_knots(vec![(20.0,1.0),(100.0,2.0),(0.0,3.0),(200.0,4.0)]).unwrap();
         assert_f64_near!(lin.get(1.5), 60.0);
         assert_f64_near!(lin.get(2.5), 50.0);

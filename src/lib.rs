@@ -1,11 +1,16 @@
 #[macro_use]
 extern crate assert_float_eq;
 
+
 pub mod linear;
 pub mod bezier;
 pub mod utils;
+// pub mod point;
+mod real;
 
 use thiserror::Error;
+use crate::real::Real;
+use num_traits::cast::FromPrimitive;
 
 // Scalar which represents an inbetween two points (usually between 0.0 and 1.0) (from and to constants?!)
 type InterScalar = f64;
@@ -33,14 +38,19 @@ pub trait Interpolation {
 
 /// Trait for all Interpolation which accept InterScalar (1-dim Interpolation) (mostly Curves)
 pub trait Curve {
-    //TODO: when we have an InterScalar trait, add it here as input necessity
+    type Input: Real;
     type Output;
-    fn take(&self, samples: usize) -> Extractor<Self, Stepper>;
+    fn take(&self, samples: usize) -> Extractor<Self, Stepper<Self::Input>>;
 }
 
-impl<T> Curve for T where T: Interpolation<Input = f64>{
+impl<T,R> Curve for T
+where
+    T: Interpolation<Input = R>,
+    R: Real + FromPrimitive,
+{
+    type Input = R;
     type Output = <T as Interpolation>::Output;
-    fn take(&self, samples: usize) -> Extractor<Self, Stepper> {
+    fn take(&self, samples: usize) -> Extractor<Self, Stepper<Self::Input>> {
         self.extract(Stepper::new(samples))
     }
 }
@@ -79,29 +89,37 @@ where
 }
 
 /// Iterator which steps from 0.0 to 1.0 in a specific amount of constant steps.
-pub struct Stepper {
+pub struct Stepper<R: Real = f64> {
     current: usize,
     amount: usize,
-    inverse_amount: f64,
+    inverse_amount: R,
 }
 
-impl Stepper {
+impl<R> Stepper<R>
+where
+    R: Real + FromPrimitive,
+{
+    /// Creates a new Stepper stepping from 0 to 1
+    /// The given generic real number has to be able to be created from usize
+    /// Also the given steps are not allowed to be less than 1
     pub fn new(steps: usize) -> Self {
         Stepper {
             current: 0,
             amount: steps - 1,
-            inverse_amount: 1.0 / (steps - 1) as f64
+            inverse_amount: R::from_usize(steps - 1).unwrap().recip()
         }
     }
 }
 
-impl Iterator for Stepper {
-    type Item = f64;
+impl<R> Iterator for Stepper<R>
+where R: Real + FromPrimitive,
+{
+    type Item = R;
     fn next(&mut self) -> Option<Self::Item> {
         if self.current > self.amount {
             return None;
         }
-        let res = self.current as f64 * self.inverse_amount;
+        let res = self.inverse_amount * R::from_usize(self.current).unwrap();
         self.current += 1;
         Some(res)
     }
