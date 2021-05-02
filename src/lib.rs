@@ -7,12 +7,15 @@ pub mod bezier;
 pub mod utils;
 // pub mod point;
 mod real;
+mod never;
+
+use core::marker::PhantomData;
 
 use thiserror::Error;
 use crate::real::Real;
 use num_traits::cast::FromPrimitive;
 
-// Scalar which represents an inbetween two points (usually between 0.0 and 1.0) (from and to constants?!)
+//DEPRECATED: Scalar which represents an inbetween two points (usually between 0.0 and 1.0) (from and to constants?!)
 type InterScalar = f64;
 
 /// Trait for all 1-dim Interpolations, which gets mutated when asked for an interpolation (to make them more efficient)
@@ -33,6 +36,44 @@ pub trait Interpolation {
             interpolation: self,
             iterator,
         }
+    }
+}
+
+//TODO: For now, because of the wrapper, we want to implement interpolations with
+//TODO: impl Into<E> where E: ElementGenerator
+
+pub trait ElementGenerator {
+    type Input; //if no input is necessary, use never::Never
+    type Output; //usually an array (AsMut<[T]>) over the elements T
+    fn generate_elements(&self, input: Self::Input) -> Self::Output;
+}
+
+/// Wrapper for struct which implement AsRef<[T]>
+/// such that we are able to implement the `ElementGenerator` trait for them.
+/// In the future, one may be able to disregard this and implement the trait without this wrapper
+struct ElementCollectionWrapper<P,T>
+(
+    P,
+    PhantomData<T>,
+);
+
+impl<P,T> From<P> for ElementCollectionWrapper<P,T>
+where P: AsRef<[T]>
+{
+    fn from(col: P) -> Self {
+        ElementCollectionWrapper(col, PhantomData)
+    }
+}
+
+impl<P,T> ElementGenerator for ElementCollectionWrapper<P,T>
+where
+    P: AsRef<[T]> + ToOwned,
+    <P as ToOwned>::Owned: AsMut<[T]>,
+{
+    type Input = never::Never;
+    type Output = <P as ToOwned>::Owned;
+    fn generate_elements(&self, _input: Self::Input) -> Self::Output {
+        self.0.to_owned()
     }
 }
 
