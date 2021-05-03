@@ -69,12 +69,10 @@ where
     where Q: AsRef<[T]> + AsMut<[T]>
     {
         let mut counter = 0;
-        let mut iteration_counter = 0;
-        for k in (0..self.degree).rev(){
-            first_buffer.as_mut()[iteration_counter] = self.calculation.as_ref()[counter];
-            second_buffer.as_mut()[iteration_counter] = self.calculation.as_ref()[counter+k];
+        for (i,k) in (0..self.degree).rev().enumerate(){
+            first_buffer.as_mut()[i] = self.calculation.as_ref()[counter];
+            second_buffer.as_mut()[i] = self.calculation.as_ref()[counter+k];
             counter += k+1;
-            iteration_counter += 1;
         }
         (BezierDeriative::new(first_buffer, self.degree), BezierDeriative::new(second_buffer, self.degree))
     }
@@ -92,12 +90,10 @@ where
     where Q: AsRef<[T]> + AsMut<[T]>
     {
         let mut counter = 0;
-        let mut iteration_counter = 0;
-        for k in (0..self.degree).rev(){
-            self.calculation.as_mut()[iteration_counter] = self.calculation.as_mut()[counter];
-            buffer.as_mut()[iteration_counter] = self.calculation.as_mut()[counter+k];
+        for (i,k) in (0..self.degree).rev().enumerate(){
+            self.calculation.as_mut()[i] = self.calculation.as_mut()[counter];
+            buffer.as_mut()[i] = self.calculation.as_mut()[counter+k];
             counter += k+1;
-            iteration_counter += 1;
         }
         BezierDeriative::new(buffer, self.degree)
     }
@@ -112,12 +108,10 @@ where T: Copy
         let mut first_vec = self.calculation.clone();
         let mut second_vec = self.calculation.clone();
         let mut counter = 0;
-        let mut iteration_counter = 0;
-        for k in (0..self.degree).rev(){
-            first_vec[iteration_counter] = self.calculation[counter];
-            second_vec[iteration_counter] = self.calculation[counter+k];
+        for (i,k) in (0..self.degree).rev().enumerate(){
+            first_vec[i] = self.calculation[counter];
+            second_vec[i] = self.calculation[counter+k];
             counter += k+1;
-            iteration_counter += 1;
         }
         (BezierDeriative::new(first_vec, self.degree), BezierDeriative::new(second_vec, self.degree))
     }
@@ -127,12 +121,10 @@ where T: Copy
     pub fn divide_inline(&mut self) -> Self {
         let mut vec = self.calculation.clone();
         let mut counter = 0;
-        let mut iteration_counter = 0;
-        for k in (0..self.degree).rev(){
-            self.calculation[iteration_counter] = self.calculation[counter];
-            vec[iteration_counter] = self.calculation[counter+k];
+        for (i,k) in (0..self.degree).rev().enumerate(){
+            self.calculation[i] = self.calculation[counter];
+            vec[i] = self.calculation[counter+k];
             counter += k+1;
-            iteration_counter += 1;
         }
         BezierDeriative::new(vec, self.degree)
     }

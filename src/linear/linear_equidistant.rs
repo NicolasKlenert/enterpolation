@@ -50,7 +50,7 @@ impl<R,T> LinearEquidistant<R,Vec<T>,T>
     where C: IntoIterator<Item = T>
     {
         let elements: Vec<T> = collection.into_iter().collect();
-        assert!(elements.len() > 0);
+        assert!(!elements.is_empty());
         LinearEquidistant {
             elements,
             _phantoms: (PhantomData, PhantomData)
@@ -66,7 +66,7 @@ where
     /// There has to be at least 1 element.
     pub fn new(elements: P) -> Self
     {
-        assert!(elements.as_ref().len() > 0);
+        assert!(!elements.as_ref().is_empty());
         LinearEquidistant {
             elements,
             _phantoms: (PhantomData, PhantomData)

@@ -77,9 +77,7 @@ where
         // do one step of the normal folding
         triangle_folding_inline(elements.as_mut(), |first, second| first * (R::one()-scalar) + second * scalar, 1);
         // copy the necessary data over to grad
-        for i in 0..k {
-            grad[i] = elements.as_mut()[i];
-        }
+        grad[..k].clone_from_slice(&elements.as_mut()[..k]);
     }
     grad
 }
