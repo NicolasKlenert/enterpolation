@@ -2,7 +2,7 @@
 
 use core::ops::{Add, Mul};
 use core::marker::PhantomData;
-use crate::Interpolation;
+use crate::Curve;
 use crate::real::Real;
 use num_traits::cast::{FromPrimitive, ToPrimitive};
 
@@ -30,7 +30,7 @@ pub struct LinearEquidistant<R,E,T>
     _phantoms: (PhantomData<R>, PhantomData<T>)
 }
 
-impl<R,E,T> Interpolation for LinearEquidistant<R,E,T>
+impl<R,E,T> Curve for LinearEquidistant<R,E,T>
 where
     E: AsRef<[T]>,
     T: Add<Output = T> + Mul<f64, Output = T> + Copy
@@ -92,7 +92,7 @@ impl<R,T, const N: usize> LinearEquidistant<R,[T;N],T>
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{Interpolation, Curve};
+    use crate::Curve;
 
     #[test]
     fn linear() {

@@ -5,7 +5,7 @@ pub mod bezier_deriative;
 
 use core::ops::{Add, Mul, Sub};
 use core::marker::PhantomData;
-use crate::{Interpolation, Stepper};
+use crate::{Curve, Stepper};
 use crate::utils::{triangle_folding_inline, lower_triangle_folding_inline};
 use crate::real::Real;
 use num_traits::cast::FromPrimitive;
@@ -153,7 +153,7 @@ pub struct Bezier<R,P,T>
     _phantoms: (PhantomData<R>, PhantomData<T>)
 }
 
-impl<R,P,T> Interpolation for Bezier<R,P,T>
+impl<R,P,T> Curve for Bezier<R,P,T>
 where
     P: AsRef<[T]> + ToOwned,
     P::Owned: AsMut<[T]>,
@@ -260,7 +260,7 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{Interpolation, Curve};
+    use crate::Curve;
 
     #[test]
     fn linear() {

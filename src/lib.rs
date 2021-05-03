@@ -25,7 +25,8 @@ pub trait MutInterpolation {
 }
 
 /// Trait for all Interpolations
-pub trait Interpolation {
+pub trait Interpolation
+{
     type Input;
     type Output;
     fn get(&self, scalar: Self::Input) -> Self::Output;
@@ -77,22 +78,41 @@ where
     }
 }
 
-/// Trait for all Interpolation which accept InterScalar (1-dim Interpolation) (mostly Curves)
+/// Newtype Take to encapsulate implementation details of the curve method take
+pub struct Take<'a, C>(Extractor<'a, C, Stepper<C::Input>>) where C: ?Sized + Curve;
+
+impl<'a, C> Iterator for Take<'a, C>
+where
+    C: ?Sized + Curve,
+    C::Input: FromPrimitive,
+{
+    type Item = C::Output;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next()
+    }
+}
+
+/// Curve is a specialized Interpolation which takes a real number as input
 pub trait Curve {
     type Input: Real;
     type Output;
-    fn take(&self, samples: usize) -> Extractor<Self, Stepper<Self::Input>>;
+    fn get(&self, scalar: Self::Input) -> Self::Output;
+    fn take(&self, samples: usize) -> Extractor<Self, Stepper<Self::Input>>
+    where Self::Input: FromPrimitive
+    {
+        self.extract(Stepper::new(samples))
+    }
 }
 
-impl<T,R> Curve for T
+//Every Curve is an interpolation
+impl<C> Interpolation for C
 where
-    T: Interpolation<Input = R>,
-    R: Real + FromPrimitive,
+    C: ?Sized + Curve
 {
-    type Input = R;
-    type Output = <T as Interpolation>::Output;
-    fn take(&self, samples: usize) -> Extractor<Self, Stepper<Self::Input>> {
-        self.extract(Stepper::new(samples))
+    type Input = C::Input;
+    type Output = C::Output;
+    fn get(&self, scalar: Self::Input) -> Self::Output{
+        <C as Curve>::get(&self, scalar)
     }
 }
 
@@ -120,7 +140,7 @@ pub struct Extractor<'a, T: ?Sized, I> {
 
 impl<'a, T, I> Iterator for Extractor<'a, T, I>
 where
-    T: Interpolation,
+    T: ?Sized + Interpolation,
     I: Iterator<Item = T::Input>
 {
     type Item = T::Output;

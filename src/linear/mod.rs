@@ -4,7 +4,7 @@ pub mod linear_equidistant;
 
 use core::ops::{Add, Mul};
 use core::marker::PhantomData;
-use crate::{Interpolation, Stepper, EnterpolationError};
+use crate::{Curve, Stepper, EnterpolationError};
 use crate::real::Real;
 use num_traits::cast::FromPrimitive;
 
@@ -64,7 +64,7 @@ pub struct Linear<R,E,T,K>
     _phantoms: (PhantomData<R>, PhantomData<T>)
 }
 
-impl<R,E,T,K> Interpolation for Linear<R,E,T,K>
+impl<R,E,T,K> Curve for Linear<R,E,T,K>
 where
     E: AsRef<[T]>,
     K: AsRef<[R]>,
@@ -193,7 +193,7 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{Interpolation, Curve};
+    use crate::Curve;
 
     #[test]
     fn linear() {
