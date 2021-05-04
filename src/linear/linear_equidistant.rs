@@ -1,10 +1,14 @@
+//! Special Linear Interpolation in which the knots are assumed to be equidistant.
+//! This allows an performance boost and makes interpolation O(1) instead of O(log n) with n
+//! being the number of elements saved in the linear interpolation.
+
 // TODO: creation of Interpolations should not panic, instead it should return a Result!
 
 use core::ops::{Add, Mul};
 use core::marker::PhantomData;
-use crate::Curve;
+use crate::{Interpolation, Curve};
 use crate::real::Real;
-use num_traits::cast::{FromPrimitive, ToPrimitive};
+use num_traits::cast::FromPrimitive;
 
 /// Linear interpolate/extrapolate with the elements, assuming they are all equally far from each other.
 /// There should be at least 1 element!
@@ -12,7 +16,7 @@ pub fn linear<R,E,T>(elements: E, scalar: R) -> T
 where
     E: AsRef<[T]>,
     T: Add<Output = T> + Mul<R, Output = T> + Copy,
-    R: Real + FromPrimitive + ToPrimitive,
+    R: Real + FromPrimitive,
 {
     let elements = elements.as_ref();
     let scaled = scalar * R::from_usize(elements.len()-1).unwrap();
@@ -30,17 +34,25 @@ pub struct LinearEquidistant<R,E,T>
     _phantoms: (PhantomData<R>, PhantomData<T>)
 }
 
-impl<R,E,T> Curve for LinearEquidistant<R,E,T>
+impl<R,E,T> Interpolation for LinearEquidistant<R,E,T>
 where
     E: AsRef<[T]>,
-    T: Add<Output = T> + Mul<f64, Output = T> + Copy
+    T: Add<Output = T> + Mul<R, Output = T> + Copy,
+    R: Real + FromPrimitive
 {
-    type Input = f64;
+    type Input = R;
     type Output = T;
-    fn get(&self, scalar: f64) -> T {
+    fn get(&self, scalar: R) -> T {
         linear(&self.elements, scalar)
     }
 }
+
+impl<R,E,T> Curve for LinearEquidistant<R,E,T>
+where
+    E: AsRef<[T]>,
+    T: Add<Output = T> + Mul<R, Output = T> + Copy,
+    R: Real + FromPrimitive
+{}
 
 impl<R,T> LinearEquidistant<R,Vec<T>,T>
 {

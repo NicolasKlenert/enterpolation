@@ -1,10 +1,20 @@
+//! Linear Interpolations
+//! These Interpolations can be stacked together to create multidimensional Interpolations
+//! Linear Interplations are one of the simplest forms of interpolations.
+//! Most of the time, Linear Interpolations are used as an approximation of curves, such
+//! Linear Interpolations often do have many elements. For this reason
+//! we supply the specialized LinearEquidistant Interplation, in which we assume that the distance
+//! of an element to it's neighbors is constant. This increases performance, as the search for
+//! the border elements to calculate the linear interpolation with can be found in O(1)
+//! instead of O(log n) with n being the number of elements in the interpolation structure.
+
 // TODO: creation of Interpolations should not panic, instead it should return a Result!
 
 pub mod linear_equidistant;
 
 use core::ops::{Add, Mul};
 use core::marker::PhantomData;
-use crate::{Curve, Stepper, EnterpolationError};
+use crate::{Interpolation, Curve, Stepper, EnterpolationError};
 use crate::real::Real;
 use num_traits::cast::FromPrimitive;
 
@@ -57,6 +67,8 @@ where
     min_point * (R::one() - factor) + max_point * factor
 }
 
+/// Linear Interpolation Structure with knots
+/// If knots are roughly or exactly equidistant, consider using LinearEquidistant instead.
 pub struct Linear<R,E,T,K>
 {
     elements: E,
@@ -64,7 +76,7 @@ pub struct Linear<R,E,T,K>
     _phantoms: (PhantomData<R>, PhantomData<T>)
 }
 
-impl<R,E,T,K> Curve for Linear<R,E,T,K>
+impl<R,E,T,K> Interpolation for Linear<R,E,T,K>
 where
     E: AsRef<[T]>,
     K: AsRef<[R]>,
@@ -77,6 +89,14 @@ where
         linear(&self.elements, &self.knots, scalar)
     }
 }
+
+impl<R,E,T,K> Curve for Linear<R,E,T,K>
+where
+    E: AsRef<[T]>,
+    K: AsRef<[R]>,
+    T: Add<Output = T> + Mul<R, Output = T> + Copy,
+    R: Real
+{}
 
 impl<R,T> Linear<R,Vec<T>,T,Vec<R>>
 where

@@ -1,3 +1,10 @@
+//! This crate provides a myriad of different interpolation, extrapolation and animation methods.
+//! Most notably it tries to be generic and modular. If instances of your type act somewhat like
+//! a vector space, this crate will be able to interpolate, extrapolate and animate them.
+//! TODO: describe more
+
+#![warn(missing_docs)]
+
 #[macro_use]
 extern crate assert_float_eq;
 
@@ -27,9 +34,15 @@ pub trait MutInterpolation {
 /// Trait for all Interpolations
 pub trait Interpolation
 {
+    /// The input type of the interpolation
     type Input;
+    /// The output type of the interpolation
     type Output;
+    /// Calculate the element at point `scalar`.
     fn get(&self, scalar: Self::Input) -> Self::Output;
+    /// Helper function if one wants to sample the interpolation.
+    /// It takes an iterator which yields items which are inputted into the `get` function
+    /// and returns the output of the interpolation.
     fn extract<I>(&self, iterator: I) -> Extractor<Self, I>
     where I: Iterator<Item = Self::Input>
     {
@@ -79,12 +92,15 @@ where
 }
 
 /// Newtype Take to encapsulate implementation details of the curve method take
-pub struct Take<'a, C>(Extractor<'a, C, Stepper<C::Input>>) where C: ?Sized + Curve;
+pub struct Take<'a, C>(Extractor<'a, C, Stepper<C::Input>>)
+where
+    C: ?Sized + Curve,
+    C::Input: Real;
 
 impl<'a, C> Iterator for Take<'a, C>
 where
     C: ?Sized + Curve,
-    C::Input: FromPrimitive,
+    C::Input: Real + FromPrimitive,
 {
     type Item = C::Output;
     fn next(&mut self) -> Option<Self::Item> {
@@ -93,10 +109,9 @@ where
 }
 
 /// Curve is a specialized Interpolation which takes a real number as input
-pub trait Curve {
-    type Input: Real;
-    type Output;
-    fn get(&self, scalar: Self::Input) -> Self::Output;
+pub trait Curve : Interpolation
+where Self::Input: Real
+{
     fn take(&self, samples: usize) -> Extractor<Self, Stepper<Self::Input>>
     where Self::Input: FromPrimitive
     {
@@ -104,30 +119,27 @@ pub trait Curve {
     }
 }
 
-//Every Curve is an interpolation
-impl<C> Interpolation for C
-where
-    C: ?Sized + Curve
-{
-    type Input = C::Input;
-    type Output = C::Output;
-    fn get(&self, scalar: Self::Input) -> Self::Output{
-        <C as Curve>::get(&self, scalar)
-    }
-}
-
+/// The error structure of this crate. Each possible error this crate could return is listed here.
 #[derive(Error, Debug)]
 pub enum EnterpolationError {
+    /// Error returned if the elements given at the creation of an interpolation are to few.
     #[error("To few elements given for creation of `{name}`, {found} elements given, but at least {expected} are necessary.")]
     ToFewElements{
+        /// The name of the Interpolation we wanted to create.
         name: String,
+        /// The number of elements found.
         found: usize,
+        /// The number of elements we need at least.
         expected: usize
     },
+    /// Error if the number of knots are not correct at time of creation of an interpolation.
     #[error("The amount of knots given for creation of `{name}` are not correct, {found} knots given, but {expected} necessary.")]
     InvalidNumberKnots{
+        /// The name of the Interpolation we wanted to create.
         name: String,
+        /// The number of knots found.
         found: usize,
+        /// Description how many knots are needed.
         expected: String
     },
 }
