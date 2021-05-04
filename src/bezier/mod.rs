@@ -1,8 +1,8 @@
 // TODO: creation of Interpolations should not panic, instead it should return a Result!
 // TODO: rational Bezier curves!
 
-pub mod bezier_deriative;
-
+// TODO: create LinearEquidistant Interpolation from Bezier, when a constant speed is wished for
+// TODO: -> see https://www.researchgate.net/post/How-can-I-assign-a-specific-velocity-to-a-point-moving-on-a-Bezier-curve
 use core::ops::{Add, Mul, Sub};
 use core::marker::PhantomData;
 use crate::{Interpolation, Curve, Stepper};
