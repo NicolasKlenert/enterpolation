@@ -16,36 +16,8 @@ use core::ops::{Add, Mul};
 use core::marker::PhantomData;
 use crate::{Interpolation, Curve, Stepper, EnterpolationError};
 use crate::real::Real;
+use crate::utils::upper_border;
 use num_traits::cast::FromPrimitive;
-
-/// Find the indices in which the given element is in between.
-/// We assume that the collection is non-empty and ordered, to use binary search.
-/// If one or more elements in the collections are exactly equal to the element,
-/// the function will return a border in which either index returned
-/// will be the index of an element equal to the element given.
-/// If the given element is smaller/bigger than every element in the collection, then
-/// the borders given will the the smallest/biggest possible
-fn find_borders<C,T>(collection: C, element: T) -> (usize, usize)
-where
-    C: AsRef<[T]>,
-    T: PartialOrd + Copy
-{
-    let mut min_index = 0;
-    let mut max_index = collection.as_ref().len() - 1;
-
-    while max_index - min_index > 1 {
-        let index = min_index + (max_index - min_index) / 2;
-        let sample = collection.as_ref()[index];
-
-        if element < sample {
-            max_index = index;
-        } else {
-            min_index = index;
-        }
-    }
-    (min_index, max_index)
-}
-
 
 /// Linear interpolate/extrapolate with the elements and knots given.
 /// Knots should be in increasing order and there has to be at least 2 knots.
@@ -58,7 +30,7 @@ where
     T: Add<Output = T> + Mul<R, Output = T> + Copy,
     R: Real
 {
-    let (min_index, max_index) = find_borders(&knots, scalar);
+    let (min_index, max_index) = upper_border(knots.as_ref(), scalar);
     let min = knots.as_ref()[min_index];
     let max = knots.as_ref()[max_index];
     let min_point = elements.as_ref()[min_index];
@@ -218,9 +190,9 @@ mod test {
     #[test]
     fn linear() {
         let lin = Linear::<f64,_,_,_>::from_collection(vec![20.0,100.0,0.0,200.0]).unwrap();
-        let mut iter = lin.take(7);
         let expected = [20.0,60.0,100.0,50.0,0.0,100.0,200.0];
-        for i in 0..=6 {
+        let mut iter = lin.take(expected.len());
+        for i in 0..expected.len() {
             let val = iter.next().unwrap();
             assert_f64_near!(val, expected[i]);
         }
@@ -234,19 +206,5 @@ mod test {
         assert_f64_near!(lin.get(-1.0), -140.0);
         assert_f64_near!(lin.get(5.0), 400.0);
 
-    }
-
-    #[test]
-    fn find_borders() {
-        let arr = [0.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0];
-        assert_eq!(super::find_borders(&arr,0.35),(3,4));
-        assert_eq!(super::find_borders(&arr,-1.0),(0,1));
-        assert_eq!(super::find_borders(&arr,20.0),(9,10));
-        // test if element given es equal to a knot
-        let borders = super::find_borders(&arr,0.5);
-        assert!(borders.0 == 5 || borders.1 == 5);
-        // test if find_borders works with only 1 element
-        let arr = [5.0];
-        assert_eq!(super::find_borders(&arr,0.5), (0,0));
     }
 }
