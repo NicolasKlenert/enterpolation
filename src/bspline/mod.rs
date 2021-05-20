@@ -13,9 +13,38 @@ use crate::utils::strict_upper_bound;
 use crate::real::Real;
 
 /// BSpline curve interpolate/extrapolate with the elements given. (De Boors Algorithm)
-/// This mutates the elements, such copying them first is necessary!
+/// This mutates the elements, such copying them first is necessary.
+/// Also we assume that only the necessary elements given (in a slice).
+/// If one has the whole array at hand, slicing would have to be done with
+/// [index-degree-1..index] with index being the result of
+/// strict_upper_bound of knots[degree, len - degree -1] + degree.
+///
+/// This function is used internally for generic use cases, where the calculation of an element is costly.
+///
 /// Panics if not at least 1 element exists.
-//TODO: think about what happens if we are out of range!
+fn bspline_element_slice<R,E,K,T>(mut elements: E, knots: K, index: usize, degree: usize, scalar: R) -> T
+where
+    E: AsMut<[T]>,
+    K: AsRef<[R]>,
+    T: Add<Output = T> + Mul<R, Output = T> + Copy,
+    R: Real
+{
+    let knots = knots.as_ref();
+    let elements = elements.as_mut();
+    for r in 1..=degree {
+        for j in 0..=(degree-r){
+            let i = j+r+index-degree;
+            let factor = (scalar - knots[i-1])/(knots[i+degree-r] - knots[i-1]);
+            elements[j] = elements[j] * (R::one() - factor) + elements[j+1] * factor;
+        }
+    }
+    elements[0]
+}
+
+/// BSpline curve interpolate/extrapolate with the elements given. (De Boors Algorithm)
+/// This mutates the elements, such copying them first is necessary!
+///
+/// Panics if not at least 1 element exists.
 pub fn bspline<R,E,K,T>(mut elements: E, knots: K, degree: usize, scalar: R) -> T
 where
     E: AsMut<[T]>,
@@ -36,7 +65,6 @@ where
     let elements = elements.as_mut();
     for r in 1..=degree {
         for i in ((index+r-degree-1)..index).rev(){
-        // for i in (max_index-degree+r-1)..(max_index-1-multiplicity){
             let factor = (scalar - knots[i])/(knots[i+degree-r+1] - knots[i]);
             elements[i] = elements[i-1] * (R::one() - factor) + elements[i] * factor;
         }
@@ -222,6 +250,21 @@ mod test {
         let spline = BSpline::new(points, knots);
         for i in 0..expect.len(){
             assert_f64_near!(spline.get(expect[i].0),expect[i].1);
+        }
+    }
+
+    #[test]
+    fn element_slice() {
+        let expect: Vec<(f32, f32)> = vec![(0.0, 0.0), (0.5, 0.125), (1.0, 0.5), (1.4, 0.74), (1.5, 0.75),
+                          (1.6, 0.74), (2.0, 0.5), (2.5, 0.125), (3.0, 0.0)];
+        let points = [0.0f32, 0.0, 1.0, 0.0, 0.0];
+        let knots = [0.0f32, 0.0, 0.0, 1.0, 2.0, 3.0, 3.0, 3.0];
+        let degree = 2;
+        for i in 0..expect.len(){
+            let index = super::strict_upper_bound(&knots[degree..knots.len()-degree-1],expect[i].0)+degree;
+            assert_f32_near!(
+                super::bspline_element_slice(&mut points.clone()[index-degree-1..index],
+                &knots, index, 2, expect[i].0),expect[i].1);
         }
     }
 }
