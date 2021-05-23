@@ -8,7 +8,7 @@
 
 use core::ops::{Add, Mul};
 use core::marker::PhantomData;
-use crate::{Interpolation, Curve};
+use crate::{Generator, Interpolation, Curve};
 use crate::utils::strict_upper_bound;
 use crate::real::Real;
 
@@ -84,7 +84,7 @@ pub struct BSpline<R,E,T,K>
     _phantoms: (PhantomData<R>, PhantomData<T>)
 }
 
-impl<R,E,T,K> Interpolation for BSpline<R,E,T,K>
+impl<R,E,T,K> Generator<R> for BSpline<R,E,T,K>
 where
     E: AsRef<[T]> + ToOwned,
     E::Owned: AsMut<[T]>,
@@ -92,14 +92,13 @@ where
     R: Real,
     K: AsRef<[R]>
 {
-    type Input = R;
     type Output = T;
     fn get(&self, scalar: R) -> T {
         bspline(self.elements.to_owned(), self.knots.as_ref(), self.degree, scalar)
     }
 }
 
-impl<R,E,T,K> Curve for BSpline<R,E,T,K>
+impl<R,E,T,K> Interpolation<R> for BSpline<R,E,T,K>
 where
     E: AsRef<[T]> + ToOwned,
     E::Owned: AsMut<[T]>,
@@ -107,6 +106,19 @@ where
     R: Real,
     K: AsRef<[R]>
 {}
+
+impl<R,E,T,K> Curve<R> for BSpline<R,E,T,K>
+where
+    E: AsRef<[T]> + ToOwned,
+    E::Owned: AsMut<[T]>,
+    T: Add<Output = T> + Mul<R, Output = T> + Copy,
+    R: Real,
+    K: AsRef<[R]>
+{
+    fn domain(&self) -> [R; 2] {
+        [self.knots.as_ref()[self.degree], self.knots.as_ref()[self.knots.as_ref().len() - self.degree - 1]]
+    }
+}
 
 impl<R,T> BSpline<R,Vec<T>,T,Vec<R>>
 {

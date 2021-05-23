@@ -1,3 +1,5 @@
+//! Bezier curves do have a performance of O(n^2), as their degree corresponds with the number of elements.
+
 // TODO: creation of Interpolations should not panic, instead it should return a Result!
 // TODO: rational Bezier curves!
 
@@ -5,7 +7,7 @@
 // TODO: -> see https://www.researchgate.net/post/How-can-I-assign-a-specific-velocity-to-a-point-moving-on-a-Bezier-curve
 use core::ops::{Add, Mul, Sub};
 use core::marker::PhantomData;
-use crate::{Interpolation, Curve, Stepper};
+use crate::{Generator, Interpolation, Curve, Stepper};
 use crate::utils::{triangle_folding_inline, lower_triangle_folding_inline};
 use crate::real::Real;
 use num_traits::cast::FromPrimitive;
@@ -151,27 +153,39 @@ pub struct Bezier<R,P,T>
     _phantoms: (PhantomData<R>, PhantomData<T>)
 }
 
-impl<R,P,T> Interpolation for Bezier<R,P,T>
+impl<R,P,T> Generator<R> for Bezier<R,P,T>
 where
     P: AsRef<[T]> + ToOwned,
     P::Owned: AsMut<[T]>,
     T: Add<Output = T> + Mul<R, Output = T> + Copy,
     R: Real
 {
-    type Input = R;
     type Output = T;
     fn get(&self, scalar: R) -> T {
         bezier(self.elements.to_owned(), scalar)
     }
 }
 
-impl<R,P,T> Curve for Bezier<R,P,T>
+impl<R,P,T> Interpolation<R> for Bezier<R,P,T>
 where
     P: AsRef<[T]> + ToOwned,
     P::Owned: AsMut<[T]>,
     T: Add<Output = T> + Mul<R, Output = T> + Copy,
     R: Real
 {}
+
+impl<R,P,T> Curve<R> for Bezier<R,P,T>
+where
+    P: AsRef<[T]> + ToOwned,
+    P::Owned: AsMut<[T]>,
+    T: Add<Output = T> + Mul<R, Output = T> + Copy,
+    R: Real
+{
+    /// Return the domain of the Curve, in this case just [0.0,1.0].
+    fn domain(&self) -> [R; 2] {
+        [R::zero(),R::one()]
+    }
+}
 
 impl<R,P,T> Bezier<R,P,T>
 where
@@ -254,10 +268,14 @@ where
     T: Add<Output = T> + Mul<R, Output = T> + Copy,
     R: Real
 {
+    /// Trims the given bezier curve at the point given by scalar.
+    /// Mutates the curve such that it represents the the original curve from the point given to the end.
     pub fn trim_left(&mut self, scalar: R){
         bezier_trim_left(self.elements.as_mut(), scalar)
     }
 
+    /// Trims the given bezier curve at the point given by scalar.
+    /// Mutates the curve such that it represents the the original curve from the start to the point given.
     pub fn trim_right(&mut self, scalar: R){
         bezier_trim_right(self.elements.as_mut(), scalar)
     }

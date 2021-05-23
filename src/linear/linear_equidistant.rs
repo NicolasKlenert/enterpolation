@@ -6,7 +6,7 @@
 
 use core::ops::{Add, Mul};
 use core::marker::PhantomData;
-use crate::{Interpolation, Curve};
+use crate::{Generator, Interpolation, Curve};
 use crate::real::Real;
 use num_traits::cast::FromPrimitive;
 
@@ -34,25 +34,37 @@ pub struct LinearEquidistant<R,E,T>
     _phantoms: (PhantomData<R>, PhantomData<T>)
 }
 
-impl<R,E,T> Interpolation for LinearEquidistant<R,E,T>
+impl<R,E,T> Generator<R> for LinearEquidistant<R,E,T>
 where
     E: AsRef<[T]>,
     T: Add<Output = T> + Mul<R, Output = T> + Copy,
     R: Real + FromPrimitive
 {
-    type Input = R;
     type Output = T;
     fn get(&self, scalar: R) -> T {
         linear(&self.elements, scalar)
     }
 }
 
-impl<R,E,T> Curve for LinearEquidistant<R,E,T>
+impl<R,E,T> Interpolation<R> for LinearEquidistant<R,E,T>
 where
     E: AsRef<[T]>,
     T: Add<Output = T> + Mul<R, Output = T> + Copy,
     R: Real + FromPrimitive
-{}
+{
+}
+
+impl<R,E,T> Curve<R> for LinearEquidistant<R,E,T>
+where
+    E: AsRef<[T]>,
+    T: Add<Output = T> + Mul<R, Output = T> + Copy,
+    R: Real + FromPrimitive
+{
+    /// Return the domain of the Curve, in this case just [0.0,1.0].
+    fn domain(&self) -> [R; 2] {
+        [R::zero(), R::one()]
+    }
+}
 
 impl<R,T> LinearEquidistant<R,Vec<T>,T>
 {

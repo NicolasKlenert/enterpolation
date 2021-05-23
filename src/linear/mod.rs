@@ -14,7 +14,7 @@ pub mod linear_equidistant;
 
 use core::ops::{Add, Mul};
 use core::marker::PhantomData;
-use crate::{Interpolation, Curve, Stepper, EnterpolationError};
+use crate::{Generator, Interpolation, Curve, Stepper, EnterpolationError};
 use crate::real::Real;
 use crate::utils::upper_border;
 use num_traits::cast::FromPrimitive;
@@ -48,27 +48,38 @@ pub struct Linear<R,E,T,K>
     _phantoms: (PhantomData<R>, PhantomData<T>)
 }
 
-impl<R,E,T,K> Interpolation for Linear<R,E,T,K>
+impl<R,E,T,K> Generator<R> for Linear<R,E,T,K>
 where
     E: AsRef<[T]>,
     K: AsRef<[R]>,
     T: Add<Output = T> + Mul<R, Output = T> + Copy,
     R: Real
 {
-    type Input = R;
     type Output = T;
     fn get(&self, scalar: R) -> T {
         linear(&self.elements, &self.knots, scalar)
     }
 }
 
-impl<R,E,T,K> Curve for Linear<R,E,T,K>
+impl<R,E,T,K> Interpolation<R> for Linear<R,E,T,K>
 where
     E: AsRef<[T]>,
     K: AsRef<[R]>,
     T: Add<Output = T> + Mul<R, Output = T> + Copy,
     R: Real
 {}
+
+impl<R,E,T,K> Curve<R> for Linear<R,E,T,K>
+where
+    E: AsRef<[T]>,
+    K: AsRef<[R]>,
+    T: Add<Output = T> + Mul<R, Output = T> + Copy,
+    R: Real
+{
+    fn domain(&self) -> [R; 2] {
+        [*self.knots.as_ref().first().unwrap(), *self.knots.as_ref().last().unwrap()]
+    }
+}
 
 impl<R,T> Linear<R,Vec<T>,T,Vec<R>>
 where
