@@ -26,14 +26,26 @@ pub trait Generator<Input> {
     /// Helper function if one wants to sample the interpolation.
     /// It takes an iterator which yields items which are inputted into the `get` function
     /// and returns the output of the interpolation.
-    fn extract<I>(&self, iterator: I) -> Extract<&Self, Self, I>
-    where I: Iterator<Item = Input>
+    fn extract<I>(self, iterator: I) -> Extract<Self, I>
+    where
+        Self: Sized,
+        I: Iterator<Item = Input>
     {
         Extract {
-            interpolation: self,
+            generator: self,
             iterator,
-            phantom: PhantomData
         }
+    }
+    fn by_ref(&mut self) -> &mut Self {
+        self
+    }
+}
+
+//Make references of generators also generators
+impl<G: Generator<I> + ?Sized,I> Generator<I> for &G {
+    type Output = G::Output;
+    fn get(&self, input: I) -> Self::Output {
+        (**self).get(input)
     }
 }
 
@@ -44,6 +56,9 @@ pub trait Generator<Input> {
 pub trait Interpolation<Input> : Generator<Input>
 {}
 
+//Make references of interpolations also interpolations
+impl<I: Interpolation<Input> + ?Sized,Input> Interpolation<Input> for &I {}
+
 /// Curve is a specialized Interpolation which takes a real number as input
 pub trait Curve<R> : Interpolation<R>
 where R: Real
@@ -51,43 +66,48 @@ where R: Real
     /// The domain in which the curve uses interpolation. Not all Curves may extrapolate in a safe way.
     fn domain(&self) -> [R; 2];
     /// Takes equidistant samples of the curve (with 0.0 and 1.0 inclusive).
-    fn take(&self, samples: usize) -> Take<&Self, Self, R>
+    fn take(&self, samples: usize) -> Take<&Self, R>
     where R: FromPrimitive
     {
         Take(self.extract(Stepper::new(samples)))
     }
 }
 
-/// Iterator adaptor, which transforms an iterator with InterScalar items to an iterator with the correspondending values of the interpolation
-pub struct Extract<R, P: ?Sized, I> {
-    interpolation: R,
-    iterator: I,
-    phantom: PhantomData<*const P>
+//Make references of interpolations also interpolations
+impl<C: Curve<R> + ?Sized,R> Curve<R> for &C
+where R: Real
+{
+    fn domain(&self) -> [R; 2] {
+        (**self).domain()
+    }
 }
 
-impl<R, P, I> Iterator for Extract<R, P, I>
+/// Iterator adaptor, which transforms an iterator with InterScalar items to an iterator with the correspondending values of the interpolation
+pub struct Extract<G, I> {
+    generator: G,
+    iterator: I,
+}
+
+impl<G, I> Iterator for Extract<G, I>
 where
-    R: Borrow<P>,
-    P: ?Sized + Interpolation<I::Item>,
+    G: Generator<I::Item>,
     I: Iterator
 {
-    type Item = P::Output;
+    type Item = G::Output;
     fn next(&mut self) -> Option<Self::Item> {
-        Some(self.interpolation.borrow().get(self.iterator.next()?))
+        Some(self.generator.get(self.iterator.next()?))
     }
 }
 
 /// Newtype Take to encapsulate implementation details of the curve method take
-pub struct Take<Rf, C, Re>(Extract<Rf, C, Stepper<Re>>)
+pub struct Take<C, R>(Extract<C, Stepper<R>>)
 where
-    C: ?Sized,
-    Re: Real;
+    R: Real;
 
-impl<Rf, C, Re> Iterator for Take<Rf, C, Re>
+impl<C, R> Iterator for Take<C, R>
 where
-    Rf: Borrow<C>,
-    C: ?Sized + Curve<Re>,
-    Re: Real + FromPrimitive,
+    C: Curve<R>,
+    R: Real + FromPrimitive,
 {
     type Item = C::Output;
     fn next(&mut self) -> Option<Self::Item> {
@@ -95,14 +115,9 @@ where
     }
 }
 
-//TODO: Stepper is nothing else then Equidistant.extract(Range) [Extract<Generator,Range>]
-// and equidistant would generate the values!
-/// Iterator which steps from 0.0 to 1.0 in a specific amount of constant steps.
-pub struct Stepper<R: Real = f64> {
-    current: usize,
-    amount: usize,
-    inverse_amount: R,
-}
+/// Newtype Steper to encapsulate implementation details.
+/// Stepper is an Iterator which steps from 0.0 to 1.0 in a specific amount of constant steps.
+pub struct Stepper<R: Real = f64>(Extract<Equidistant<R>,Range<usize>>);
 
 impl<R> Stepper<R>
 where
@@ -112,25 +127,16 @@ where
     /// The given generic real number has to be able to be created from usize
     /// Also the given steps are not allowed to be less than 1
     pub fn new(steps: usize) -> Self {
-        Stepper {
-            current: 0,
-            amount: steps - 1,
-            inverse_amount: R::from_usize(steps - 1).unwrap().recip()
-        }
+        Stepper(Equidistant::new(steps).extract(0..steps))
     }
 }
 
 impl<R> Iterator for Stepper<R>
-where R: Real + FromPrimitive,
+where R: Real + FromPrimitive
 {
     type Item = R;
     fn next(&mut self) -> Option<Self::Item> {
-        if self.current > self.amount {
-            return None;
-        }
-        let res = self.inverse_amount * R::from_usize(self.current).unwrap();
-        self.current += 1;
-        Some(res)
+        self.0.next()
     }
 }
 
@@ -408,12 +414,23 @@ struct Equidistant<R>{
     step: R,
 }
 
-impl<T> Generator<usize> for Equidistant<T>
-where T: Mul<usize, Output = T> + Copy
+impl<R> Equidistant<R>
+where R: Real + FromPrimitive
 {
-    type Output = T;
-    fn get(&self, input: usize) -> T {
-        self.step * input
+    pub fn new(len: usize) -> Self {
+        Equidistant {
+            len,
+            step: R::from_usize(len - 1).unwrap().recip()
+        }
+    }
+}
+
+impl<R> Generator<usize> for Equidistant<R>
+where R: Real + FromPrimitive
+{
+    type Output = R;
+    fn get(&self, input: usize) -> R {
+        self.step * R::from_usize(input).unwrap()
     }
 }
 
