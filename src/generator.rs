@@ -9,6 +9,7 @@
 //TODO: make f64 the default input for Curves! -> this may reduce the need of structs with <f64,_,_,_>
 //TODO: is Extrapolation as a marker trait also an idea?
 use core::marker::PhantomData;
+use core::borrow::Borrow;
 use core::ops::{Range, Mul, Sub, Div};
 use num_traits::real::Real;
 use num_traits::FromPrimitive;
@@ -25,12 +26,13 @@ pub trait Generator<Input> {
     /// Helper function if one wants to sample the interpolation.
     /// It takes an iterator which yields items which are inputted into the `get` function
     /// and returns the output of the interpolation.
-    fn extract<I>(&self, iterator: I) -> Extract<Self, I>
+    fn extract<I>(&self, iterator: I) -> Extract<&Self, Self, I>
     where I: Iterator<Item = Input>
     {
         Extract {
             interpolation: self,
             iterator,
+            phantom: PhantomData
         }
     }
 }
@@ -49,7 +51,7 @@ where R: Real
     /// The domain in which the curve uses interpolation. Not all Curves may extrapolate in a safe way.
     fn domain(&self) -> [R; 2];
     /// Takes equidistant samples of the curve (with 0.0 and 1.0 inclusive).
-    fn take(&self, samples: usize) -> Take<Self, R>
+    fn take(&self, samples: usize) -> Take<&Self, Self, R>
     where R: FromPrimitive
     {
         Take(self.extract(Stepper::new(samples)))
@@ -57,32 +59,35 @@ where R: Real
 }
 
 /// Iterator adaptor, which transforms an iterator with InterScalar items to an iterator with the correspondending values of the interpolation
-pub struct Extract<'a, T: ?Sized, I> {
-    interpolation: &'a T,
+pub struct Extract<R, P: ?Sized, I> {
+    interpolation: R,
     iterator: I,
+    phantom: PhantomData<*const P>
 }
 
-impl<'a, T, I> Iterator for Extract<'a, T, I>
+impl<R, P, I> Iterator for Extract<R, P, I>
 where
-    T: ?Sized + Interpolation<I::Item>,
+    R: Borrow<P>,
+    P: ?Sized + Interpolation<I::Item>,
     I: Iterator
 {
-    type Item = T::Output;
+    type Item = P::Output;
     fn next(&mut self) -> Option<Self::Item> {
-        Some(self.interpolation.get(self.iterator.next()?))
+        Some(self.interpolation.borrow().get(self.iterator.next()?))
     }
 }
 
 /// Newtype Take to encapsulate implementation details of the curve method take
-pub struct Take<'a, C, R>(Extract<'a, C, Stepper<R>>)
+pub struct Take<Rf, C, Re>(Extract<Rf, C, Stepper<Re>>)
 where
-    C: ?Sized + Curve<R>,
-    R: Real;
+    C: ?Sized,
+    Re: Real;
 
-impl<'a, C, R> Iterator for Take<'a, C, R>
+impl<Rf, C, Re> Iterator for Take<Rf, C, Re>
 where
-    C: ?Sized + Curve<R>,
-    R: Real + FromPrimitive,
+    Rf: Borrow<C>,
+    C: ?Sized + Curve<Re>,
+    Re: Real + FromPrimitive,
 {
     type Item = C::Output;
     fn next(&mut self) -> Option<Self::Item> {
