@@ -4,12 +4,10 @@
 
 //TODO: Stepper is nothing else then Equidistant! Such one can use Equidistant as motor for Stepper!
 //TODO: also make it/them such they can go to a custom domainscale (they should still start at 0 for ease of use)
-//TODO: refactor Stepper
 //TODO: create derives for Interpolation and Curve etc(?) -> https://github.com/rust-lang/rfcs/issues/1024
 //TODO: make f64 the default input for Curves! -> this may reduce the need of structs with <f64,_,_,_>
 //TODO: is Extrapolation as a marker trait also an idea?
 use core::marker::PhantomData;
-use core::borrow::Borrow;
 use core::ops::{Range, Mul, Sub, Div};
 use num_traits::real::Real;
 use num_traits::FromPrimitive;
@@ -36,7 +34,9 @@ pub trait Generator<Input> {
             iterator,
         }
     }
-    fn by_ref(&mut self) -> &mut Self {
+    /// Get a reference of the generator.
+    /// This is useful if one wants to add an adapter without consuming the original.
+    fn by_ref(&self) -> &Self {
         self
     }
 }
@@ -406,7 +406,6 @@ pub trait SortedList<T> : Generator<usize, Output = T> {
     }
 }
 
-
 /// Struct used as a generator for equidistant elements.
 /// Acts like an array of knots.
 struct Equidistant<R>{
@@ -555,5 +554,72 @@ where
     }
     fn last(&self) -> Option<R>{
         self.0.as_ref().last().map(|reference| *reference)
+    }
+}
+
+/// Trait for constant or dynamic workspace handling
+pub trait Space<T> {
+    // In the fututre with a more powerful type system
+    // one may be able to put the definition of T from the trait to the function.
+    // However for this to work, we would have to be able to say something like
+    // "we will output an array of (any) T", which is not yet easily possible.
+
+    /// The workspace given, this should be an array or a vector (AsRef<[T]>)
+    type Output;
+    /// Returns the length of the workspace given.
+    fn len(&self) -> usize;
+    /// The workspace itself.
+    fn workspace(&self, default: T) -> Self::Output;
+}
+
+/// Struct handles workspace while in compilation
+pub struct ConstSpace<T,const N: usize>{
+    phantom: PhantomData<*const T>
+}
+
+impl<T,const N: usize> Space<T> for ConstSpace<T,N>
+where T: Copy
+{
+    type Output = [T;N];
+    fn len(&self) -> usize {
+        N
+    }
+    fn workspace(&self, def: T) -> Self::Output {
+        [def; N]
+    }
+}
+
+impl<T, const N: usize> ConstSpace<T,N>{
+    pub fn new() -> Self {
+        ConstSpace {
+            phantom: PhantomData
+        }
+    }
+}
+
+/// Struct handles workspace in run-time
+pub struct DynSpace<T>{
+    len: usize,
+    phantom: PhantomData<*const T>
+}
+
+impl<T> Space<T> for DynSpace<T>
+where T: Copy
+{
+    type Output = std::vec::Vec<T>;
+    fn len(&self) -> usize {
+        self.len
+    }
+    fn workspace(&self, def: T) -> Self::Output {
+        vec![def; self.len]
+    }
+}
+
+impl<T> DynSpace<T>{
+    pub fn new(len: usize) -> Self {
+        DynSpace{
+            len,
+            phantom: PhantomData
+        }
     }
 }
