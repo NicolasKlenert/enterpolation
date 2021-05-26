@@ -14,16 +14,19 @@ pub mod linear_equidistant;
 
 use core::ops::{Add, Mul};
 use core::marker::PhantomData;
-use crate::{Generator, Interpolation, Curve, Stepper, EnterpolationError};
+use crate::{Generator, Interpolation, Curve, EnterpolationError, SortedList,
+    CollectionWrapper, FiniteGenerator, Equidistant, ConstEquidistant};
 use crate::real::Real;
 use crate::utils::upper_border;
 use num_traits::cast::FromPrimitive;
+
+use core::fmt::Debug;
 
 /// Linear interpolate/extrapolate with the elements and knots given.
 /// Knots should be in increasing order and there has to be at least 2 knots.
 /// Also there has to be the same amount of elements and knots.
 /// These constrains are not checked!
-pub fn linear<R,E,T,K>(elements: E, knots: K, scalar: R) -> T
+pub fn linear_array<R,T,K,E>(elements: E, knots: K, scalar: R) -> T
 where
     E: AsRef<[T]>,
     K: AsRef<[R]>,
@@ -39,21 +42,39 @@ where
     min_point * (R::one() - factor) + max_point * factor
 }
 
+/// Linear interpolate/extrapolate with the elements and knots given.
+/// Knots should be in increasing order and there has to be at least 2 knots.
+/// Also there has to be the same amount of elements and knots.
+/// These constrains are not checked!
+fn linear<R,T,K,E>(elements: &E, knots: &K, scalar: R) -> T
+where
+    E: Generator<usize, Output = T>,
+    K: SortedList<R>,
+    T: Add<Output = T> + Mul<R, Output = T> + Copy,
+    R: Real + Debug
+{
+    //we use upper_border_with_factor as this allows us a performance improvement for equidistant knots
+    let (min_index, max_index, factor) = knots.upper_border_with_factor(scalar);
+    let min_point = elements.get(min_index);
+    let max_point = elements.get(max_index);
+    min_point * (R::one() - factor) + max_point * factor
+}
+
 /// Linear Interpolation Structure with knots
 /// If knots are roughly or exactly equidistant, consider using LinearEquidistant instead.
-pub struct Linear<R,E,T,K>
+pub struct Linear<R,T,K,E>
 {
     elements: E,
     knots: K,
     _phantoms: (PhantomData<R>, PhantomData<T>)
 }
 
-impl<R,E,T,K> Generator<R> for Linear<R,E,T,K>
+impl<R,T,K,E> Generator<R> for Linear<R,T,K,E>
 where
-    E: AsRef<[T]>,
-    K: AsRef<[R]>,
+    E: Generator<usize, Output = T>,
+    K: SortedList<R>,
     T: Add<Output = T> + Mul<R, Output = T> + Copy,
-    R: Real
+    R: Real + Debug
 {
     type Output = T;
     fn get(&self, scalar: R) -> T {
@@ -61,51 +82,31 @@ where
     }
 }
 
-impl<R,E,T,K> Interpolation<R> for Linear<R,E,T,K>
+impl<R,T,K,E> Interpolation<R> for Linear<R,T,K,E>
 where
-    E: AsRef<[T]>,
-    K: AsRef<[R]>,
+    E: Generator<usize, Output = T>,
+    K: SortedList<R>,
     T: Add<Output = T> + Mul<R, Output = T> + Copy,
-    R: Real
+    R: Real + Debug
 {}
 
-impl<R,E,T,K> Curve<R> for Linear<R,E,T,K>
+impl<R,T,K,E> Curve<R> for Linear<R,T,K,E>
 where
-    E: AsRef<[T]>,
-    K: AsRef<[R]>,
+    E: Generator<usize, Output = T>,
+    K: SortedList<R>,
     T: Add<Output = T> + Mul<R, Output = T> + Copy,
-    R: Real
+    R: Real + Debug
 {
     fn domain(&self) -> [R; 2] {
-        [*self.knots.as_ref().first().unwrap(), *self.knots.as_ref().last().unwrap()]
+        [self.knots.first().unwrap(), self.knots.last().unwrap()]
     }
 }
 
-impl<R,T> Linear<R,Vec<T>,T,Vec<R>>
+impl<R,T> Linear<R,T,CollectionWrapper<Vec<R>,R>,CollectionWrapper<Vec<T>,T>>
 where
     T: Add<Output = T> + Mul<R, Output = T> + Copy,
     R: Real + FromPrimitive
 {
-    /// Creates a linear interpolation of elements given with equidistant knots.
-    /// There has to be at least 2 elements.
-    pub fn from_collection<C>(collection: C) -> Result<Self, EnterpolationError>
-    where C: IntoIterator<Item = T>
-    {
-        let elements: Vec<T> = collection.into_iter().collect();
-        if elements.len() < 2 {
-            return Err(EnterpolationError::ToFewElements{
-                name: "Linear".to_string(),
-                found: elements.len(),
-                expected: 2,
-            });
-        }
-        Ok(Linear {
-            knots: Stepper::new(elements.len()).into_iter().collect(),
-            elements,
-            _phantoms: (PhantomData, PhantomData)
-        })
-    }
-
     /// Create a linear interpolation with at least 2 elements.
     /// Knots are calculated with the given closure, which takes the index and the reference to the element.
     /// Knots should be in increasing order. This is not checked.
@@ -125,8 +126,8 @@ where
         }
         let knots: Vec<R> = elements.iter().enumerate().map(func).collect();
         Ok(Linear {
-            elements,
-            knots,
+            elements: elements.into(),
+            knots: knots.into(),
             _phantoms: (PhantomData, PhantomData)
         })
     }
@@ -152,36 +153,64 @@ where
             });
         }
         Ok(Linear {
-            elements,
-            knots,
+            elements: elements.into(),
+            knots: knots.into(),
             _phantoms: (PhantomData, PhantomData)
         })
     }
 }
 
-impl<R,P,T,K> Linear<R,P,T,K>
+impl<R,T> Linear<R,T,Equidistant<R>,CollectionWrapper<Vec<T>,T>>
 where
-    P: AsRef<[T]>,
-    K: AsRef<[R]>,
+    T: Add<Output = T> + Mul<R, Output = T> + Copy,
+    R: Real + FromPrimitive
+{
+    /// Creates a linear interpolation of elements given with equidistant knots.
+    /// There has to be at least 2 elements.
+    pub fn from_collection<C>(collection: C) -> Result<Self, EnterpolationError>
+    where C: IntoIterator<Item = T>
+    {
+        let elements: Vec<T> = collection.into_iter().collect();
+        if elements.len() < 2 {
+            return Err(EnterpolationError::ToFewElements{
+                name: "Linear".to_string(),
+                found: elements.len(),
+                expected: 2,
+            });
+        }
+        Ok(Linear {
+            knots: Equidistant::new(elements.len()),
+            elements: elements.into(),
+            _phantoms: (PhantomData, PhantomData)
+        })
+    }
+}
+
+impl<R,T,K,E> Linear<R,T,K,E>
+where
+    E: FiniteGenerator<Output = T>,
+    K: SortedList<R>,
     T: Add<Output = T> + Mul<R, Output = T> + Copy,
     R: Real
 {
     /// Create a linear interpolation with slice-like collections of elements and knots.
     /// Knots should be in increasing order (not checked), there should be as many knots as elements
     /// and there has to be at least 2 elements.
-    pub fn new(elements: P, knots: K) -> Result<Self, EnterpolationError>
+    pub fn new(elements: impl Into<E>, knots: impl Into<K>) -> Result<Self, EnterpolationError>
     {
-        if elements.as_ref().len() < 2 {
+        let elements = elements.into();
+        let knots = knots.into();
+        if elements.len() < 2 {
             return Err(EnterpolationError::ToFewElements{
                 name: "Linear".to_string(),
-                found: elements.as_ref().len(),
+                found: elements.len(),
                 expected: 2,
             });
         }
-        if knots.as_ref().len() != elements.as_ref().len() {
+        if knots.len() != elements.len() {
             return Err(EnterpolationError::InvalidNumberKnots{
                 name: "Linear".to_string(),
-                found: knots.as_ref().len(),
+                found: knots.len(),
                 expected: "same amount as elements".to_string(),
             });
         }
@@ -193,13 +222,29 @@ where
     }
 }
 
+impl<R,T,const N: usize> Linear<R,T,ConstEquidistant<R>,CollectionWrapper<[T;N],T>>
+{
+    /// Create a linear interpolation with an array of elements.
+    /// There has to be at least 1 element, which is NOT checked.
+    /// Should be used if one wants to create a constant Interpolation
+    pub const fn new_with_equidistant(elements: [T;N]) -> Self
+    {
+        let elements = CollectionWrapper::new(elements);
+        Linear {
+            elements,
+            knots: ConstEquidistant::new(N),
+            _phantoms: (PhantomData, PhantomData)
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
     use crate::Curve;
 
     #[test]
-    fn linear() {
+    fn linear_equidistant() {
         let lin = Linear::<f64,_,_,_>::from_collection(vec![20.0,100.0,0.0,200.0]).unwrap();
         let expected = [20.0,60.0,100.0,50.0,0.0,100.0,200.0];
         let mut iter = lin.take(expected.len());
@@ -210,12 +255,44 @@ mod test {
     }
 
     #[test]
+    fn linear() {
+        let lin = Linear::<f64,_,_,_>::from_collection_with_knots(vec![(20.0,0.0),(100.0,1.0/3.0),(0.0,2.0/3.0),(200.0,1.0)]).unwrap();
+        let expected = [20.0,60.0,100.0,50.0,0.0,100.0,200.0];
+        let mut iter = lin.take(expected.len());
+        for i in 0..expected.len() {
+            let val = iter.next().unwrap();
+            assert_f64_near!(val, expected[i]);
+        }
+    }
+
+    //TODO: try to get rid of turbofish... how?
+    #[test]
+    fn constant_equidistant(){
+        let constant = Linear::<f64,_,Equidistant<f64>,CollectionWrapper<[f64;1],f64>>::new([5.0],Equidistant::new(1)).unwrap();
+        assert_f64_near!(constant.get(-1.0), 5.0);
+        assert_f64_near!(constant.get(10.0), 5.0);
+        assert_f64_near!(constant.get(0.5), 5.0);
+    }
+
+    //TODO: add constant test (not equidistant)
+
+    #[test]
     fn extrapolation() {
         let lin = Linear::from_collection_with_knots(vec![(20.0,1.0),(100.0,2.0),(0.0,3.0),(200.0,4.0)]).unwrap();
         assert_f64_near!(lin.get(1.5), 60.0);
         assert_f64_near!(lin.get(2.5), 50.0);
         assert_f64_near!(lin.get(-1.0), -140.0);
         assert_f64_near!(lin.get(5.0), 400.0);
+    }
 
+    #[test]
+    fn const_creation(){
+        const LIN : Linear<f64,f64,ConstEquidistant<f64>,CollectionWrapper<[f64;4],f64>> = Linear::new_with_equidistant([20.0,100.0,0.0,200.0]);
+        let mut iter = LIN.take(7);
+        let expected = [20.0,60.0,100.0,50.0,0.0,100.0,200.0];
+        for i in 0..=6 {
+            let val = iter.next().unwrap();
+            assert_f64_near!(val, expected[i]);
+        }
     }
 }

@@ -3,6 +3,8 @@
 //! a vector space, this crate will be able to interpolate, extrapolate and animate them.
 //! TODO: describe more
 
+//TODO: Also our min and max_index of our linear interpolation does NOT clamp the values together...array out of bounds!
+//TODO: SO upper_border can be broken somehow! Look into it!
 
 //TODO: make the curves take ElementGenerator and KnotGenerator
 //TODO: -> then delete LinearEquidistant and use type alias and construction of linear with equidistant!
@@ -23,7 +25,8 @@ mod generator;
 
 use thiserror::Error;
 use crate::real::Real;
-pub use generator::{Generator, Interpolation, Curve, Extract, Stepper};
+pub use generator::{Generator, Interpolation, Curve, Extract, Stepper, SortedList, Space,
+    CollectionWrapper, FiniteGenerator, Equidistant, ConstEquidistant};
 
 /// Struct which chains two Interpolation together to one Interpolation.
 ///
