@@ -141,19 +141,20 @@ where R: Real + FromPrimitive
 }
 
 
+pub trait FiniteGenerator : Generator<usize> {
+    fn len(&self) -> usize;
+    fn first(&self) -> Option<Self::Output>;
+    fn last(&self) -> Option<Self::Output>;
+    fn empty(&self) -> bool {
+        self.len() == 0
+    }
+}
+
 /// Trait which symbolises a list of sorted elements, also outputs the value itself instead of a reference.
 ///
 /// This trait is mostly used to achieve better performance and accuracy for interpolation with equidistant knots
 /// without needing an extra struct.
-pub trait SortedList<T> : Generator<usize, Output = T> {
-    fn len(&self) -> usize;
-    fn first(&self) -> Option<T>;
-    fn last(&self) -> Option<T>;
-
-    fn empty(&self) -> bool {
-        self.len() == 0
-    }
-
+pub trait SortedList<T> : FiniteGenerator<Output = T> {
     /// Find the biggest index to the corresponding element which is still smaller or equal to the element given.
     /// We assume that the collection is non-empty and ordered, to use binary search.
     /// If one or more elements in the collections are exactly equal to the element,
@@ -408,10 +409,21 @@ pub trait SortedList<T> : Generator<usize, Output = T> {
 
 /// Struct used as a generator for equidistant elements.
 /// Acts like an array of knots.
-struct Equidistant<R>{
+pub struct Equidistant<R>{
     len: usize,
     step: R,
 }
+
+// // implement seperate new functions to be able to call them with const -> see issue #57563
+// impl Equidistant<f64>
+// {
+//     pub const fn new_f64(len: usize) -> Self {
+//         Equidistant {
+//             len,
+//             step: 1.0/((len - 1) as f64) //-> not possible, see issue #57241
+//         }
+//     }
+// }
 
 impl<R> Equidistant<R>
 where R: Real + FromPrimitive
@@ -433,8 +445,8 @@ where R: Real + FromPrimitive
     }
 }
 
-impl<R> SortedList<R> for Equidistant<R>
-where R: Real + FromPrimitive + Mul<usize, Output = R> + Copy
+impl<R> FiniteGenerator for Equidistant<R>
+where R: Real + FromPrimitive
 {
     fn len(&self) -> usize {
         self.len
@@ -453,15 +465,113 @@ where R: Real + FromPrimitive + Mul<usize, Output = R> + Copy
         }
         Some(self.get(self.len - 1))
     }
+}
 
-    fn upper_border(&self, element: R) -> [usize; 2]
-    where R: PartialOrd + Copy
+//TODO: Returning an Option or such would be more idiomatic! -> what to do with 0 or 1 element?!
+//TODO: upper_border is difficult to write for equidistant (making sure both indices are valid but are not the same!)
+//TODO: we don't even have a contract for that, such we should think about it carefully!
+//TODO: It is important to note that upper_border_with_factor does not act like upper_border -> Change the name!
+
+impl<R> SortedList<R> for Equidistant<R>
+where R: Real + FromPrimitive
+{
+    // /// # Panics
+    // ///
+    // /// Panics if the SortedList has less than 2 elements.
+    // fn upper_border(&self, element: R) -> [usize; 2]
+    // where R: PartialOrd + Copy
+    // {
+    //     let scaled = element * R::from_usize(self.len()-1).unwrap();
+    //     let min_index = scaled.floor().to_usize().unwrap().min(self.len()-2).max(0);
+    //     let max_index = scaled.ceil().to_usize().unwrap().min(self.len()-1).max(1);
+    //     [min_index, max_index]
+    // }
+
+    fn upper_border_with_factor(&self, element: R) -> (usize, usize, R)
+    where
+        R: PartialOrd + Sub<Output = R> + Div<Output = R> + Copy
     {
         let scaled = element * R::from_usize(self.len()-1).unwrap();
         let min_index = scaled.floor().to_usize().unwrap().max(0);
         let max_index = scaled.ceil().to_usize().unwrap().min(self.len()-1);
-        [min_index, max_index]
+        let factor = scaled.fract();
+        (min_index, max_index, factor)
     }
+}
+
+/// Struct used as a generator for equidistant elements in constant context.
+/// Acts like an array of knots.
+///
+/// This struct is necessary as to date neither generic bounds nor floating point opterations are
+/// allowed in constant functions. Such to be able to use Equidistant in a constant context,
+/// we use this structure instead.
+pub struct ConstEquidistant<R>{
+    len: usize,
+    phantom: PhantomData<*const R>
+}
+
+impl<R> ConstEquidistant<R>
+{
+    /// Create a list of equidistant real numbers.
+    /// This struct should only be created in a constant context. Otherwise use Equidistant instead.
+    pub const fn new(len: usize) -> Self {
+        ConstEquidistant {
+            len,
+            phantom: PhantomData
+        }
+    }
+}
+
+impl<R> Generator<usize> for ConstEquidistant<R>
+where R: Real + FromPrimitive
+{
+    type Output = R;
+    fn get(&self, input: usize) -> R {
+        R::from_usize(self.len - 1).unwrap() / R::from_usize(input).unwrap()
+    }
+}
+
+impl<R> FiniteGenerator for ConstEquidistant<R>
+where R: Real + FromPrimitive
+{
+    fn len(&self) -> usize {
+        self.len
+    }
+
+    fn first(&self) -> Option<R> {
+        if self.empty(){
+            return None;
+        }
+        Some(self.get(0))
+    }
+
+    fn last(&self) -> Option<R> {
+        if self.empty(){
+            return None;
+        }
+        Some(self.get(self.len - 1))
+    }
+}
+
+//TODO: Returning an Option or such would be more idiomatic! -> what to do with 0 or 1 element?!
+//TODO: upper_border is difficult to write for equidistant (making sure both indices are valid but are not the same!)
+//TODO: we don't even have a contract for that, such we should think about it carefully!
+//TODO: It is important to note that upper_border_with_factor does not act like upper_border -> Change the name!
+
+impl<R> SortedList<R> for ConstEquidistant<R>
+where R: Real + FromPrimitive
+{
+    // /// # Panics
+    // ///
+    // /// Panics if the SortedList has less than 2 elements.
+    // fn upper_border(&self, element: R) -> [usize; 2]
+    // where R: PartialOrd + Copy
+    // {
+    //     let scaled = element * R::from_usize(self.len()-1).unwrap();
+    //     let min_index = scaled.floor().to_usize().unwrap().min(self.len()-2).max(0);
+    //     let max_index = scaled.ceil().to_usize().unwrap().min(self.len()-1).max(1);
+    //     [min_index, max_index]
+    // }
 
     fn upper_border_with_factor(&self, element: R) -> (usize, usize, R)
     where
@@ -479,12 +589,18 @@ where R: Real + FromPrimitive + Mul<usize, Output = R> + Copy
 /// Wrapper for struct which implement AsRef<[T]>
 /// such that we are able to implement the `Generator` trait for them.
 /// In the future, one may be able to disregard this and implement the trait without this wrapper
-#[doc(hidden)]
-struct CollectionWrapper<E,T>
+pub struct CollectionWrapper<E,T>
 (
     E,
     PhantomData<T>,
 );
+
+impl<E,T> CollectionWrapper<E,T>{
+    pub const fn new(col: E) -> Self {
+        CollectionWrapper(col,PhantomData)
+    }
+}
+
 
 /// Wrapper for a struct which implements AsRef<[T]>
 /// such that we are able to use it as a Generator and/or SortedList.
@@ -501,7 +617,6 @@ where E: AsRef<[T]>
 //TODO: instead of (), the never type COULD be an option,as we can deconstruct tuples and array through
 //TODO: https://doc.rust-lang.org/reference/patterns.html#rest-patterns
 /// Implementation of Collection as generator for all elements.
-#[doc(hidden)]
 impl<E,T> Generator<()> for CollectionWrapper<E,T>
 where
     E: AsRef<[T]> + ToOwned,
@@ -516,7 +631,6 @@ where
 /// Implementation of Collection as generator for a range of elements.
 /// As we do not know the range beforehand, we cannot generate an array.
 /// We could allocate memory, but instead we use the fact that the range cannot be bigger than the collection itself.
-#[doc(hidden)]
 impl<E,T> Generator<Range<usize>> for CollectionWrapper<E,T>
 where
     E: AsRef<[T]> +ToOwned,
@@ -529,7 +643,6 @@ where
 }
 
 /// Implementation of Collection as generator for a specific element.
-#[doc(hidden)]
 impl<E,T> Generator<usize> for CollectionWrapper<E,T>
 where
     E: AsRef<[T]>,
@@ -541,21 +654,27 @@ where
     }
 }
 
+impl<E,T> FiniteGenerator for CollectionWrapper<E,T>
+where
+    E: AsRef<[T]>,
+    T: Copy
+{
+    fn len(&self) -> usize {
+        self.0.as_ref().len()
+    }
+    fn first(&self) -> Option<T>{
+        self.0.as_ref().first().map(|reference| *reference)
+    }
+    fn last(&self) -> Option<T>{
+        self.0.as_ref().last().map(|reference| *reference)
+    }
+}
+
 impl<K,R> SortedList<R> for CollectionWrapper<K,R>
 where
     K: AsRef<[R]>,
     R: Copy
-{
-    fn len(&self) -> usize{
-        self.0.as_ref().len()
-    }
-    fn first(&self) -> Option<R>{
-        self.0.as_ref().first().map(|reference| *reference)
-    }
-    fn last(&self) -> Option<R>{
-        self.0.as_ref().last().map(|reference| *reference)
-    }
-}
+{}
 
 /// Trait for constant or dynamic workspace handling
 pub trait Space<T> {
