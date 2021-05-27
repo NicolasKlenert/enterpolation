@@ -222,12 +222,39 @@ where
     }
 }
 
+impl<R,T,E> Linear<R,T,Equidistant<R>,E>
+where
+    E: FiniteGenerator<Output = T>,
+    T: Add<Output = T> + Mul<R, Output = T> + Copy,
+    R: Real + FromPrimitive
+{
+    /// Create a linear interpolation with slice-like collections of elements.
+    /// There has to be at least 1 element.
+    /// We assume the knots to be equidistant distributed.
+    pub fn new_equidistant(elements: impl Into<E>) -> Result<Self, EnterpolationError>
+    {
+        let elements = elements.into();
+        if elements.is_empty() {
+            return Err(EnterpolationError::ToFewElements{
+                name: "Linear".to_string(),
+                found: elements.len(),
+                expected: 1,
+            });
+        }
+        Ok(Linear {
+            knots: Equidistant::new(elements.len()),
+            elements,
+            _phantoms: (PhantomData, PhantomData)
+        })
+    }
+}
+
 impl<R,T,const N: usize> Linear<R,T,ConstEquidistant<R>,CollectionWrapper<[T;N],T>>
 {
     /// Create a linear interpolation with an array of elements.
     /// There has to be at least 1 element, which is NOT checked.
     /// Should be used if one wants to create a constant Interpolation
-    pub const fn new_with_equidistant(elements: [T;N]) -> Self
+    pub const fn new_equidistant_unchecked(elements: [T;N]) -> Self
     {
         let elements = CollectionWrapper::new(elements);
         Linear {
@@ -238,6 +265,28 @@ impl<R,T,const N: usize> Linear<R,T,ConstEquidistant<R>,CollectionWrapper<[T;N],
     }
 }
 
+/// An array-allocated, const-creatable, linear interpolation.
+///
+/// **Because this is an alias, not all its methods are listed here. See the [`Linear`](crate::linear::Linear) type too.**
+pub type ConstLinear<R,T,const N: usize> = Linear<R,T,ConstEquidistant<R>,CollectionWrapper<[T;N],T>>;
+/// An array-allocated linear interpolation.
+///
+/// **Because this is an alias, not all its methods are listed here. See the [`Linear`](crate::linear::Linear) type too.**
+pub type StaticLinear<R,T,const N: usize> = Linear<R,T,CollectionWrapper<[R;N],R>,CollectionWrapper<[T;N],T>>;
+/// A vector-allocated linear interpolation.
+///
+/// **Because this is an alias, not all its methods are listed here. See the [`Linear`](crate::linear::Linear) type too.**
+pub type DynamicLinear<R,T> = Linear<R,T,CollectionWrapper<Vec<R>,R>,CollectionWrapper<Vec<T>,T>>;
+/// An array-allocated linear interpolation with equidistant knot distribution.
+///
+/// **Because this is an alias, not all its methods are listed here. See the [`Linear`](crate::linear::Linear) type too.**
+pub type StaticEquidistantLinear<R,T,const N: usize> = Linear<R,T,Equidistant<R>,CollectionWrapper<[T;N],T>>;
+/// A vector-allocated linear interpolation with equidistant knot distribution.
+///
+/// **Because this is an alias, not all its methods are listed here. See the [`Linear`](crate::linear::Linear) type too.**
+pub type DynamicEquidistantLinear<R,T> = Linear<R,T,Equidistant<R>,CollectionWrapper<Vec<T>,T>>;
+
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -245,7 +294,8 @@ mod test {
 
     #[test]
     fn linear_equidistant() {
-        let lin = Linear::<f64,_,_,_>::from_collection(vec![20.0,100.0,0.0,200.0]).unwrap();
+        let lin = DynamicEquidistantLinear::<f64,_>::from_collection(vec![20.0,100.0,0.0,200.0]).unwrap();
+        // let lin = Linear::<f64,_,_,_>::from_collection(vec![20.0,100.0,0.0,200.0]).unwrap();
         let expected = [20.0,60.0,100.0,50.0,0.0,100.0,200.0];
         let mut iter = lin.take(expected.len());
         for i in 0..expected.len() {
@@ -256,7 +306,8 @@ mod test {
 
     #[test]
     fn linear() {
-        let lin = Linear::<f64,_,_,_>::from_collection_with_knots(vec![(20.0,0.0),(100.0,1.0/3.0),(0.0,2.0/3.0),(200.0,1.0)]).unwrap();
+        let lin = DynamicLinear::from_collection_with_knots(vec![(20.0,0.0),(100.0,1.0/3.0),(0.0,2.0/3.0),(200.0,1.0)]).unwrap();
+        // let lin = Linear::<f64,_,_,_>::from_collection_with_knots(vec![(20.0,0.0),(100.0,1.0/3.0),(0.0,2.0/3.0),(200.0,1.0)]).unwrap();
         let expected = [20.0,60.0,100.0,50.0,0.0,100.0,200.0];
         let mut iter = lin.take(expected.len());
         for i in 0..expected.len() {
@@ -264,17 +315,6 @@ mod test {
             assert_f64_near!(val, expected[i]);
         }
     }
-
-    //TODO: try to get rid of turbofish... how?
-    #[test]
-    fn constant_equidistant(){
-        let constant = Linear::<f64,_,Equidistant<f64>,CollectionWrapper<[f64;1],f64>>::new([5.0],Equidistant::new(1)).unwrap();
-        assert_f64_near!(constant.get(-1.0), 5.0);
-        assert_f64_near!(constant.get(10.0), 5.0);
-        assert_f64_near!(constant.get(0.5), 5.0);
-    }
-
-    //TODO: add constant test (not equidistant)
 
     #[test]
     fn extrapolation() {
@@ -285,9 +325,22 @@ mod test {
         assert_f64_near!(lin.get(5.0), 400.0);
     }
 
+    //TODO: try to get rid of turbofish... how?
+    #[test]
+    fn constant_equidistant(){
+        let constant = StaticEquidistantLinear::new_equidistant([5.0]).unwrap();
+        // let constant = Linear::<f64,_,Equidistant<f64>,CollectionWrapper<[f64;1],f64>>::new([5.0],Equidistant::new(1)).unwrap();
+        assert_f64_near!(constant.get(-1.0), 5.0);
+        assert_f64_near!(constant.get(10.0), 5.0);
+        assert_f64_near!(constant.get(0.5), 5.0);
+    }
+
+    //TODO: add constant test (not equidistant)
+
     #[test]
     fn const_creation(){
-        const LIN : Linear<f64,f64,ConstEquidistant<f64>,CollectionWrapper<[f64;4],f64>> = Linear::new_with_equidistant([20.0,100.0,0.0,200.0]);
+        const LIN : ConstLinear<f64,f64,4> = ConstLinear::new_equidistant_unchecked([20.0,100.0,0.0,200.0]);
+        // const LIN : Linear<f64,f64,ConstEquidistant<f64>,CollectionWrapper<[f64;4],f64>> = Linear::new_equidistant_unchecked([20.0,100.0,0.0,200.0]);
         let mut iter = LIN.take(7);
         let expected = [20.0,60.0,100.0,50.0,0.0,100.0,200.0];
         for i in 0..=6 {
