@@ -21,12 +21,12 @@ pub mod utils;
 
 mod real;
 mod never;
-mod generator;
+mod base;
 
 use thiserror::Error;
 use crate::real::Real;
-pub use generator::{Generator, Interpolation, Curve, Extract, Stepper, SortedList, Space,
-    CollectionWrapper, FiniteGenerator, Equidistant, ConstEquidistant};
+pub use base::{Generator, Interpolation, Curve, Extract, Stepper, SortedList, Space,
+    FiniteGenerator, Equidistant, ConstEquidistant};
 
 /// Struct which chains two Interpolation together to one Interpolation.
 ///
