@@ -58,8 +58,10 @@ where R: Real
     /// The domain in which the curve uses interpolation. Not all Curves may extrapolate in a safe way.
     fn domain(&self) -> [R; 2];
     /// Takes equidistant samples of the curve (with 0.0 and 1.0 inclusive).
-    fn take(&self, samples: usize) -> Take<&Self, R>
-    where R: FromPrimitive
+    fn take(self, samples: usize) -> Take<Self, R>
+    where
+        Self: Sized,
+        R: FromPrimitive
     {
         Take(self.extract(Stepper::new(samples)))
     }
