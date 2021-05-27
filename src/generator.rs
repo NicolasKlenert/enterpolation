@@ -143,9 +143,19 @@ where R: Real + FromPrimitive
 
 pub trait FiniteGenerator : Generator<usize> {
     fn len(&self) -> usize;
-    fn first(&self) -> Option<Self::Output>;
-    fn last(&self) -> Option<Self::Output>;
-    fn empty(&self) -> bool {
+    fn first(&self) -> Option<Self::Output> {
+        if self.is_empty(){
+            return None;
+        }
+        Some(self.get(0))
+    }
+    fn last(&self) -> Option<Self::Output> {
+        if self.is_empty(){
+            return None;
+        }
+        Some(self.get(self.len() - 1))
+    }
+    fn is_empty(&self) -> bool {
         self.len() == 0
     }
 }
@@ -451,20 +461,6 @@ where R: Real + FromPrimitive
     fn len(&self) -> usize {
         self.len
     }
-
-    fn first(&self) -> Option<R> {
-        if self.empty(){
-            return None;
-        }
-        Some(self.get(0))
-    }
-
-    fn last(&self) -> Option<R> {
-        if self.empty(){
-            return None;
-        }
-        Some(self.get(self.len - 1))
-    }
 }
 
 //TODO: Returning an Option or such would be more idiomatic! -> what to do with 0 or 1 element?!
@@ -536,20 +532,6 @@ where R: Real + FromPrimitive
 {
     fn len(&self) -> usize {
         self.len
-    }
-
-    fn first(&self) -> Option<R> {
-        if self.empty(){
-            return None;
-        }
-        Some(self.get(0))
-    }
-
-    fn last(&self) -> Option<R> {
-        if self.empty(){
-            return None;
-        }
-        Some(self.get(self.len - 1))
     }
 }
 
@@ -662,12 +644,12 @@ where
     fn len(&self) -> usize {
         self.0.as_ref().len()
     }
-    fn first(&self) -> Option<T>{
-        self.0.as_ref().first().map(|reference| *reference)
-    }
-    fn last(&self) -> Option<T>{
-        self.0.as_ref().last().map(|reference| *reference)
-    }
+    // fn first(&self) -> Option<T>{
+    //     self.0.as_ref().first().map(|reference| *reference)
+    // }
+    // fn last(&self) -> Option<T>{
+    //     self.0.as_ref().last().map(|reference| *reference)
+    // }
 }
 
 impl<K,R> SortedList<R> for CollectionWrapper<K,R>
