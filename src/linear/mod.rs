@@ -9,13 +9,10 @@
 //! instead of O(log n) with n being the number of elements in the interpolation structure.
 
 // TODO: creation of Interpolations should not panic, instead it should return a Result!
-
-pub mod linear_equidistant;
-
 use core::ops::{Add, Mul};
 use core::marker::PhantomData;
 use crate::{Generator, Interpolation, Curve, EnterpolationError, SortedList,
-    CollectionWrapper, FiniteGenerator, Equidistant, ConstEquidistant};
+    FiniteGenerator, Equidistant, ConstEquidistant};
 use crate::real::Real;
 use crate::utils::upper_border;
 use num_traits::cast::FromPrimitive;
@@ -102,7 +99,7 @@ where
     }
 }
 
-impl<R,T> Linear<R,T,CollectionWrapper<Vec<R>,R>,CollectionWrapper<Vec<T>,T>>
+impl<R,T> Linear<R,T,Vec<R>,Vec<T>>
 where
     T: Add<Output = T> + Mul<R, Output = T> + Copy,
     R: Real + FromPrimitive
@@ -126,8 +123,8 @@ where
         }
         let knots: Vec<R> = elements.iter().enumerate().map(func).collect();
         Ok(Linear {
-            elements: elements.into(),
-            knots: knots.into(),
+            elements,
+            knots,
             _phantoms: (PhantomData, PhantomData)
         })
     }
@@ -153,14 +150,14 @@ where
             });
         }
         Ok(Linear {
-            elements: elements.into(),
-            knots: knots.into(),
+            elements,
+            knots,
             _phantoms: (PhantomData, PhantomData)
         })
     }
 }
 
-impl<R,T> Linear<R,T,Equidistant<R>,CollectionWrapper<Vec<T>,T>>
+impl<R,T> Linear<R,T,Equidistant<R>,Vec<T>>
 where
     T: Add<Output = T> + Mul<R, Output = T> + Copy,
     R: Real + FromPrimitive
@@ -180,7 +177,7 @@ where
         }
         Ok(Linear {
             knots: Equidistant::new(elements.len()),
-            elements: elements.into(),
+            elements,
             _phantoms: (PhantomData, PhantomData)
         })
     }
@@ -196,10 +193,8 @@ where
     /// Create a linear interpolation with slice-like collections of elements and knots.
     /// Knots should be in increasing order (not checked), there should be as many knots as elements
     /// and there has to be at least 2 elements.
-    pub fn new(elements: impl Into<E>, knots: impl Into<K>) -> Result<Self, EnterpolationError>
+    pub fn new(elements: E, knots: K) -> Result<Self, EnterpolationError>
     {
-        let elements = elements.into();
-        let knots = knots.into();
         if elements.len() < 2 {
             return Err(EnterpolationError::ToFewElements{
                 name: "Linear".to_string(),
@@ -249,14 +244,13 @@ where
     }
 }
 
-impl<R,T,const N: usize> Linear<R,T,ConstEquidistant<R>,CollectionWrapper<[T;N],T>>
+impl<R,T,const N: usize> Linear<R,T,ConstEquidistant<R>,[T;N]>
 {
     /// Create a linear interpolation with an array of elements.
     /// There has to be at least 1 element, which is NOT checked.
     /// Should be used if one wants to create a constant Interpolation
     pub const fn new_equidistant_unchecked(elements: [T;N]) -> Self
     {
-        let elements = CollectionWrapper::new(elements);
         Linear {
             elements,
             knots: ConstEquidistant::new(N),
@@ -268,23 +262,23 @@ impl<R,T,const N: usize> Linear<R,T,ConstEquidistant<R>,CollectionWrapper<[T;N],
 /// An array-allocated, const-creatable, linear interpolation.
 ///
 /// **Because this is an alias, not all its methods are listed here. See the [`Linear`](crate::linear::Linear) type too.**
-pub type ConstLinear<R,T,const N: usize> = Linear<R,T,ConstEquidistant<R>,CollectionWrapper<[T;N],T>>;
+pub type ConstLinear<R,T,const N: usize> = Linear<R,T,ConstEquidistant<R>,[T;N]>;
 /// An array-allocated linear interpolation.
 ///
 /// **Because this is an alias, not all its methods are listed here. See the [`Linear`](crate::linear::Linear) type too.**
-pub type StaticLinear<R,T,const N: usize> = Linear<R,T,CollectionWrapper<[R;N],R>,CollectionWrapper<[T;N],T>>;
+pub type StaticLinear<R,T,const N: usize> = Linear<R,T,[R;N],[T;N]>;
 /// A vector-allocated linear interpolation.
 ///
 /// **Because this is an alias, not all its methods are listed here. See the [`Linear`](crate::linear::Linear) type too.**
-pub type DynamicLinear<R,T> = Linear<R,T,CollectionWrapper<Vec<R>,R>,CollectionWrapper<Vec<T>,T>>;
+pub type DynamicLinear<R,T> = Linear<R,T,Vec<R>,Vec<T>>;
 /// An array-allocated linear interpolation with equidistant knot distribution.
 ///
 /// **Because this is an alias, not all its methods are listed here. See the [`Linear`](crate::linear::Linear) type too.**
-pub type StaticEquidistantLinear<R,T,const N: usize> = Linear<R,T,Equidistant<R>,CollectionWrapper<[T;N],T>>;
+pub type StaticEquidistantLinear<R,T,const N: usize> = Linear<R,T,Equidistant<R>,[T;N]>;
 /// A vector-allocated linear interpolation with equidistant knot distribution.
 ///
 /// **Because this is an alias, not all its methods are listed here. See the [`Linear`](crate::linear::Linear) type too.**
-pub type DynamicEquidistantLinear<R,T> = Linear<R,T,Equidistant<R>,CollectionWrapper<Vec<T>,T>>;
+pub type DynamicEquidistantLinear<R,T> = Linear<R,T,Equidistant<R>,Vec<T>>;
 
 
 #[cfg(test)]
