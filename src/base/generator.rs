@@ -33,7 +33,7 @@ pub trait Generator<Input> {
     }
 }
 
-//Make references of generators also generators
+// Make references of generators also generators
 impl<G: Generator<I> + ?Sized,I> Generator<I> for &G {
     type Output = G::Output;
     fn get(&self, input: I) -> Self::Output {
@@ -57,17 +57,22 @@ where R: Real
 {
     /// The domain in which the curve uses interpolation. Not all Curves may extrapolate in a safe way.
     fn domain(&self) -> [R; 2];
-    /// Takes equidistant samples of the curve (with 0.0 and 1.0 inclusive).
+    /// Takes equidistant samples of the curve.
+    ///
+    /// #Panics
+    ///
+    /// Panics if given size of samples is 0 or if `samples - 1` can not be converted to R.
     fn take(self, samples: usize) -> Take<Self, R>
     where
         Self: Sized,
         R: FromPrimitive
     {
-        Take(self.extract(Stepper::new(samples)))
+        let [start, end] = self.domain();
+        Take(self.extract(Stepper::new(start, end, samples)))
     }
 }
 
-//Make references of interpolations also interpolations
+//Make references of curves also curves
 impl<C: Curve<R> + ?Sized,R> Curve<R> for &C
 where R: Real
 {
@@ -145,10 +150,23 @@ where
     R: Real + FromPrimitive,
 {
     /// Creates a new Stepper stepping from 0 to 1
-    /// The given generic real number has to be able to be created from usize
     /// Also the given steps are not allowed to be less than 1
-    pub fn new(steps: usize) -> Self {
-        Stepper(Equidistant::new(steps).extract(0..steps))
+    ///
+    /// #Panics
+    ///
+    /// Panics if the given steps are 0 and if `steps -1` can not be transformed into R.
+    pub fn normalized(steps: usize) -> Self {
+        Stepper(Equidistant::normalized(steps).extract(0..steps))
+    }
+
+    /// Creates a new Stepper stepping from `start` to `end`
+    /// Also the given steps are not allowed to be less than 1
+    ///
+    /// #Panics
+    ///
+    /// Panics if the given steps are 0 and if `steps -1` can not be transformed into R.
+    pub fn new(start: R, end: R, steps: usize) -> Self {
+        Stepper(Equidistant::new(start, end, steps).extract(0..steps))
     }
 }
 
@@ -159,4 +177,27 @@ where R: Real + FromPrimitive
     fn next(&mut self) -> Option<Self::Item> {
         self.0.next()
     }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn stepper() {
+        let mut stepper = Stepper::normalized(11);
+        let res = vec![0.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0];
+        for i in 0..=10 {
+            let val = stepper.next().unwrap();
+            assert_f64_near!(val,res[i]);
+        }
+
+        let mut stepper = Stepper::new(3.0,5.0,5);
+        let res = [3.0,3.5,4.0,4.5,5.0];
+        for i in 0..5 {
+            let val = stepper.next().unwrap();
+            assert_f64_near!(val, res[i]);
+        }
+    }
+
 }

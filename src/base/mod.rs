@@ -33,7 +33,17 @@ impl<T: Copy> FiniteGenerator for Vec<T> {
     }
 }
 
-impl<R: Copy> SortedList<R> for Vec<R> {}
+impl<R: Copy> SortedList for Vec<R> {}
+
+/// A stack of values or generators
+impl<G,I> Generator<(usize, I)> for Vec<G>
+where G: Generator<I>
+{
+    type Output = G::Output;
+    fn get(&self, input: (usize, I)) -> Self::Output {
+        self[input.0].get(input.1)
+    }
+}
 
 impl<T: Copy, const N: usize> Generator<usize> for [T;N] {
     type Output = T;
@@ -48,17 +58,14 @@ impl<T: Copy, const N: usize> FiniteGenerator for [T;N] {
     }
 }
 
-impl<R: Copy, const N: usize> SortedList<R> for [R;N] {}
+impl<R: Copy, const N: usize> SortedList for [R;N] {}
 
-
-// ///CollectionWrapper acts like a stack of interpolations -> we try this first!
-// impl<E,G,I> Generator<(usize,I)> for CollectionWrapper<E,G>
-// where
-//     E: AsRef<[G]>,
-//     G: Generator<I>
-// {
-//     type Output = G::Output;
-//     fn get(&self, input: (usize,I)) -> Self::Output {
-//         self.0.as_ref()[input.0].get(input.1)
-//     }
-// }
+/// A stack of values or generators
+impl<G,I, const N: usize> Generator<(usize, I)> for [G;N]
+where G: Generator<I>
+{
+    type Output = G::Output;
+    fn get(&self, input: (usize, I)) -> Self::Output {
+        self[input.0].get(input.1)
+    }
+}

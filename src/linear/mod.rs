@@ -15,6 +15,9 @@ use crate::real::Real;
 use crate::utils::upper_border;
 use num_traits::cast::FromPrimitive;
 
+use core::fmt::Debug;
+
+// mod hyper;
 
 /// Linear interpolate/extrapolate with the elements and knots given.
 /// Knots should be in increasing order and there has to be at least 2 knots.
@@ -44,8 +47,8 @@ fn linear<R,K,E>(elements: &E, knots: &K, scalar: R) -> E::Output
 where
     E: Generator<usize>,
     K: SortedList<Output = R>,
-    E::Output: Add<Output = E::Output> + Mul<R, Output = E::Output> + Copy,
-    R: Real
+    E::Output: Add<Output = E::Output> + Mul<R, Output = E::Output> + Copy + Debug,
+    R: Real + Debug
 {
     //we use upper_border_with_factor as this allows us a performance improvement for equidistant knots
     let (min_index, max_index, factor) = knots.upper_border_with_factor(scalar);
@@ -66,10 +69,13 @@ impl<R,K,E> Generator<R> for Linear<K,E>
 where
     E: Generator<usize>,
     K: SortedList<Output = R>,
-    E::Output: Add<Output = E::Output> + Mul<R, Output = E::Output> + Copy,
-    R: Real
+    E::Output: Add<Output = E::Output> + Mul<R, Output = E::Output> + Copy + Debug,
+    R: Real + Debug
 {
     type Output = E::Output;
+    /// # Panics
+    ///
+    /// Panics if `scalar` is NaN or similar.
     fn get(&self, scalar: K::Output) -> Self::Output {
         linear(&self.elements, &self.knots, scalar)
     }
@@ -79,16 +85,16 @@ impl<R,K,E> Interpolation<R> for Linear<K,E>
 where
     E: Generator<usize>,
     K: SortedList<Output = R>,
-    E::Output: Add<Output = E::Output> + Mul<R, Output = E::Output> + Copy,
-    R: Real
+    E::Output: Add<Output = E::Output> + Mul<R, Output = E::Output> + Copy + Debug,
+    R: Real + Debug
 {}
 
 impl<R,K,E> Curve<R> for Linear<K,E>
 where
     E: Generator<usize>,
     K: SortedList<Output = R>,
-    E::Output: Add<Output = E::Output> + Mul<R, Output = E::Output> + Copy,
-    R: Real
+    E::Output: Add<Output = E::Output> + Mul<R, Output = E::Output> + Copy + Debug,
+    R: Real + Debug
 {
     fn domain(&self) -> [R; 2] {
         [self.knots.first().unwrap(), self.knots.last().unwrap()]
@@ -156,7 +162,7 @@ where
     T: Add<Output = T> + Mul<R, Output = T> + Copy,
     R: Real + FromPrimitive
 {
-    /// Creates a linear interpolation of elements given with equidistant knots.
+    /// Creates a linear interpolation of elements given with equidistant knots inside [0.0,1.0].
     /// There has to be at least 2 elements.
     pub fn from_collection<C>(collection: C) -> Result<Self, EnterpolationError>
     where C: IntoIterator<Item = T>
@@ -170,7 +176,7 @@ where
             });
         }
         Ok(Linear {
-            knots: Equidistant::new(elements.len()),
+            knots: Equidistant::normalized(elements.len()),
             elements,
         })
     }
@@ -217,7 +223,7 @@ where
 {
     /// Create a linear interpolation with slice-like collections of elements.
     /// There has to be at least 1 element.
-    /// We assume the knots to be equidistant distributed.
+    /// We assume the knots to be equidistant distributed and to be inside [0.0,1.0].
     pub fn new_equidistant(elements: impl Into<E>) -> Result<Self, EnterpolationError>
     {
         let elements = elements.into();
@@ -229,7 +235,7 @@ where
             });
         }
         Ok(Linear {
-            knots: Equidistant::new(elements.len()),
+            knots: Equidistant::normalized(elements.len()),
             elements,
         })
     }
@@ -325,9 +331,9 @@ mod test {
     fn const_creation(){
         const LIN : ConstEquidistantLinear<f64,f64,4> = ConstEquidistantLinear::new_equidistant_unchecked([20.0,100.0,0.0,200.0]);
         // const LIN : Linear<f64,f64,ConstEquidistant<f64>,CollectionWrapper<[f64;4],f64>> = Linear::new_equidistant_unchecked([20.0,100.0,0.0,200.0]);
-        let mut iter = LIN.take(7);
         let expected = [20.0,60.0,100.0,50.0,0.0,100.0,200.0];
-        for i in 0..=6 {
+        let mut iter = LIN.take(expected.len());
+        for i in 0..expected.len() {
             let val = iter.next().unwrap();
             assert_f64_near!(val, expected[i]);
         }

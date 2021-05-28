@@ -114,7 +114,7 @@ where
     T: Add<Output = T> + Mul<R, Output = T> + Copy,
     R: Real + FromPrimitive
 {
-    let stepper = Stepper::new(elements.len() + 2);
+    let stepper = Stepper::normalized(elements.len() + 2);
     elements.push(*elements.last().unwrap());
     //TODO: instead of last and temp we could just reverse our order (go from n to 1)
     let mut last = elements[0];
@@ -138,7 +138,7 @@ where
     let other = target.as_mut();
     let me = source.as_ref();
     assert!(other.len() == me.len() + 1);
-    let stepper = Stepper::new(me.len() + 2);
+    let stepper = Stepper::normalized(me.len() + 2);
     other[0] = me[0];
     other[me.len()] = me[me.len()-1];
     for (i, factor) in stepper.enumerate().skip(1).take(me.len()) {

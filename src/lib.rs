@@ -89,19 +89,3 @@ pub enum EnterpolationError {
         expected: String
     },
 }
-
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    #[test]
-    fn stepper() {
-        let mut stepper = Stepper::new(11);
-        let res = vec![0.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0];
-        for i in 0..=10 {
-            let val = stepper.next().unwrap();
-            assert_f64_near!(val,res[i]);
-        }
-    }
-
-}
