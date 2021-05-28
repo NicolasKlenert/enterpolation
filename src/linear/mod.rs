@@ -8,16 +8,13 @@
 //! the border elements to calculate the linear interpolation with can be found in O(1)
 //! instead of O(log n) with n being the number of elements in the interpolation structure.
 
-// TODO: creation of Interpolations should not panic, instead it should return a Result!
 use core::ops::{Add, Mul};
-use core::marker::PhantomData;
 use crate::{Generator, Interpolation, Curve, EnterpolationError, SortedList,
     FiniteGenerator, Equidistant, ConstEquidistant};
 use crate::real::Real;
 use crate::utils::upper_border;
 use num_traits::cast::FromPrimitive;
 
-use core::fmt::Debug;
 
 /// Linear interpolate/extrapolate with the elements and knots given.
 /// Knots should be in increasing order and there has to be at least 2 knots.
@@ -43,12 +40,12 @@ where
 /// Knots should be in increasing order and there has to be at least 2 knots.
 /// Also there has to be the same amount of elements and knots.
 /// These constrains are not checked!
-fn linear<R,T,K,E>(elements: &E, knots: &K, scalar: R) -> T
+fn linear<R,K,E>(elements: &E, knots: &K, scalar: R) -> E::Output
 where
-    E: Generator<usize, Output = T>,
-    K: SortedList<R>,
-    T: Add<Output = T> + Mul<R, Output = T> + Copy,
-    R: Real + Debug
+    E: Generator<usize>,
+    K: SortedList<Output = R>,
+    E::Output: Add<Output = E::Output> + Mul<R, Output = E::Output> + Copy,
+    R: Real
 {
     //we use upper_border_with_factor as this allows us a performance improvement for equidistant knots
     let (min_index, max_index, factor) = knots.upper_border_with_factor(scalar);
@@ -59,47 +56,46 @@ where
 
 /// Linear Interpolation Structure with knots
 /// If knots are roughly or exactly equidistant, consider using LinearEquidistant instead.
-pub struct Linear<R,T,K,E>
+pub struct Linear<K,E>
 {
     elements: E,
     knots: K,
-    _phantoms: (PhantomData<R>, PhantomData<T>)
 }
 
-impl<R,T,K,E> Generator<R> for Linear<R,T,K,E>
+impl<R,K,E> Generator<R> for Linear<K,E>
 where
-    E: Generator<usize, Output = T>,
-    K: SortedList<R>,
-    T: Add<Output = T> + Mul<R, Output = T> + Copy,
-    R: Real + Debug
+    E: Generator<usize>,
+    K: SortedList<Output = R>,
+    E::Output: Add<Output = E::Output> + Mul<R, Output = E::Output> + Copy,
+    R: Real
 {
-    type Output = T;
-    fn get(&self, scalar: R) -> T {
+    type Output = E::Output;
+    fn get(&self, scalar: K::Output) -> Self::Output {
         linear(&self.elements, &self.knots, scalar)
     }
 }
 
-impl<R,T,K,E> Interpolation<R> for Linear<R,T,K,E>
+impl<R,K,E> Interpolation<R> for Linear<K,E>
 where
-    E: Generator<usize, Output = T>,
-    K: SortedList<R>,
-    T: Add<Output = T> + Mul<R, Output = T> + Copy,
-    R: Real + Debug
+    E: Generator<usize>,
+    K: SortedList<Output = R>,
+    E::Output: Add<Output = E::Output> + Mul<R, Output = E::Output> + Copy,
+    R: Real
 {}
 
-impl<R,T,K,E> Curve<R> for Linear<R,T,K,E>
+impl<R,K,E> Curve<R> for Linear<K,E>
 where
-    E: Generator<usize, Output = T>,
-    K: SortedList<R>,
-    T: Add<Output = T> + Mul<R, Output = T> + Copy,
-    R: Real + Debug
+    E: Generator<usize>,
+    K: SortedList<Output = R>,
+    E::Output: Add<Output = E::Output> + Mul<R, Output = E::Output> + Copy,
+    R: Real
 {
     fn domain(&self) -> [R; 2] {
         [self.knots.first().unwrap(), self.knots.last().unwrap()]
     }
 }
 
-impl<R,T> Linear<R,T,Vec<R>,Vec<T>>
+impl<R,T> Linear<Vec<R>,Vec<T>>
 where
     T: Add<Output = T> + Mul<R, Output = T> + Copy,
     R: Real + FromPrimitive
@@ -125,7 +121,6 @@ where
         Ok(Linear {
             elements,
             knots,
-            _phantoms: (PhantomData, PhantomData)
         })
     }
 
@@ -152,12 +147,11 @@ where
         Ok(Linear {
             elements,
             knots,
-            _phantoms: (PhantomData, PhantomData)
         })
     }
 }
 
-impl<R,T> Linear<R,T,Equidistant<R>,Vec<T>>
+impl<R,T> Linear<Equidistant<R>,Vec<T>>
 where
     T: Add<Output = T> + Mul<R, Output = T> + Copy,
     R: Real + FromPrimitive
@@ -178,17 +172,16 @@ where
         Ok(Linear {
             knots: Equidistant::new(elements.len()),
             elements,
-            _phantoms: (PhantomData, PhantomData)
         })
     }
 }
 
-impl<R,T,K,E> Linear<R,T,K,E>
+impl<K,E> Linear<K,E>
 where
-    E: FiniteGenerator<Output = T>,
-    K: SortedList<R>,
-    T: Add<Output = T> + Mul<R, Output = T> + Copy,
-    R: Real
+    E: FiniteGenerator,
+    K: SortedList,
+    E::Output: Add<Output = E::Output> + Mul<K::Output, Output = E::Output> + Copy,
+    K::Output: Real
 {
     /// Create a linear interpolation with slice-like collections of elements and knots.
     /// Knots should be in increasing order (not checked), there should be as many knots as elements
@@ -212,15 +205,14 @@ where
         Ok(Linear {
             elements,
             knots,
-            _phantoms: (PhantomData, PhantomData)
         })
     }
 }
 
-impl<R,T,E> Linear<R,T,Equidistant<R>,E>
+impl<R,E> Linear<Equidistant<R>,E>
 where
-    E: FiniteGenerator<Output = T>,
-    T: Add<Output = T> + Mul<R, Output = T> + Copy,
+    E: FiniteGenerator,
+    E::Output: Add<Output = E::Output> + Mul<R, Output = E::Output> + Copy,
     R: Real + FromPrimitive
 {
     /// Create a linear interpolation with slice-like collections of elements.
@@ -239,12 +231,11 @@ where
         Ok(Linear {
             knots: Equidistant::new(elements.len()),
             elements,
-            _phantoms: (PhantomData, PhantomData)
         })
     }
 }
 
-impl<R,T,const N: usize> Linear<R,T,ConstEquidistant<R>,[T;N]>
+impl<R,T,const N: usize> Linear<ConstEquidistant<R>,[T;N]>
 {
     /// Create a linear interpolation with an array of elements.
     /// There has to be at least 1 element, which is NOT checked.
@@ -254,31 +245,30 @@ impl<R,T,const N: usize> Linear<R,T,ConstEquidistant<R>,[T;N]>
         Linear {
             elements,
             knots: ConstEquidistant::new(N),
-            _phantoms: (PhantomData, PhantomData)
         }
     }
 }
 
-/// An array-allocated, const-creatable, linear interpolation.
-///
-/// **Because this is an alias, not all its methods are listed here. See the [`Linear`](crate::linear::Linear) type too.**
-pub type ConstLinear<R,T,const N: usize> = Linear<R,T,ConstEquidistant<R>,[T;N]>;
 /// An array-allocated linear interpolation.
 ///
 /// **Because this is an alias, not all its methods are listed here. See the [`Linear`](crate::linear::Linear) type too.**
-pub type StaticLinear<R,T,const N: usize> = Linear<R,T,[R;N],[T;N]>;
+pub type StaticLinear<R,T,const N: usize> = Linear<[R;N],[T;N]>;
 /// A vector-allocated linear interpolation.
 ///
 /// **Because this is an alias, not all its methods are listed here. See the [`Linear`](crate::linear::Linear) type too.**
-pub type DynamicLinear<R,T> = Linear<R,T,Vec<R>,Vec<T>>;
+pub type DynamicLinear<R,T> = Linear<Vec<R>,Vec<T>>;
 /// An array-allocated linear interpolation with equidistant knot distribution.
 ///
 /// **Because this is an alias, not all its methods are listed here. See the [`Linear`](crate::linear::Linear) type too.**
-pub type StaticEquidistantLinear<R,T,const N: usize> = Linear<R,T,Equidistant<R>,[T;N]>;
+pub type StaticEquidistantLinear<R,T,const N: usize> = Linear<Equidistant<R>,[T;N]>;
 /// A vector-allocated linear interpolation with equidistant knot distribution.
 ///
 /// **Because this is an alias, not all its methods are listed here. See the [`Linear`](crate::linear::Linear) type too.**
-pub type DynamicEquidistantLinear<R,T> = Linear<R,T,Equidistant<R>,Vec<T>>;
+pub type DynamicEquidistantLinear<R,T> = Linear<Equidistant<R>,Vec<T>>;
+/// An array-allocated, const-creatable, linear interpolation with equidistant knot distribution.
+///
+/// **Because this is an alias, not all its methods are listed here. See the [`Linear`](crate::linear::Linear) type too.**
+pub type ConstEquidistantLinear<R,T,const N: usize> = Linear<ConstEquidistant<R>,[T;N]>;
 
 
 #[cfg(test)]
@@ -333,7 +323,7 @@ mod test {
 
     #[test]
     fn const_creation(){
-        const LIN : ConstLinear<f64,f64,4> = ConstLinear::new_equidistant_unchecked([20.0,100.0,0.0,200.0]);
+        const LIN : ConstEquidistantLinear<f64,f64,4> = ConstEquidistantLinear::new_equidistant_unchecked([20.0,100.0,0.0,200.0]);
         // const LIN : Linear<f64,f64,ConstEquidistant<f64>,CollectionWrapper<[f64;4],f64>> = Linear::new_equidistant_unchecked([20.0,100.0,0.0,200.0]);
         let mut iter = LIN.take(7);
         let expected = [20.0,60.0,100.0,50.0,0.0,100.0,200.0];
