@@ -18,6 +18,7 @@ pub mod linear;
 pub mod bezier;
 pub mod bspline;
 pub mod utils;
+pub mod homogeneous;
 
 mod real;
 mod never;
