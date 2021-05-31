@@ -10,7 +10,7 @@
 
 use core::ops::{Add, Mul};
 use crate::{Generator, Interpolation, Curve, EnterpolationError, SortedList,
-    FiniteGenerator, Equidistant, ConstEquidistant, NonEmpty};
+    FiniteGenerator, Equidistant, ConstEquidistant, Homogeneous, NonEmpty};
 use crate::real::Real;
 use crate::utils::upper_border;
 use num_traits::cast::FromPrimitive;
@@ -141,6 +141,62 @@ where
         let mut knots: Vec<R> = Vec::with_capacity(iter.size_hint().0);
         for (elem, knot) in iter {
             elements.push(elem);
+            knots.push(knot);
+        }
+        if elements.len() < 2 {
+            return Err(EnterpolationError::ToFewElements{
+                name: "Linear".to_string(),
+                found: elements.len(),
+                expected: 2,
+            });
+        }
+        Ok(Linear {
+            elements,
+            knots,
+        })
+    }
+}
+
+impl<R,T> Linear<Vec<R>,Vec<Homogeneous<T,R>>>
+where
+    T: Add<Output = T> + Mul<R, Output = T> + Copy,
+    R: Real + FromPrimitive
+{
+    // /// Create a linear interpolation with at least 2 elements.
+    // /// Knots are calculated with the given closure, which takes the index and the reference to the element.
+    // /// Knots should be in increasing order. This is not checked.
+    // /// For a constant speed of the curve, the distance between the elements should be used.
+    // pub fn from_collection_with<C,F>(collection: C, func: F) -> Result<Self, EnterpolationError>
+    // where
+    //     C: IntoIterator<Item = T>,
+    //     F: FnMut((usize,&T)) -> R,
+    // {
+    //     let elements: Vec<T> = collection.into_iter().collect();
+    //     if elements.len() < 2 {
+    //         return Err(EnterpolationError::ToFewElements{
+    //             name: "Linear".to_string(),
+    //             found: elements.len(),
+    //             expected: 2,
+    //         });
+    //     }
+    //     let knots: Vec<R> = elements.iter().enumerate().map(func).collect();
+    //     Ok(Linear {
+    //         elements,
+    //         knots,
+    //     })
+    // }
+
+    /// Create a linear interpolation of the elements with given knots and weights.
+    /// Knots should be in increasing order and there has to be at least 2 elements.
+    /// The increasing order of knots is not checked.
+    pub fn from_collection_with_weights_and_knots<C>(collection: C) -> Result<Self, EnterpolationError>
+    where C: IntoIterator<Item = (T, R, R)>
+    {
+        let iter = collection.into_iter();
+        let mut elements: Vec<Homogeneous<T,R>> = Vec::with_capacity(iter.size_hint().0);
+        let mut knots: Vec<R> = Vec::with_capacity(iter.size_hint().0);
+        for (elem, weight, knot) in iter {
+            elements.push(Homogeneous::weighted(elem, weight));
             knots.push(knot);
         }
         if elements.len() < 2 {

@@ -3,7 +3,7 @@
 //! be at infinity. In both cases one wants to use rational curves. This module
 //! gives you a wrapper at hand which transforms any interplation into a rational interpolation.
 
-use core::ops::{Add, Mul, Div};
+use core::ops::{Add, Sub, Mul, Div};
 use num_traits::real::Real;
 
 /// Wrapper for elements to achieve weighted and rational curves.
@@ -88,6 +88,48 @@ where
     }
 }
 
+impl<E,R> Sub for Homogeneous<E,R>
+where
+    E: Sub<Output = E>,
+    R: Sub<Output = R>
+{
+    type Output = Homogeneous<E,R>;
+    fn sub(self, rhs: Homogeneous<E,R>) -> Self::Output {
+        Homogeneous {
+            element: self.element - rhs.element,
+            rational: self.rational - rhs.rational,
+        }
+    }
+}
+
+impl<E,R> Mul for Homogeneous<E,R>
+where
+    E: Mul<Output = E>,
+    R: Mul<Output = R>
+{
+    type Output = Homogeneous<E,R>;
+    fn mul(self, rhs: Homogeneous<E,R>) -> Self::Output {
+        Homogeneous {
+            element: self.element * rhs.element,
+            rational: self.rational * rhs.rational,
+        }
+    }
+}
+
+impl<E,R> Div for Homogeneous<E,R>
+where
+    E: Div<Output = E>,
+    R: Div<Output = R>
+{
+    type Output = Homogeneous<E,R>;
+    fn div(self, rhs: Homogeneous<E,R>) -> Self::Output {
+        Homogeneous {
+            element: self.element / rhs.element,
+            rational: self.rational / rhs.rational,
+        }
+    }
+}
+
 impl<E,R> Mul<R> for Homogeneous<E,R>
 where
     E: Mul<R, Output = E>,
@@ -98,6 +140,20 @@ where
         Homogeneous {
             element: self.element * rhs,
             rational: self.rational * rhs,
+        }
+    }
+}
+
+impl<E,R> Div<R> for Homogeneous<E,R>
+where
+    E: Div<R, Output = E>,
+    R: Div<Output = R> + Copy,
+{
+    type Output = Homogeneous<E,R>;
+    fn div(self, rhs: R) -> Self::Output {
+        Homogeneous {
+            element: self.element / rhs,
+            rational: self.rational / rhs,
         }
     }
 }
