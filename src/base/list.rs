@@ -7,11 +7,23 @@ use core::fmt::Debug;
 
 pub use super::{Generator, Interpolation, Curve, FiniteGenerator, Extract, Stepper};
 
-/// Trait which symbolises a list of sorted elements, also outputs the value itself instead of a reference.
+/// Marker trait to mark a generator as non empty.
+///
+/// In the context of `FiniteGenerator` it is guaranteed that the length is at least 1.
+pub trait NonEmptyGenerator {}
+
+/// Markter trait to mark a generator as sorted.
+///
+/// This guarantees that the generated elements of a generator are
+/// - comparable (you could define the trait Ord for the set of all generated elements)
+/// - non-strictly increasing
+pub trait SortedGenerator {}
+
+/// Trait which symbolises a finite, non-empty list of sorted elements.
 ///
 /// This trait is mostly used to achieve better performance and accuracy for interpolation with equidistant knots
 /// without needing an extra struct.
-pub trait SortedList : FiniteGenerator {
+pub trait SortedList : FiniteGenerator + NonEmptyGenerator + SortedGenerator {
     /// Find the biggest index to the corresponding element which is still smaller or equal to the element given.
     /// We assume that the collection is non-empty and ordered, to use binary search.
     /// If one or more elements in the collections are exactly equal to the element,
@@ -94,7 +106,7 @@ pub trait SortedList : FiniteGenerator {
         while count > 0 {
             let step = count / 2;
             let sample = pointer + step;
-            if element >= self.get(sample){
+            if element >= self.gen(sample){
                 pointer = sample +1;
                 count -= step +1;
             }else{
@@ -122,7 +134,7 @@ pub trait SortedList : FiniteGenerator {
         while count > 0 {
             let step = count / 2;
             let sample = pointer - step;
-            if element >= self.get(sample){
+            if element >= self.gen(sample){
                 pointer = sample -1;
                 count -= step +1;
             }else{
@@ -164,7 +176,7 @@ pub trait SortedList : FiniteGenerator {
 
         while max_index - min_index > 1 {
             let index = min_index + (max_index - min_index) / 2;
-            let sample = self.get(index);
+            let sample = self.gen(index);
 
             if element < sample {
                 max_index = index;
@@ -215,8 +227,8 @@ pub trait SortedList : FiniteGenerator {
     fn factor(&self, min_index: usize, max_index: usize, element: Self::Output) -> Self::Output
     where Self::Output: Sub<Output = Self::Output> + Div<Output = Self::Output> + Copy
     {
-        let max = self.get(max_index);
-        let min = self.get(min_index);
+        let max = self.gen(max_index);
+        let min = self.gen(min_index);
         (element - min) / (max - min)
     }
 
@@ -252,7 +264,7 @@ pub trait SortedList : FiniteGenerator {
 
         while max_index - min_index > 1 {
             let index = min_index + (max_index - min_index) / 2;
-            let sample = self.get(index);
+            let sample = self.gen(index);
 
             if element > sample {
                 min_index = index;
@@ -263,6 +275,116 @@ pub trait SortedList : FiniteGenerator {
         [min_index, max_index]
     }
 }
+
+/// Struct to represent a non-empty collection/generator.
+#[derive(Copy,Clone,Eq,PartialEq,Ord,PartialOrd,Hash,Debug)]
+pub struct NonEmpty<C>(C);
+
+impl<C> NonEmpty<C>
+where C: FiniteGenerator
+{
+    /// Returns Some(col) if collection is non-empty, otherwise returns None
+    pub fn new(col: C) -> Option<Self>{
+        if col.is_empty() {
+            return None;
+        }
+        Some(NonEmpty(col))
+    }
+}
+
+// We are not able to implement `From<NonEmpty<C>> for C` because it might conflict with
+// `impl<C> Fromy<NonEmpty<C>> for LocalType` in another crate, which is always allowed.
+// See https://stackoverflow.com/questions/63119000/why-am-i-required-to-cover-t-in-impl-foreigntraitlocaltype-for-t-e0210
+impl<C> NonEmpty<C> {
+    /// Creates a NonEmpty collection without checking if it is not empty.
+    ///
+    /// As empty collection will not create UB but will probably panic at some point,
+    /// such this function is still safe, even if an empty collection is given.
+    pub const fn new_unchecked(col: C) -> Self{
+        NonEmpty(col)
+    }
+
+    /// Returns the inner collection
+    pub fn get(self) -> C {
+        self.0
+    }
+}
+
+impl<C> Generator<usize> for NonEmpty<C>
+where C: Generator<usize>
+{
+    type Output = C::Output;
+    fn gen(&self, input: usize) -> Self::Output {
+        self.0.gen(input)
+    }
+}
+
+impl<C> FiniteGenerator for NonEmpty<C>
+where C: FiniteGenerator
+{
+    fn len(&self) -> usize {
+        self.0.len()
+    }
+}
+
+impl<C> NonEmptyGenerator for NonEmpty<C>{}
+impl<C: SortedGenerator> SortedGenerator for NonEmpty<C> {}
+
+
+/// Struct to represent a sorted collection/generator.
+pub struct Sorted<C>(C);
+
+impl<C> Sorted<C>
+where
+    C: FiniteGenerator,
+    C::Output: PartialOrd
+{
+    /// Returns Some(Sorted) if collection is sorted, otherwise returns None
+    pub fn new(col: C) -> Option<Self>{
+        if col.is_empty() {
+            return Some(Sorted(col))
+        }
+        let mut last = col.gen(0);
+        for i in 1..col.len(){
+            let current = col.gen(i);
+            if !(last <= current){
+                return None;
+            }
+            last = current;
+        }
+        Some(Sorted(col))
+    }
+}
+
+impl<C> Sorted<C>{
+    /// Creates a sorted collection without checking if it is sorted.
+    ///
+    /// As unsorted collection will not create UB but will probably panic at some point,
+    /// such this function is still safe, even if an unsorted collection is given.
+    pub const fn new_unchecked(col: C) -> Self{
+        Sorted(col)
+    }
+}
+
+impl<C> Generator<usize> for Sorted<C>
+where C: Generator<usize>
+{
+    type Output = C::Output;
+    fn gen(&self, input: usize) -> Self::Output{
+        self.0.gen(input)
+    }
+}
+
+impl<C> FiniteGenerator for Sorted<C>
+where C: FiniteGenerator
+{
+    fn len(&self) -> usize {
+        self.0.len()
+    }
+}
+
+impl<C> SortedGenerator for Sorted<C>{}
+impl<C: NonEmptyGenerator> NonEmptyGenerator for Sorted<C> {}
 
 /// Struct used as a generator for equidistant elements.
 /// Acts like an array of knots.
@@ -317,7 +439,7 @@ impl<R> Generator<usize> for Equidistant<R>
 where R: Real + FromPrimitive
 {
     type Output = R;
-    fn get(&self, input: usize) -> R {
+    fn gen(&self, input: usize) -> R {
         self.step * R::from_usize(input).unwrap() + self.offset
     }
 }
@@ -329,6 +451,9 @@ where R: Real + FromPrimitive
         self.len
     }
 }
+
+impl<R> SortedGenerator for Equidistant<R>{}
+impl<R> NonEmptyGenerator for Equidistant<R>{}
 
 // Ideas: for linear we would like a function which returns us the nearest two knots and the factor!
 // Ideas: If a knot lies directly on top of the sample, just return the knot twice (or any other neighbor with it, we do not care).
@@ -402,7 +527,7 @@ impl<R> Generator<usize> for ConstEquidistant<R>
 where R: Real + FromPrimitive
 {
     type Output = R;
-    fn get(&self, input: usize) -> R {
+    fn gen(&self, input: usize) -> R {
         R::from_usize(input).unwrap() / R::from_usize(self.len - 1).unwrap()
     }
 }
@@ -415,12 +540,14 @@ where R: Real + FromPrimitive
     }
 }
 
+impl<R> SortedGenerator for ConstEquidistant<R> {}
+
 //TODO: Returning an Option or such would be more idiomatic! -> what to do with 0 or 1 element?!
 //TODO: upper_border is difficult to write for equidistant (making sure both indices are valid but are not the same!)
 //TODO: we don't even have a contract for that, such we should think about it carefully!
 //TODO: It is important to note that upper_border_with_factor does not act like upper_border -> Change the name!
 
-impl<R> SortedList for ConstEquidistant<R>
+impl<R> SortedList for NonEmpty<ConstEquidistant<R>>
 where R: Real + FromPrimitive
 {
     // /// # Panics

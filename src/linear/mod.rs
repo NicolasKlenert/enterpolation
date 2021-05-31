@@ -1,5 +1,5 @@
-//! Linear Interpolations
-//! These Interpolations can be stacked together to create multidimensional Interpolations
+//! Linear Interpolations.
+//!
 //! Linear Interplations are one of the simplest forms of interpolations.
 //! Most of the time, Linear Interpolations are used as an approximation of curves, such
 //! Linear Interpolations often do have many elements. For this reason
@@ -10,7 +10,7 @@
 
 use core::ops::{Add, Mul};
 use crate::{Generator, Interpolation, Curve, EnterpolationError, SortedList,
-    FiniteGenerator, Equidistant, ConstEquidistant};
+    FiniteGenerator, Equidistant, ConstEquidistant, NonEmpty};
 use crate::real::Real;
 use crate::utils::upper_border;
 use num_traits::cast::FromPrimitive;
@@ -52,8 +52,8 @@ where
 {
     //we use upper_border_with_factor as this allows us a performance improvement for equidistant knots
     let (min_index, max_index, factor) = knots.upper_border_with_factor(scalar);
-    let min_point = elements.get(min_index);
-    let max_point = elements.get(max_index);
+    let min_point = elements.gen(min_index);
+    let max_point = elements.gen(max_index);
     min_point * (R::one() - factor) + max_point * factor
 }
 
@@ -76,7 +76,7 @@ where
     /// # Panics
     ///
     /// Panics if `scalar` is NaN or similar.
-    fn get(&self, scalar: K::Output) -> Self::Output {
+    fn gen(&self, scalar: K::Output) -> Self::Output {
         linear(&self.elements, &self.knots, scalar)
     }
 }
@@ -224,7 +224,7 @@ where
     /// Create a linear interpolation with slice-like collections of elements.
     /// There has to be at least 1 element.
     /// We assume the knots to be equidistant distributed and to be inside [0.0,1.0].
-    pub fn new_equidistant(elements: impl Into<E>) -> Result<Self, EnterpolationError>
+    pub fn equidistant(elements: impl Into<E>) -> Result<Self, EnterpolationError>
     {
         let elements = elements.into();
         if elements.is_empty() {
@@ -241,16 +241,16 @@ where
     }
 }
 
-impl<R,T,const N: usize> Linear<ConstEquidistant<R>,[T;N]>
+impl<R,T,const N: usize> Linear<NonEmpty<ConstEquidistant<R>>,[T;N]>
 {
     /// Create a linear interpolation with an array of elements.
     /// There has to be at least 1 element, which is NOT checked.
     /// Should be used if one wants to create a constant Interpolation
-    pub const fn new_equidistant_unchecked(elements: [T;N]) -> Self
+    pub const fn equidistant_unchecked(elements: [T;N]) -> Self
     {
         Linear {
             elements,
-            knots: ConstEquidistant::new(N),
+            knots: NonEmpty::new_unchecked(ConstEquidistant::new(N)),
         }
     }
 }
@@ -274,7 +274,7 @@ pub type DynamicEquidistantLinear<R,T> = Linear<Equidistant<R>,Vec<T>>;
 /// An array-allocated, const-creatable, linear interpolation with equidistant knot distribution.
 ///
 /// **Because this is an alias, not all its methods are listed here. See the [`Linear`](crate::linear::Linear) type too.**
-pub type ConstEquidistantLinear<R,T,const N: usize> = Linear<ConstEquidistant<R>,[T;N]>;
+pub type ConstEquidistantLinear<R,T,const N: usize> = Linear<NonEmpty<ConstEquidistant<R>>,[T;N]>;
 
 
 #[cfg(test)]
@@ -309,27 +309,26 @@ mod test {
     #[test]
     fn extrapolation() {
         let lin = Linear::from_collection_with_knots(vec![(20.0,1.0),(100.0,2.0),(0.0,3.0),(200.0,4.0)]).unwrap();
-        assert_f64_near!(lin.get(1.5), 60.0);
-        assert_f64_near!(lin.get(2.5), 50.0);
-        assert_f64_near!(lin.get(-1.0), -140.0);
-        assert_f64_near!(lin.get(5.0), 400.0);
+        assert_f64_near!(lin.gen(1.5), 60.0);
+        assert_f64_near!(lin.gen(2.5), 50.0);
+        assert_f64_near!(lin.gen(-1.0), -140.0);
+        assert_f64_near!(lin.gen(5.0), 400.0);
     }
 
-    //TODO: try to get rid of turbofish... how?
     #[test]
     fn constant_equidistant(){
-        let constant = StaticEquidistantLinear::new_equidistant([5.0]).unwrap();
+        let constant = StaticEquidistantLinear::equidistant([5.0]).unwrap();
         // let constant = Linear::<f64,_,Equidistant<f64>,CollectionWrapper<[f64;1],f64>>::new([5.0],Equidistant::new(1)).unwrap();
-        assert_f64_near!(constant.get(-1.0), 5.0);
-        assert_f64_near!(constant.get(10.0), 5.0);
-        assert_f64_near!(constant.get(0.5), 5.0);
+        assert_f64_near!(constant.gen(-1.0), 5.0);
+        assert_f64_near!(constant.gen(10.0), 5.0);
+        assert_f64_near!(constant.gen(0.5), 5.0);
     }
 
     //TODO: add constant test (not equidistant)
 
     #[test]
     fn const_creation(){
-        const LIN : ConstEquidistantLinear<f64,f64,4> = ConstEquidistantLinear::new_equidistant_unchecked([20.0,100.0,0.0,200.0]);
+        const LIN : ConstEquidistantLinear<f64,f64,4> = ConstEquidistantLinear::equidistant_unchecked([20.0,100.0,0.0,200.0]);
         // const LIN : Linear<f64,f64,ConstEquidistant<f64>,CollectionWrapper<[f64;4],f64>> = Linear::new_equidistant_unchecked([20.0,100.0,0.0,200.0]);
         let expected = [20.0,60.0,100.0,50.0,0.0,100.0,200.0];
         let mut iter = LIN.take(expected.len());

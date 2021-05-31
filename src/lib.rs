@@ -6,13 +6,17 @@
 //TODO: Also our min and max_index of our linear interpolation does NOT clamp the values together...array out of bounds!
 //TODO: SO upper_border can be broken somehow! Look into it!
 
-//TODO: make the curves take ElementGenerator and KnotGenerator
-//TODO: -> then delete LinearEquidistant and use type alias and construction of linear with equidistant!
+//TODO: all interpolations should have as knots field not just K but Sorted(NonEmpty(K))
+//TODO: all interpolations should have as elements field not just E but NonEmpty(E)
+//TODO: we want to achieve many different creation options such that a builder will be necessary
+//TODO: for now, create a builder for each different interpolation!
+//TODO: Afterwards delete the implementation of SortedList for array and vec
+//TODO: and add NonEmpty as super trait for SortedList!
+
 #![warn(missing_docs)]
 
 #[macro_use]
 extern crate assert_float_eq;
-
 
 pub mod linear;
 pub mod bezier;
@@ -27,7 +31,8 @@ mod base;
 use thiserror::Error;
 use crate::real::Real;
 pub use base::{Generator, Interpolation, Curve, Extract, Stepper, SortedList, Space,
-    FiniteGenerator, Equidistant, ConstEquidistant};
+    FiniteGenerator, Equidistant, ConstEquidistant, Composite, NonEmpty, Sorted};
+pub use homogeneous::Homogeneous;
 
 /// Struct which chains two Interpolation together to one Interpolation.
 ///
@@ -44,8 +49,8 @@ where
     B: Interpolation<A::Output>
 {
     type Output = B::Output;
-    fn get(&self, scalar: T) -> Self::Output {
-        self.second.get(self.first.get(scalar))
+    fn gen(&self, scalar: T) -> Self::Output {
+        self.second.gen(self.first.gen(scalar))
     }
 }
 

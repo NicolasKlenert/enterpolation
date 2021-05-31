@@ -10,7 +10,7 @@ mod list;
 mod space;
 
 pub use generator::{Generator, Interpolation, Curve, FiniteGenerator, Extract, Stepper};
-pub use list::{Equidistant, ConstEquidistant, SortedList};
+pub use list::{Equidistant, ConstEquidistant, SortedList, NonEmptyGenerator, SortedGenerator, NonEmpty, Sorted};
 pub use space::{Space, DynSpace, ConstSpace};
 
 
@@ -22,7 +22,7 @@ pub use space::{Space, DynSpace, ConstSpace};
 
 impl<T: Copy> Generator<usize> for Vec<T> {
     type Output = T;
-    fn get(&self, input: usize) -> Self::Output {
+    fn gen(&self, input: usize) -> Self::Output {
         self[input]
     }
 }
@@ -33,6 +33,9 @@ impl<T: Copy> FiniteGenerator for Vec<T> {
     }
 }
 
+// temporary hack
+impl<R: Copy> SortedGenerator for Vec<R> {}
+impl<R: Copy> NonEmptyGenerator for Vec<R> {}
 impl<R: Copy> SortedList for Vec<R> {}
 
 /// A stack of values or generators
@@ -40,14 +43,14 @@ impl<G,I> Generator<(usize, I)> for Vec<G>
 where G: Generator<I>
 {
     type Output = G::Output;
-    fn get(&self, input: (usize, I)) -> Self::Output {
-        self[input.0].get(input.1)
+    fn gen(&self, input: (usize, I)) -> Self::Output {
+        self[input.0].gen(input.1)
     }
 }
 
 impl<T: Copy, const N: usize> Generator<usize> for [T;N] {
     type Output = T;
-    fn get(&self, input: usize) -> Self::Output {
+    fn gen(&self, input: usize) -> Self::Output {
         self[input]
     }
 }
@@ -58,6 +61,9 @@ impl<T: Copy, const N: usize> FiniteGenerator for [T;N] {
     }
 }
 
+// temporary hack
+impl<R: Copy, const N: usize> SortedGenerator for [R;N] {}
+impl<R: Copy, const N: usize> NonEmptyGenerator for [R;N] {}
 impl<R: Copy, const N: usize> SortedList for [R;N] {}
 
 /// A stack of values or generators
@@ -65,7 +71,7 @@ impl<G,I, const N: usize> Generator<(usize, I)> for [G;N]
 where G: Generator<I>
 {
     type Output = G::Output;
-    fn get(&self, input: (usize, I)) -> Self::Output {
-        self[input.0].get(input.1)
+    fn gen(&self, input: (usize, I)) -> Self::Output {
+        self[input.0].gen(input.1)
     }
 }

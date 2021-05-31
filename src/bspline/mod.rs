@@ -72,6 +72,10 @@ where
     elements[index-1]
 }
 
+//BSPline takes: KnotGenerator [SortedList<R>], ElementGenerator [Generator<usize, Output = T>], Deg [Space<T>]
+// with R and T. KnotGenerator and ElementGenerator not directly but with Into<K> and Into<E>
+// Such Bspline takes the same generics AND Deg!
+
 /// BSplines are generalisations of Bezier Curves.
 /// They allow you to define curves with a lot of control points without increasing the degree of the curve.
 /// In contrast to Bezier Curves, BSplines do have a locally property.
@@ -93,7 +97,7 @@ where
     K: AsRef<[R]>
 {
     type Output = T;
-    fn get(&self, scalar: R) -> T {
+    fn gen(&self, scalar: R) -> T {
         bspline(self.elements.to_owned(), self.knots.as_ref(), self.degree, scalar)
     }
 }
@@ -213,7 +217,7 @@ mod test {
         let knots = [0.0f32, 0.0, 1.0, 1.0];
         let spline = BSpline::new(points, knots);
         for i in 0..expect.len(){
-            assert_f32_near!(spline.get(expect[i].0),expect[i].1);
+            assert_f32_near!(spline.gen(expect[i].0),expect[i].1);
         }
     }
     #[test]
@@ -224,7 +228,7 @@ mod test {
         let knots = [0.0f32, 0.0, 0.0, 1.0, 2.0, 3.0, 3.0, 3.0];
         let spline = BSpline::new(points, knots);
         for i in 0..expect.len(){
-            assert_f32_near!(spline.get(expect[i].0),expect[i].1);
+            assert_f32_near!(spline.gen(expect[i].0),expect[i].1);
         }
     }
     #[test]
@@ -235,7 +239,7 @@ mod test {
         let knots = [-2.0f32, -2.0, -2.0, -2.0, -1.0, 0.0, 1.0, 2.0, 2.0, 2.0, 2.0];
         let spline = BSpline::new(points, knots);
         for i in 0..expect.len(){
-            assert_f32_near!(spline.get(expect[i].0),expect[i].1);
+            assert_f32_near!(spline.gen(expect[i].0),expect[i].1);
         }
     }
     #[test]
@@ -248,7 +252,7 @@ mod test {
         let knots: Vec<f32> = vec![0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 5.0, 5.0, 5.0, 5.0];
         let spline = BSpline::new(points, knots);
         for i in 0..expect.len(){
-            assert_f32_near!(spline.get(expect[i].0),expect[i].1);
+            assert_f32_near!(spline.gen(expect[i].0),expect[i].1);
         }
     }
     #[test]
@@ -261,7 +265,7 @@ mod test {
         let knots: Vec<f64> = vec![0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 5.0, 5.0, 5.0, 5.0];
         let spline = BSpline::new(points, knots);
         for i in 0..expect.len(){
-            assert_f64_near!(spline.get(expect[i].0),expect[i].1);
+            assert_f64_near!(spline.gen(expect[i].0),expect[i].1);
         }
     }
 

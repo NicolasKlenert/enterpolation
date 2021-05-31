@@ -161,7 +161,7 @@ where
     R: Real
 {
     type Output = T;
-    fn get(&self, scalar: R) -> T {
+    fn gen(&self, scalar: R) -> T {
         bezier(self.elements.to_owned(), scalar)
     }
 }
@@ -300,8 +300,8 @@ mod test {
     #[test]
     fn extrapolation() {
         let bez = Bezier::new([20.0,0.0,200.0]);
-        assert_f64_near!(bez.get(2.0), 820.0);
-        assert_f64_near!(bez.get(-1.0), 280.0);
+        assert_f64_near!(bez.gen(2.0), 820.0);
+        assert_f64_near!(bez.gen(-1.0), 280.0);
     }
 
     #[test]

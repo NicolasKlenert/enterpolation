@@ -7,12 +7,13 @@ use super::Equidistant;
 /// Trait which symbolises the generation or copying of an element.
 ///
 /// This trait is fairly similar to core::ops::Index, however it does not retrurn a reference but
-/// the element itself.
+/// the element itself. When a struct implements an Index, it usually should be able to implement this trait as well.
+/// The other way around does not have to be the case.
 pub trait Generator<Input> {
     /// The element outputted
     type Output;
     /// Function to generate the element
-    fn get(&self, input: Input) -> Self::Output;
+    fn gen(&self, input: Input) -> Self::Output;
     /// Helper function if one wants to sample the interpolation.
     /// It takes an iterator which yields items which are inputted into the `get` function
     /// and returns the output of the interpolation.
@@ -36,8 +37,8 @@ pub trait Generator<Input> {
 // Make references of generators also generators
 impl<G: Generator<I> + ?Sized,I> Generator<I> for &G {
     type Output = G::Output;
-    fn get(&self, input: I) -> Self::Output {
-        (**self).get(input)
+    fn gen(&self, input: I) -> Self::Output {
+        (**self).gen(input)
     }
 }
 
@@ -93,14 +94,14 @@ pub trait FiniteGenerator : Generator<usize> {
         if self.is_empty(){
             return None;
         }
-        Some(self.get(0))
+        Some(self.gen(0))
     }
     /// Returns the last element of the generator, or None if it is empty.
     fn last(&self) -> Option<Self::Output> {
         if self.is_empty(){
             return None;
         }
-        Some(self.get(self.len() - 1))
+        Some(self.gen(self.len() - 1))
     }
     /// Returns true if the generator does not generate any elements.
     fn is_empty(&self) -> bool {
@@ -121,7 +122,7 @@ where
 {
     type Item = G::Output;
     fn next(&mut self) -> Option<Self::Item> {
-        Some(self.generator.get(self.iterator.next()?))
+        Some(self.generator.gen(self.iterator.next()?))
     }
 }
 
