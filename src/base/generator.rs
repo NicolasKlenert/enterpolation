@@ -82,8 +82,8 @@ where R: Real
     }
 }
 
-/// FiniteGenerator are generators which only guarantee creation of elements if the input is lower than their length.
-pub trait FiniteGenerator : Generator<usize> {
+/// DiscreteGenerator are generators which only guarantee creation of elements if the input is lower than their length.
+pub trait DiscreteGenerator : Generator<usize> {
     /// Returns the minimum amount of elements the generator can create.
     ///
     /// The generator has to guarantee that every usize number

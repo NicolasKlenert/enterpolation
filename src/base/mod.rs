@@ -9,7 +9,7 @@ mod generator;
 mod list;
 mod space;
 
-pub use generator::{Generator, Interpolation, Curve, FiniteGenerator, Extract, Stepper};
+pub use generator::{Generator, Interpolation, Curve, DiscreteGenerator, Extract, Stepper};
 pub use list::{Equidistant, ConstEquidistant, SortedList, NonEmptyGenerator, SortedGenerator, NonEmpty, Sorted};
 pub use space::{Space, DynSpace, ConstSpace};
 

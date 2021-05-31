@@ -5,25 +5,32 @@ use num_traits::FromPrimitive;
 
 use core::fmt::Debug;
 
-pub use super::{Generator, Interpolation, Curve, FiniteGenerator, Extract, Stepper};
+pub use super::{Generator, Interpolation, Curve, DiscreteGenerator, Extract, Stepper};
 
 /// Marker trait to mark a generator as non empty.
 ///
-/// In the context of `FiniteGenerator` it is guaranteed that the length is at least 1.
-pub trait NonEmptyGenerator {}
+/// In the context of `DiscreteGenerator` it is guaranteed that the length is at least 1.
+pub trait NonEmptyGenerator : DiscreteGenerator {
+    fn first(&self) -> Self::Output {
+        self.gen(0)
+    }
+    fn last(&self) -> Self::Output {
+        self.gen(self.len() - 1)
+    }
+}
 
 /// Markter trait to mark a generator as sorted.
 ///
 /// This guarantees that the generated elements of a generator are
 /// - comparable (you could define the trait Ord for the set of all generated elements)
 /// - non-strictly increasing
-pub trait SortedGenerator {}
+pub trait SortedGenerator : DiscreteGenerator {}
 
 /// Trait which symbolises a finite, non-empty list of sorted elements.
 ///
 /// This trait is mostly used to achieve better performance and accuracy for interpolation with equidistant knots
 /// without needing an extra struct.
-pub trait SortedList : FiniteGenerator + NonEmptyGenerator + SortedGenerator {
+pub trait SortedList : NonEmptyGenerator + SortedGenerator {
     /// Find the biggest index to the corresponding element which is still smaller or equal to the element given.
     /// We assume that the collection is non-empty and ordered, to use binary search.
     /// If one or more elements in the collections are exactly equal to the element,
@@ -50,7 +57,7 @@ pub trait SortedList : FiniteGenerator + NonEmptyGenerator + SortedGenerator {
     fn lower_bound(&self, element: Self::Output) -> usize
     where Self::Output: PartialOrd + Copy
     {
-        if self.last().unwrap() <= element {
+        if NonEmptyGenerator::last(self) <= element {
             return self.len() - 1;
         }
         self.upper_border(element)[0]
@@ -82,7 +89,7 @@ pub trait SortedList : FiniteGenerator + NonEmptyGenerator + SortedGenerator {
     fn upper_bound(&self, element: Self::Output) -> usize
     where Self::Output: PartialOrd + Copy
     {
-        if self.first().unwrap() >= element {
+        if NonEmptyGenerator::first(self) >= element {
             return 0;
         }
         self.lower_border(element)[1]
@@ -281,7 +288,7 @@ pub trait SortedList : FiniteGenerator + NonEmptyGenerator + SortedGenerator {
 pub struct NonEmpty<C>(C);
 
 impl<C> NonEmpty<C>
-where C: FiniteGenerator
+where C: DiscreteGenerator
 {
     /// Returns Some(col) if collection is non-empty, otherwise returns None
     pub fn new(col: C) -> Option<Self>{
@@ -319,15 +326,15 @@ where C: Generator<usize>
     }
 }
 
-impl<C> FiniteGenerator for NonEmpty<C>
-where C: FiniteGenerator
+impl<C> DiscreteGenerator for NonEmpty<C>
+where C: DiscreteGenerator
 {
     fn len(&self) -> usize {
         self.0.len()
     }
 }
 
-impl<C> NonEmptyGenerator for NonEmpty<C>{}
+impl<C: DiscreteGenerator> NonEmptyGenerator for NonEmpty<C> {}
 impl<C: SortedGenerator> SortedGenerator for NonEmpty<C> {}
 
 
@@ -336,7 +343,7 @@ pub struct Sorted<C>(C);
 
 impl<C> Sorted<C>
 where
-    C: FiniteGenerator,
+    C: DiscreteGenerator,
     C::Output: PartialOrd
 {
     /// Returns Some(Sorted) if collection is sorted, otherwise returns None
@@ -375,15 +382,15 @@ where C: Generator<usize>
     }
 }
 
-impl<C> FiniteGenerator for Sorted<C>
-where C: FiniteGenerator
+impl<C> DiscreteGenerator for Sorted<C>
+where C: DiscreteGenerator
 {
     fn len(&self) -> usize {
         self.0.len()
     }
 }
 
-impl<C> SortedGenerator for Sorted<C>{}
+impl<C: DiscreteGenerator> SortedGenerator for Sorted<C> {}
 impl<C: NonEmptyGenerator> NonEmptyGenerator for Sorted<C> {}
 
 /// Struct used as a generator for equidistant elements.
@@ -444,7 +451,7 @@ where R: Real + FromPrimitive
     }
 }
 
-impl<R> FiniteGenerator for Equidistant<R>
+impl<R> DiscreteGenerator for Equidistant<R>
 where R: Real + FromPrimitive
 {
     fn len(&self) -> usize {
@@ -452,8 +459,8 @@ where R: Real + FromPrimitive
     }
 }
 
-impl<R> SortedGenerator for Equidistant<R>{}
-impl<R> NonEmptyGenerator for Equidistant<R>{}
+impl<R> SortedGenerator for Equidistant<R> where R: Real + FromPrimitive {}
+impl<R> NonEmptyGenerator for Equidistant<R> where R: Real + FromPrimitive {}
 
 // Ideas: for linear we would like a function which returns us the nearest two knots and the factor!
 // Ideas: If a knot lies directly on top of the sample, just return the knot twice (or any other neighbor with it, we do not care).
@@ -532,7 +539,7 @@ where R: Real + FromPrimitive
     }
 }
 
-impl<R> FiniteGenerator for ConstEquidistant<R>
+impl<R> DiscreteGenerator for ConstEquidistant<R>
 where R: Real + FromPrimitive
 {
     fn len(&self) -> usize {
@@ -540,7 +547,9 @@ where R: Real + FromPrimitive
     }
 }
 
-impl<R> SortedGenerator for ConstEquidistant<R> {}
+impl<R> SortedGenerator for ConstEquidistant<R>
+where R: Real + FromPrimitive
+{}
 
 //TODO: Returning an Option or such would be more idiomatic! -> what to do with 0 or 1 element?!
 //TODO: upper_border is difficult to write for equidistant (making sure both indices are valid but are not the same!)

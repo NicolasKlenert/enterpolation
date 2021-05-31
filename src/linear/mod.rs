@@ -10,7 +10,7 @@
 
 use core::ops::{Add, Mul};
 use crate::{Generator, Interpolation, Curve, EnterpolationError, SortedList,
-    FiniteGenerator, Equidistant, ConstEquidistant, Homogeneous, NonEmpty};
+    DiscreteGenerator, Equidistant, ConstEquidistant, Homogeneous, NonEmpty, NonEmptyGenerator};
 use crate::real::Real;
 use crate::utils::upper_border;
 use num_traits::cast::FromPrimitive;
@@ -45,7 +45,7 @@ where
 /// These constrains are not checked!
 fn linear<R,K,E>(elements: &E, knots: &K, scalar: R) -> E::Output
 where
-    E: Generator<usize>,
+    E: DiscreteGenerator,
     K: SortedList<Output = R>,
     E::Output: Add<Output = E::Output> + Mul<R, Output = E::Output> + Copy + Debug,
     R: Real + Debug
@@ -67,7 +67,7 @@ pub struct Linear<K,E>
 
 impl<R,K,E> Generator<R> for Linear<K,E>
 where
-    E: Generator<usize>,
+    E: DiscreteGenerator,
     K: SortedList<Output = R>,
     E::Output: Add<Output = E::Output> + Mul<R, Output = E::Output> + Copy + Debug,
     R: Real + Debug
@@ -83,7 +83,7 @@ where
 
 impl<R,K,E> Interpolation<R> for Linear<K,E>
 where
-    E: Generator<usize>,
+    E: DiscreteGenerator,
     K: SortedList<Output = R>,
     E::Output: Add<Output = E::Output> + Mul<R, Output = E::Output> + Copy + Debug,
     R: Real + Debug
@@ -91,13 +91,13 @@ where
 
 impl<R,K,E> Curve<R> for Linear<K,E>
 where
-    E: Generator<usize>,
+    E: DiscreteGenerator,
     K: SortedList<Output = R>,
     E::Output: Add<Output = E::Output> + Mul<R, Output = E::Output> + Copy + Debug,
     R: Real + Debug
 {
     fn domain(&self) -> [R; 2] {
-        [self.knots.first().unwrap(), self.knots.last().unwrap()]
+        [NonEmptyGenerator::first(&self.knots), NonEmptyGenerator::last(&self.knots)]
     }
 }
 
@@ -240,7 +240,7 @@ where
 
 impl<K,E> Linear<K,E>
 where
-    E: FiniteGenerator,
+    E: DiscreteGenerator,
     K: SortedList,
     E::Output: Add<Output = E::Output> + Mul<K::Output, Output = E::Output> + Copy,
     K::Output: Real
@@ -273,7 +273,7 @@ where
 
 impl<R,E> Linear<Equidistant<R>,E>
 where
-    E: FiniteGenerator,
+    E: DiscreteGenerator,
     E::Output: Add<Output = E::Output> + Mul<R, Output = E::Output> + Copy,
     R: Real + FromPrimitive
 {

@@ -31,7 +31,7 @@ mod base;
 use thiserror::Error;
 use crate::real::Real;
 pub use base::{Generator, Interpolation, Curve, Extract, Stepper, SortedList, Space,
-    FiniteGenerator, Equidistant, ConstEquidistant, Composite, NonEmpty, Sorted};
+    DiscreteGenerator, Equidistant, ConstEquidistant, Composite, NonEmpty, Sorted, NonEmptyGenerator, SortedGenerator};
 pub use homogeneous::Homogeneous;
 
 /// Struct which chains two Interpolation together to one Interpolation.
