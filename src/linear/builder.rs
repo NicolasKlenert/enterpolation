@@ -8,7 +8,7 @@ use core::ops::{Add, Mul};
 use core::marker::PhantomData;
 use num_traits::real::Real;
 use num_traits::FromPrimitive;
-use crate::{DiscreteGenerator, SortedList, Equidistant, Homogeneous, Weighted, NonEmptyGenerator};
+use crate::{DiscreteGenerator, SortedGenerator, Equidistant, Homogeneous, Weighted, NonEmptyGenerator};
 use super::Linear;
 
 // API:
@@ -106,7 +106,7 @@ impl<T,R,const N: usize> LinearBuilder<Unknown, WithWeight<[Homogeneous<T,R>;N]>
 impl<K,E> LinearBuilder<K,E>
 where
     E: NonEmptyGenerator,
-    K: SortedList,
+    K: SortedGenerator,
     E::Output: Add<Output = E::Output> + Mul<K::Output, Output = E::Output> + Copy,
     K::Output: Real
 {
@@ -117,7 +117,7 @@ where
 
 impl<K,T,R> LinearBuilder<K,WithWeight<Vec<Homogeneous<T,R>>>>
 where
-    K: SortedList<Output = R>,
+    K: SortedGenerator<Output = R>,
     T: Add<Output = T> + Mul<R, Output = T> + Copy,
     R: Real + Copy
 {
@@ -128,7 +128,7 @@ where
 
 impl<K,T,R, const N: usize> LinearBuilder<K,WithWeight<[Homogeneous<T,R>;N]>>
 where
-    K: SortedList<Output = R>,
+    K: SortedGenerator<Output = R>,
     T: Add<Output = T> + Mul<R, Output = T> + Copy,
     R: Real + Copy
 {
@@ -141,7 +141,7 @@ impl<E> LinearBuilder<Unknown, E>
 {
     pub fn knots<K>(self, knots: K) -> LinearBuilder<K,E>
     where
-        K: SortedList
+        K: SortedGenerator
     {
         LinearBuilder {
             knots,

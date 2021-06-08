@@ -23,6 +23,7 @@ pub mod bezier;
 pub mod bspline;
 pub mod utils;
 pub mod homogeneous;
+pub mod weighted;
 
 mod real;
 mod never;
@@ -30,9 +31,10 @@ mod base;
 
 use thiserror::Error;
 use crate::real::Real;
-pub use base::{Generator, Interpolation, Curve, Extract, Stepper, SortedList, Space,
+pub use base::{Generator, Interpolation, Curve, Extract, Stepper, Space, ConstSpace, DynSpace,
     DiscreteGenerator, Equidistant, ConstEquidistant, Composite, NonEmpty, Sorted, NonEmptyGenerator, SortedGenerator};
 pub use homogeneous::Homogeneous;
+pub use weighted::Weighted;
 
 /// Struct which chains two Interpolation together to one Interpolation.
 ///

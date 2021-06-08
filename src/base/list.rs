@@ -7,28 +7,46 @@ use core::fmt::Debug;
 
 pub use super::{Generator, Interpolation, Curve, DiscreteGenerator, Extract, Stepper};
 
-/// Marker trait to mark a generator as non empty.
-pub trait NonEmptyGenerator : DiscreteGenerator {
-    fn first(&self) -> Self::Output {
-        self.gen(0)
-    }
-    fn last(&self) -> Self::Output {
-        self.gen(self.len() - 1)
-    }
-}
+// TODO: Search for "//TODO: implement all SortedGenerator functions with the underlying SortedGenerator!"
+// TODO: and do this! Otherwise there is no performance boost for Equidistant as we wrap them!
 
-/// Markter trait to mark a generator as sorted.
+// REMARK: It may be valuable to create traits SortedNonEmpty and SortedNonSingular
+// REMARK: These would be Sorted + NonEmpty and Sorted + MinSize<2>.
+// REMARK: They would implement the specified functions without risk of panics and possible use of the functions.
+// REMARK: However this will create even more traits which have to be implemented.
+
+// Ideas: for linear we would like a function which returns us the nearest two knots and the factor!
+// Ideas: If a knot lies directly on top of the sample, just return the knot twice (or any other neighbor with it, we do not care).
+// Ideas: If there is only one element, return the element and any factor!
+// Ideas: If there are no elements, we are allowed to panic or anything else. 0 elements are never allowed!
+// Ideas: for bspline we would like a simple function which returns us the minimal bigger knot.
+// Ideas: -> if all elements are smaller then the sample, return the len of the collection
+// Ideas: Also panic if no element is given!
+
+// Summary: we want a function which returns us the bigger element when possible (or the last element)
+// Summary: we want to get some border, 1 step or dynamic steps smaller. The distance between these two points have to be exact.
+// Summary: If the two elements are not equal, we calculate the factor
+// Summary: If the two elements are equal, we want to return 1.0 as factor
+// Summary: If the distance between these two shall be greater then the size of the collection, we panic!
+// --> for bspline, MinSize does not make any sense for DynSpace. For ConstSpace, it's possible
+// --> for bspline and DynSpace we have to check at runtime (and have to check each time we want to remove an element)
+
+/// Trait to mark a generator as sorted.
 ///
 /// This guarantees that the generated elements of a generator are
 /// - comparable (you could define the trait Ord for the set of all generated elements)
 /// - non-strictly increasing
-pub trait SortedGenerator : DiscreteGenerator {}
-
-/// Trait which symbolises a finite, non-empty list of sorted elements.
 ///
-/// This trait is mostly used to achieve better performance and accuracy for interpolation with equidistant knots
-/// without needing an extra struct.
-pub trait SortedList : NonEmptyGenerator + SortedGenerator {
+/// Also it implements default search functions which can be overriden to achieve better performance
+/// and accuracy.
+///
+/// # Panics
+///
+/// Some or all of this functions *may* panic. Each function has it's own panic segment which
+/// describes its needs. To guarantee no panics at runtime, one should use struct or traits which
+/// guarantee the needs of the functions. The MinSize trait was created just for this.
+pub trait SortedGenerator : DiscreteGenerator
+{
     /// Find the biggest index to the corresponding element which is still smaller or equal to the element given.
     /// We assume that the collection is non-empty and ordered, to use binary search.
     /// If one or more elements in the collections are exactly equal to the element,
@@ -55,7 +73,7 @@ pub trait SortedList : NonEmptyGenerator + SortedGenerator {
     fn lower_bound(&self, element: Self::Output) -> usize
     where Self::Output: PartialOrd + Copy
     {
-        if NonEmptyGenerator::last(self) <= element {
+        if self.last().unwrap() <= element {
             return self.len() - 1;
         }
         self.upper_border(element)[0]
@@ -87,7 +105,7 @@ pub trait SortedList : NonEmptyGenerator + SortedGenerator {
     fn upper_bound(&self, element: Self::Output) -> usize
     where Self::Output: PartialOrd + Copy
     {
-        if NonEmptyGenerator::first(self) >= element {
+        if self.first().unwrap() >= element {
             return 0;
         }
         self.lower_border(element)[1]
@@ -281,32 +299,57 @@ pub trait SortedList : NonEmptyGenerator + SortedGenerator {
     }
 }
 
-/// Struct to represent a non-empty collection/generator.
-#[derive(Copy,Clone,Eq,PartialEq,Ord,PartialOrd,Hash,Debug)]
-pub struct NonEmpty<C>(C);
+/// Marker trait to mark a generator to have at least a length of N.
+pub trait MinSizeGenerator<const N: usize> : DiscreteGenerator {}
 
-impl<C> NonEmpty<C>
-where C: DiscreteGenerator
-{
-    /// Returns Some(col) if collection is non-empty, otherwise returns None
-    pub fn new(col: C) -> Option<Self>{
-        if col.is_empty() {
-            return None;
-        }
-        Some(NonEmpty(col))
+/// Marker trait to mark a generator as non empty.
+///
+/// This trait is not implemented by hand. Insted of implementing this trait, implement MinSizeGenerator<1>.
+/// There is no difference in these two except this implementation detail.
+/// When rust allows trait alias in stable, this will be unnecassary.
+pub trait NonEmptyGenerator : MinSizeGenerator<1> {
+    fn first(&self) -> Self::Output {
+        self.gen(0)
+    }
+    fn last(&self) -> Self::Output {
+        self.gen(self.len() - 1)
     }
 }
 
-// We are not able to implement `From<NonEmpty<C>> for C` because it might conflict with
-// `impl<C> Fromy<NonEmpty<C>> for LocalType` in another crate, which is always allowed.
+// Delete and make NonEmptyGenerator a trait alias when this is possible.
+impl<T> NonEmptyGenerator for T where T: MinSizeGenerator<1> {}
+// Do this with a macro and at some point maybe const features are strong enough to do it generically.
+// This implementation conflicts with generic implementations as we can't just take the maximum value for N, but do all N.
+// impl<T> MinSizeGenerator<0> for T where T: MinSizeGenerator<1> {}
+// impl<T> MinSizeGenerator<1> for T where T: MinSizeGenerator<2> {}
+// impl<T> MinSizeGenerator<2> for T where T: MinSizeGenerator<3> {}
+
+/// Struct to represent a collection/generator with a minimum size of N.
+#[derive(Copy,Clone,Eq,PartialEq,Ord,PartialOrd,Hash,Debug)]
+pub struct MinSize<C,const N: usize>(C);
+
+impl<C,const N: usize> MinSize<C,N>
+where C: DiscreteGenerator
+{
+    /// Returns Some(col) if collection has a minimum size of `N`, otherwise returns None.
+    pub fn new(col: C) -> Option<Self>{
+        if col.len() < N {
+            return None;
+        }
+        Some(MinSize(col))
+    }
+}
+
+// We are not able to implement `From<MinSize<C,N>> for C` because it might conflict with
+// `impl<C> From<MinSize<C,N>> for LocalType` in another crate, which is always allowed.
 // See https://stackoverflow.com/questions/63119000/why-am-i-required-to-cover-t-in-impl-foreigntraitlocaltype-for-t-e0210
-impl<C> NonEmpty<C> {
-    /// Creates a NonEmpty collection without checking if it is not empty.
+impl<C,const N: usize> MinSize<C,N> {
+    /// Creates a minimal size collection without checking if it has at least this size.
     ///
-    /// As empty collection will not create UB but will probably panic at some point,
-    /// such this function is still safe, even if an empty collection is given.
+    /// As too few elements are not going to create UB, this functin is safe.
+    /// However at some point something will probably panic.
     pub const fn new_unchecked(col: C) -> Self{
-        NonEmpty(col)
+        MinSize(col)
     }
 
     /// Returns the inner collection
@@ -315,7 +358,7 @@ impl<C> NonEmpty<C> {
     }
 }
 
-impl<C> Generator<usize> for NonEmpty<C>
+impl<C,const N: usize> Generator<usize> for MinSize<C,N>
 where C: Generator<usize>
 {
     type Output = C::Output;
@@ -324,7 +367,7 @@ where C: Generator<usize>
     }
 }
 
-impl<C> DiscreteGenerator for NonEmpty<C>
+impl<C,const N: usize> DiscreteGenerator for MinSize<C,N>
 where C: DiscreteGenerator
 {
     fn len(&self) -> usize {
@@ -332,9 +375,19 @@ where C: DiscreteGenerator
     }
 }
 
-impl<C: DiscreteGenerator> NonEmptyGenerator for NonEmpty<C> {}
-impl<C: SortedGenerator> SortedGenerator for NonEmpty<C> {}
+impl<C: DiscreteGenerator,const N: usize> MinSizeGenerator<N> for MinSize<C,N> {}
+impl<C: SortedGenerator,const N: usize> SortedGenerator for MinSize<C,N> {
+    //TODO: implement all SortedGenerator functions with the underlying SortedGenerator!
+    fn upper_border_with_factor(&self, element: Self::Output) -> (usize, usize, Self::Output)
+    where
+        Self::Output: PartialOrd + Sub<Output = Self::Output> + Div<Output = Self::Output> + Copy + Debug
+    {
+        self.0.upper_border_with_factor(element)
+    }
+}
 
+/// Type alias which is more telling.
+pub type NonEmpty<C> = MinSize<C,1>;
 
 /// Struct to represent a sorted collection/generator.
 pub struct Sorted<C>(C);
@@ -389,7 +442,7 @@ where C: DiscreteGenerator
 }
 
 impl<C: DiscreteGenerator> SortedGenerator for Sorted<C> {}
-impl<C: NonEmptyGenerator> NonEmptyGenerator for Sorted<C> {}
+impl<C: MinSizeGenerator<N>, const N: usize> MinSizeGenerator<N> for Sorted<C> {}
 
 /// Struct used as a generator for equidistant elements.
 /// Acts like an array of knots.
@@ -457,24 +510,13 @@ where R: Real + FromPrimitive
     }
 }
 
-impl<R> SortedGenerator for Equidistant<R> where R: Real + FromPrimitive {}
-impl<R> NonEmptyGenerator for Equidistant<R> where R: Real + FromPrimitive {}
-
-// Ideas: for linear we would like a function which returns us the nearest two knots and the factor!
-// Ideas: If a knot lies directly on top of the sample, just return the knot twice (or any other neighbor with it, we do not care).
-// Ideas: If there is only one element, return the element and any factor!
-// Ideas: If there are no elements, we are allowed to panic or anything else. 0 elements are never allowed!
-// Ideas: for bspline we would like a simple function which returns us the minimal bigger knot.
-// Ideas: -> if all elements are smaller then the sample, return the len of the collection
-// Ideas: Also panic if no element is given!
-
 //TODO: Test upper_border_with_factor for all implementations -> collection, equidistant and ConstEquidistant!
 //TODO: Returning an Option or such would be more idiomatic! -> what to do with 0 or 1 element?!
 //TODO: upper_border is difficult to write for equidistant (making sure both indices are valid but are not the same!)
 //TODO: we don't even have a contract for that, such we should think about it carefully!
 //TODO: It is important to note that upper_border_with_factor does not act like upper_border -> Change the name!
 
-impl<R> SortedList for Equidistant<R>
+impl<R> SortedGenerator for Equidistant<R>
 where R: Real + FromPrimitive
 {
     // /// # Panics
@@ -500,6 +542,7 @@ where R: Real + FromPrimitive
         (min_index, max_index, factor)
     }
 }
+impl<R> MinSizeGenerator<1> for Equidistant<R> where R: Real + FromPrimitive {}
 
 /// Struct used as a generator for equidistant elements in constant context.
 /// Acts like an array of knots.
@@ -545,16 +588,12 @@ where R: Real + FromPrimitive
     }
 }
 
-impl<R> SortedGenerator for ConstEquidistant<R>
-where R: Real + FromPrimitive
-{}
-
 //TODO: Returning an Option or such would be more idiomatic! -> what to do with 0 or 1 element?!
 //TODO: upper_border is difficult to write for equidistant (making sure both indices are valid but are not the same!)
 //TODO: we don't even have a contract for that, such we should think about it carefully!
 //TODO: It is important to note that upper_border_with_factor does not act like upper_border -> Change the name!
 
-impl<R> SortedList for NonEmpty<ConstEquidistant<R>>
+impl<R> SortedGenerator for ConstEquidistant<R>
 where R: Real + FromPrimitive
 {
     // /// # Panics

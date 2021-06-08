@@ -8,8 +8,10 @@
 //! the border elements to calculate the linear interpolation with can be found in O(1)
 //! instead of O(log n) with n being the number of elements in the interpolation structure.
 
+//TODO: instead of NonEmpty, we want MinSize<2>!
+
 use core::ops::{Add, Mul};
-use crate::{Generator, Interpolation, Curve, EnterpolationError, SortedList, Sorted,
+use crate::{Generator, Interpolation, Curve, EnterpolationError, Sorted, SortedGenerator,
     DiscreteGenerator, Equidistant, ConstEquidistant, Homogeneous, NonEmpty, NonEmptyGenerator};
 use crate::utils::upper_border;
 use num_traits::real::Real;
@@ -47,7 +49,7 @@ where
 fn linear<R,K,E>(elements: &E, knots: &K, scalar: R) -> E::Output
 where
     E: DiscreteGenerator,
-    K: SortedList<Output = R>,
+    K: SortedGenerator<Output = R>,
     E::Output: Add<Output = E::Output> + Mul<R, Output = E::Output> + Copy + Debug,
     R: Real + Debug
 {
@@ -69,7 +71,7 @@ pub struct Linear<K,E>
 impl<R,K,E> Generator<R> for Linear<K,E>
 where
     E: NonEmptyGenerator,
-    K: SortedList<Output = R>,
+    K: SortedGenerator<Output = R>,
     E::Output: Add<Output = E::Output> + Mul<R, Output = E::Output> + Copy + Debug,
     R: Real + Debug
 {
@@ -85,7 +87,7 @@ where
 impl<R,K,E> Interpolation<R> for Linear<K,E>
 where
     E: NonEmptyGenerator,
-    K: SortedList<Output = R>,
+    K: SortedGenerator<Output = R>,
     E::Output: Add<Output = E::Output> + Mul<R, Output = E::Output> + Copy + Debug,
     R: Real + Debug
 {}
@@ -93,7 +95,7 @@ where
 impl<R,K,E> Curve<R> for Linear<K,E>
 where
     E: NonEmptyGenerator,
-    K: SortedList<Output = R>,
+    K: SortedGenerator<Output = R> + NonEmptyGenerator,
     E::Output: Add<Output = E::Output> + Mul<R, Output = E::Output> + Copy + Debug,
     R: Real + Debug
 {
@@ -242,7 +244,7 @@ where
 impl<K,E> Linear<K,E>
 where
     E: NonEmptyGenerator,
-    K: SortedList,
+    K: SortedGenerator,
     E::Output: Add<Output = E::Output> + Mul<K::Output, Output = E::Output> + Copy,
     K::Output: Real
 {
