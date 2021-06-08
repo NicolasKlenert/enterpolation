@@ -8,8 +8,6 @@ use core::fmt::Debug;
 pub use super::{Generator, Interpolation, Curve, DiscreteGenerator, Extract, Stepper};
 
 /// Marker trait to mark a generator as non empty.
-///
-/// In the context of `DiscreteGenerator` it is guaranteed that the length is at least 1.
 pub trait NonEmptyGenerator : DiscreteGenerator {
     fn first(&self) -> Self::Output {
         self.gen(0)
@@ -466,7 +464,7 @@ impl<R> NonEmptyGenerator for Equidistant<R> where R: Real + FromPrimitive {}
 // Ideas: If a knot lies directly on top of the sample, just return the knot twice (or any other neighbor with it, we do not care).
 // Ideas: If there is only one element, return the element and any factor!
 // Ideas: If there are no elements, we are allowed to panic or anything else. 0 elements are never allowed!
-// Ideas: for bspline we would like a simple function which returns us the minimal biggest knot.
+// Ideas: for bspline we would like a simple function which returns us the minimal bigger knot.
 // Ideas: -> if all elements are smaller then the sample, return the len of the collection
 // Ideas: Also panic if no element is given!
 

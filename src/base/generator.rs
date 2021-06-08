@@ -14,7 +14,7 @@ pub trait Generator<Input> {
     type Output;
     /// Function to generate the element
     fn gen(&self, input: Input) -> Self::Output;
-    /// Helper function if one wants to sample the interpolation.
+    /// Helper function if one wants to extract values from the interpolation.
     /// It takes an iterator which yields items which are inputted into the `get` function
     /// and returns the output of the interpolation.
     fn extract<I>(self, iterator: I) -> Extract<Self, I>
@@ -26,6 +26,18 @@ pub trait Generator<Input> {
             generator: self,
             iterator,
         }
+    }
+    /// Helper function if one wants to sample values from the interpolation.
+    ///
+    /// It takes an iterator which yields items which are inputted into the `get` function
+    /// and returns the output of the interpolation.
+    ///
+    /// This acts the same as 'generator.as_ref().extract()'.
+    fn sample<I>(&self, iterator: I) -> Extract<&Self, I>
+    where
+        I: Iterator<Item = Input>
+    {
+        self.extract(iterator)
     }
     /// Get a reference of the generator.
     /// This is useful if one wants to add an adapter without consuming the original.

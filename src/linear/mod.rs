@@ -9,15 +9,16 @@
 //! instead of O(log n) with n being the number of elements in the interpolation structure.
 
 use core::ops::{Add, Mul};
-use crate::{Generator, Interpolation, Curve, EnterpolationError, SortedList,
+use crate::{Generator, Interpolation, Curve, EnterpolationError, SortedList, Sorted,
     DiscreteGenerator, Equidistant, ConstEquidistant, Homogeneous, NonEmpty, NonEmptyGenerator};
-use crate::real::Real;
 use crate::utils::upper_border;
+use num_traits::real::Real;
 use num_traits::cast::FromPrimitive;
 
 use core::fmt::Debug;
 
 // mod hyper;
+pub mod builder;
 
 /// Linear interpolate/extrapolate with the elements and knots given.
 /// Knots should be in increasing order and there has to be at least 2 knots.
@@ -67,7 +68,7 @@ pub struct Linear<K,E>
 
 impl<R,K,E> Generator<R> for Linear<K,E>
 where
-    E: DiscreteGenerator,
+    E: NonEmptyGenerator,
     K: SortedList<Output = R>,
     E::Output: Add<Output = E::Output> + Mul<R, Output = E::Output> + Copy + Debug,
     R: Real + Debug
@@ -83,7 +84,7 @@ where
 
 impl<R,K,E> Interpolation<R> for Linear<K,E>
 where
-    E: DiscreteGenerator,
+    E: NonEmptyGenerator,
     K: SortedList<Output = R>,
     E::Output: Add<Output = E::Output> + Mul<R, Output = E::Output> + Copy + Debug,
     R: Real + Debug
@@ -91,7 +92,7 @@ where
 
 impl<R,K,E> Curve<R> for Linear<K,E>
 where
-    E: DiscreteGenerator,
+    E: NonEmptyGenerator,
     K: SortedList<Output = R>,
     E::Output: Add<Output = E::Output> + Mul<R, Output = E::Output> + Copy + Debug,
     R: Real + Debug
@@ -240,7 +241,7 @@ where
 
 impl<K,E> Linear<K,E>
 where
-    E: DiscreteGenerator,
+    E: NonEmptyGenerator,
     K: SortedList,
     E::Output: Add<Output = E::Output> + Mul<K::Output, Output = E::Output> + Copy,
     K::Output: Real
@@ -267,6 +268,27 @@ where
         Ok(Linear {
             elements,
             knots,
+        })
+    }
+}
+
+impl<K,E> Linear<Sorted<NonEmpty<K>>,NonEmpty<E>>
+where
+    E: DiscreteGenerator,
+    K: DiscreteGenerator,
+    E::Output: Add<Output = E::Output> + Mul<K::Output, Output = E::Output> + Copy,
+    K::Output: Real
+{
+    /// Create a linear interpolation with slice-like collections of elements and knots.
+    /// Knots should be in increasing order, there should be as many knots as elements
+    /// and there has to be at least 2 elements.
+    ///
+    /// All requirements are not checked.
+    pub fn new_unchecked(elements: E, knots: K) -> Result<Self, EnterpolationError>
+    {
+        Ok(Linear {
+            elements: NonEmpty::new_unchecked(elements),
+            knots: Sorted::new_unchecked(NonEmpty::new_unchecked(knots)),
         })
     }
 }

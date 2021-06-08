@@ -9,7 +9,7 @@ use num_traits::real::Real;
 /// Wrapper for elements to achieve weighted and rational curves.
 ///
 /// This wrapper allows for Homogeneous Coordinates.
-#[derive(PartialEq, PartialOrd, Clone, Copy, Hash, Default, Debug)]
+#[derive(PartialEq, Clone, Copy, Hash, Default, Debug)]
 pub struct Homogeneous<E,R> {
     element: E,
     rational: R,

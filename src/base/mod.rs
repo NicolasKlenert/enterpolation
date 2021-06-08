@@ -27,13 +27,16 @@ impl<T: Copy> Generator<usize> for Vec<T> {
     }
 }
 
-impl<T: Copy> FiniteGenerator for Vec<T> {
+impl<T: Copy> DiscreteGenerator for Vec<T> {
     fn len(&self) -> usize {
         self.len()
     }
 }
 
 // temporary hack
+//-> Only implement SortedGenerator for Sorted<Vec<R>>
+//-> Only implement NonEmptyGenerator for NonEmpty<Vec<R>>
+//-> Only implement SortedList for Sorted<NonEmpty<Vec<R>>> and NonEmpty<Sorted<Vec<R>>>
 impl<R: Copy> SortedGenerator for Vec<R> {}
 impl<R: Copy> NonEmptyGenerator for Vec<R> {}
 impl<R: Copy> SortedList for Vec<R> {}
@@ -55,7 +58,7 @@ impl<T: Copy, const N: usize> Generator<usize> for [T;N] {
     }
 }
 
-impl<T: Copy, const N: usize> FiniteGenerator for [T;N] {
+impl<T: Copy, const N: usize> DiscreteGenerator for [T;N] {
     fn len(&self) -> usize {
         N
     }
