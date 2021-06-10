@@ -8,42 +8,10 @@ use core::fmt::Debug;
 
 pub use super::{Generator, Interpolation, Curve, DiscreteGenerator, Extract, Stepper};
 
-// TODO: make the doc tests of SortedGenerator better -> implement lerp utility and test with float equality!
-// TODO: --> after that we can commit the changes and do the next part!
-
-// Plan: SortedGenerator should have: bigger() -> returns the minimal index for which the value is strictly bigger
-// Plan: may return len if all elements are bigger
-// Plan: clamp() which panics if min is bigger than max
-// Plan: to get max_index we use bigger(val).clamp(LB+D,len-1-UB) with LB lower border, d distance = max_index - min_index and UB upper border
-// Plan: LB and UB are usually 0
-// Plan: to guarantee that clamp does not panic the collection should have MinSize<LB+D+UB+1>!
-// Maybe Plan: maybe for a small performance boost one may implement bigger(val).clamp(0+1,len-1) as one function! -> however this may be not better but worse!
-// Maybe Plan: Also the linear_factor() should usually be normally calculated BUT checked if both values are equal -> return 1 as factor
-// Plan: linear_factor() only has to check if values are equal if clamp() had to do any work. Otherwise (normally) they can't be equal!
-
-// TODO: Search for "//TODO: implement all SortedGenerator functions with the underlying SortedGenerator!"
-// TODO: and do this! Otherwise there is no performance boost for Equidistant as we wrap them!
-
 // REMARK: It may be valuable to create traits SortedNonEmpty and SortedNonSingular
 // REMARK: These would be Sorted + NonEmpty and Sorted + MinSize<2>.
 // REMARK: They would implement the specified functions without risk of panics and possible use of the functions.
 // REMARK: However this will create even more traits which have to be implemented.
-
-// Ideas: for linear we would like a function which returns us the nearest two knots and the factor!
-// Ideas: If a knot lies directly on top of the sample, just return the knot twice (or any other neighbor with it, we do not care).
-// Ideas: If there is only one element, return the element and any factor!
-// Ideas: If there are no elements, we are allowed to panic or anything else. 0 elements are never allowed!
-// Ideas: for bspline we would like a simple function which returns us the minimal bigger knot.
-// Ideas: -> if all elements are smaller then the sample, return the len of the collection
-// Ideas: Also panic if no element is given!
-
-// Summary: we want a function which returns us the bigger element when possible (or the last element)
-// Summary: we want to get some border, 1 step or dynamic steps smaller. The distance between these two points have to be exact.
-// Summary: If the two elements are not equal, we calculate the factor
-// Summary: If the two elements are equal, we want to return 1.0 as factor
-// Summary: If the distance between these two shall be greater then the size of the collection, we panic!
-// --> for bspline, MinSize does not make any sense for DynSpace. For ConstSpace, it's possible
-// --> for bspline and DynSpace we have to check at runtime (and have to check each time we want to remove an element)
 
 /// Trait to mark a generator as sorted.
 ///
@@ -222,6 +190,7 @@ pub trait SortedGenerator : DiscreteGenerator
         }
         (element - min) / div
     }
+    // If you want to add a default implementation: The wrapper `Sorted` should forward to the implementation!
 }
 
 /// Marker trait to mark a generator to have at least a length of N.
@@ -312,6 +281,14 @@ impl<C: SortedGenerator,const N: usize> SortedGenerator for MinSize<C,N> {
     fn strict_upper_bound(&self, element: Self::Output) -> usize
     where Self::Output: PartialOrd + Copy {
         self.0.strict_upper_bound(element)
+    }
+    fn linear_factor(&self, min_index: usize, max_index: usize, element: Self::Output) -> Self::Output
+    where Self::Output: Sub<Output = Self::Output> + Div<Output = Self::Output> + Zero + Copy {
+        self.0.linear_factor(min_index, max_index, element)
+    }
+    fn linear_factor_unchecked(&self, min_index: usize, max_index: usize, element: Self::Output) -> Self::Output
+    where Self::Output: Sub<Output = Self::Output> + Div<Output = Self::Output> + Copy {
+        self.0.linear_factor_unchecked(min_index, max_index, element)
     }
 }
 
