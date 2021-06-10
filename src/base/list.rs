@@ -1,11 +1,25 @@
 use core::marker::PhantomData;
-use core::ops::{Sub, Div};
+use core::ops::{Sub, Div, Index};
+use num_traits::identities::Zero;
 use num_traits::real::Real;
 use num_traits::FromPrimitive;
 
 use core::fmt::Debug;
 
 pub use super::{Generator, Interpolation, Curve, DiscreteGenerator, Extract, Stepper};
+
+// TODO: make the doc tests of SortedGenerator better -> implement lerp utility and test with float equality!
+// TODO: --> after that we can commit the changes and do the next part!
+
+// Plan: SortedGenerator should have: bigger() -> returns the minimal index for which the value is strictly bigger
+// Plan: may return len if all elements are bigger
+// Plan: clamp() which panics if min is bigger than max
+// Plan: to get max_index we use bigger(val).clamp(LB+D,len-1-UB) with LB lower border, d distance = max_index - min_index and UB upper border
+// Plan: LB and UB are usually 0
+// Plan: to guarantee that clamp does not panic the collection should have MinSize<LB+D+UB+1>!
+// Maybe Plan: maybe for a small performance boost one may implement bigger(val).clamp(0+1,len-1) as one function! -> however this may be not better but worse!
+// Maybe Plan: Also the linear_factor() should usually be normally calculated BUT checked if both values are equal -> return 1 as factor
+// Plan: linear_factor() only has to check if values are equal if clamp() had to do any work. Otherwise (normally) they can't be equal!
 
 // TODO: Search for "//TODO: implement all SortedGenerator functions with the underlying SortedGenerator!"
 // TODO: and do this! Otherwise there is no performance boost for Equidistant as we wrap them!
@@ -45,82 +59,42 @@ pub use super::{Generator, Interpolation, Curve, DiscreteGenerator, Extract, Ste
 /// Some or all of this functions *may* panic. Each function has it's own panic segment which
 /// describes its needs. To guarantee no panics at runtime, one should use struct or traits which
 /// guarantee the needs of the functions. The MinSize trait was created just for this.
+///
+/// # Implementation
+///
+/// If a default implementation of a function is overwritten, the documentation should be copied
+/// and the examples only slightly changed such that they are working. The values and equations
+/// in the examples given should alwasy be true. If some values in the examples can't be reproduced,
+/// the example doesn't have to be copied. These cases (if applicable) should be tested:
+/// - stricly increasing array with values
+///     - outside of the array (both sides)
+///     - first knot
+///     - last knot
+///     - a knot inside the array
+///     - value inbetween two knots
+/// - semi-constant array with values outside of the array (both_sides)
 pub trait SortedGenerator : DiscreteGenerator
 {
-    /// Find the biggest index to the corresponding element which is still smaller or equal to the element given.
-    /// We assume that the collection is non-empty and ordered, to use binary search.
-    /// If one or more elements in the collections are exactly equal to the element,
-    /// the function will return the last duplicated element.
-    /// If the given element is smaller/bigger than every element in the collection, then
-    /// the function will return 0 or len()-1.
-    /// As this function allows equality (such is not strict) it's counterpart upper_bound *can*
-    /// return a smaller index than this function.
-    ///
-    /// # Panics
-    ///
-    /// Panics if `collection` is empty.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use enterpolation::utils::lower_bound;
-    /// let arr = [0.0,0.1,0.2,0.7,0.7,0.7,0.8,1.0];
-    /// assert_eq!(lower_bound(&arr,-1.0),0);
-    /// assert_eq!(lower_bound(&arr,0.15),1);
-    /// assert_eq!(lower_bound(&arr,0.7),5);
-    /// assert_eq!(lower_bound(&arr,20.0),7);
-    /// ```
-    fn lower_bound(&self, element: Self::Output) -> usize
-    where Self::Output: PartialOrd + Copy
-    {
-        if self.last().unwrap() <= element {
-            return self.len() - 1;
-        }
-        self.upper_border(element)[0]
-    }
-
-    /// Find the smallest index to the corresponding element which is still bigger or equal to the element given.
-    /// We assume that the collection is non-empty and ordered, to use binary search.
-    /// If one or more elements in the collections are exactly equal to the element,
-    /// the function will return the last duplicated element.
-    /// If the given element is smaller/bigger than every element in the collection, then
-    /// the function will return 0 or len()-1.
-    /// As this function allows equality (such is not strict) it's counterpart lower_bound *can*
-    /// return a bigger index than this function.
-    ///
-    /// # Panics
-    ///
-    /// Panics if `collection` is empty.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use enterpolation::utils::upper_bound;
-    /// let arr = [0.0,0.1,0.2,0.7,0.7,0.7,0.8,1.0];
-    /// assert_eq!(upper_bound(&arr,-1.0),0);
-    /// assert_eq!(upper_bound(&arr,0.15),2);
-    /// assert_eq!(upper_bound(&arr,0.7),3);
-    /// assert_eq!(upper_bound(&arr,20.0),7);
-    /// ```
-    fn upper_bound(&self, element: Self::Output) -> usize
-    where Self::Output: PartialOrd + Copy
-    {
-        if self.first().unwrap() >= element {
-            return 0;
-        }
-        self.lower_border(element)[1]
-    }
-
     /// This function has a slightly better performance in the specific case one only needs the max_index of the function
     /// upper_border. That is `strict_upper_bound(collection, element) == upper_border(collection, element).1`.
     /// Also they are diferent in the edge case that if all elements in the array are smaller, this function **will** return 0.
     /// `upper_border` on the other hand will return 1 (as the min_index occupies 0).
-    /// If all elements are bigger, this function will return len()-1.
+    /// If all elements are bigger, this function will return len().
     ///
     /// #Panic
     ///
-    /// Panics if the self is empty.
+    /// Panics if `self` is empty.
     ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use enterpolation::{SortedGenerator, Sorted};
+    /// let arr = Sorted::new_unchecked([0.0,0.1,0.2,0.7,0.7,0.7,0.8,1.0]);
+    /// assert_eq!(arr.strict_upper_bound(-1.0),0);
+    /// assert_eq!(arr.strict_upper_bound(0.15),2);
+    /// assert_eq!(arr.strict_upper_bound(0.7),6);
+    /// assert_eq!(arr.strict_upper_bound(20.0),8);
+    /// ```
     fn strict_upper_bound(&self, element: Self::Output) -> usize
     where Self::Output: PartialOrd + Copy
     {
@@ -139,115 +113,91 @@ pub trait SortedGenerator : DiscreteGenerator
         pointer
     }
 
-    /// This function has a slightly better performance in the specific case one only needs the min_index of the function
-    /// lower_border. That is `strict_lower_bound(collection, element) == lower_border(collection, element).0`.
-    /// Also they are diferent in the edge case that if all elements in the array are bigger, this function **will** return len() -1.
-    /// `lower_border` on the other hand will return len()-2 (as the max_index occupies len()-1).
-    /// If all elements are smaller, this function will return 0.
+    /// Find the values inside the collection for which the given element is inbetween
+    /// and a linear factor at how close it is to which value.
     ///
-    /// #Panic
+    /// This function in general returns indices corresponding to values (`first` and `second`)
+    /// such that `first <= value <= second` is true.
     ///
-    /// Panics if the collection is empty.
-    ///
-    fn strict_lower_bound(&self, element: Self::Output) -> usize
-    where Self::Output: PartialOrd + Copy
-    {
-        let mut pointer = self.len() - 1;
-        let mut count = self.len();
-        while count > 0 {
-            let step = count / 2;
-            let sample = pointer - step;
-            if element >= self.gen(sample){
-                pointer = sample -1;
-                count -= step +1;
-            }else{
-                count = step;
-            }
-        }
-        pointer
-    }
-
-    /// Find the indices to the corresponding elements inside the collection
-    /// for which the given element is inbetween.
-    /// We assume that the collection is non-empty and ordered, to use binary search.
-    /// If one or more elements in the collections are exactly equal to the element,
-    /// the function will return a border where the smaller index correspondsto an element
-    /// which is equal to the element given and the other index corresponds to a bigger element.
     /// If the given element is smaller/bigger than every element in the collection, then
-    /// the borders given will be the smallest/biggest possible.
+    /// the indices given will be the smallest/biggest possible and if the corresponding values are the same
+    /// the factor is only guaranteed to be a valid number.
+    ///
+    /// # Remark
+    ///
+    /// There are collections for which the returned values of this function are not uniquely defined.
+    /// You may not assume any other invariant except
+    /// `first * factor + second * (1.0 - factor) == value`,
+    /// *if* `first <= value <= second` holds true,
+    /// where `value` is the value inserted into this function,
+    /// and the function returned `(index_of_first, index_of_second, factor)`.
+    ///
+    /// Otherwise it may return any valid factor such that
+    /// `first * factor + second * (1.0 - factor) == first == second`
+    /// holds true.
     ///
     /// # Panics
     ///
-    /// Panics if `collection` is empty.
+    /// Panics if `self` is has less than *two* elements.
     ///
     /// # Examples
     ///
     /// ```
-    /// # use enterpolation::utils::upper_border;
-    /// let arr = [0.0,0.1,0.2,0.7,0.7,0.7,0.8,1.0];
-    /// assert_eq!(upper_border(&arr,-1.0),(0,1));
-    /// assert_eq!(upper_border(&arr,0.15),(1,2));
-    /// assert_eq!(upper_border(&arr,0.7),(5,6));
-    /// assert_eq!(upper_border(&arr,20.0),(6,7));
+    /// # use enterpolation::{SortedGenerator, Sorted, Generator};
+    /// # use enterpolation::utils;
+    /// # use assert_float_eq::{afe_is_f64_near, afe_near_error_msg, assert_f64_near};
+    /// let arr = Sorted::new_unchecked([0.0,0.1,0.2,0.7,0.7,0.7,0.8,1.0]);
+    /// let values = vec![-1.0,0.0,0.15,0.7,1.0,20.0];
+    /// for value in values {
+    ///     let (min_index, max_index, factor) = arr.upper_border(value);
+    ///     let min = arr.gen(min_index);
+    ///     let max = arr.gen(max_index);
+    ///     assert_f64_near!(utils::lerp(min,max,factor),value);
+    /// }
     /// ```
-    fn upper_border(&self, element: Self::Output) -> [usize; 2]
+    ///
+    /// ```
+    /// # use enterpolation::{SortedGenerator, Sorted, Generator};
+    /// # use enterpolation::utils;
+    /// # use assert_float_eq::{afe_is_f64_near, afe_near_error_msg, assert_f64_near};
+    /// let arr = Sorted::new_unchecked([0.0,0.0,5.0,5.0,5.0]);
+    /// let values = vec![-1.0,20.0];
+    /// let results = vec![0.0,5.0];
+    /// for (value, result) in values.into_iter().zip(results) {
+    ///     let (min_index, max_index, factor) = arr.upper_border(value);
+    ///     println!("min_index: {:?}, max_index: {:?}, factor: {:?}", min_index, max_index, factor);
+    ///     let min = arr.gen(min_index);
+    ///     let max = arr.gen(max_index);
+    ///     assert_f64_near!(utils::lerp(min,max,factor),result);
+    /// }
+    /// ```
+    fn upper_border(&self, element: Self::Output) -> (usize, usize, Self::Output)
     where
-        Self::Output: PartialOrd + Copy
+        Self::Output: PartialOrd + Sub<Output = Self::Output> + Div<Output = Self::Output> + Zero + Copy + Debug
     {
-        let mut min_index = 0;
-        let mut max_index = self.len() - 1;
-
-        while max_index - min_index > 1 {
-            let index = min_index + (max_index - min_index) / 2;
-            let sample = self.gen(index);
-
-            if element < sample {
-                max_index = index;
-            } else {
-                min_index = index;
-            }
+        let max_index = self.strict_upper_bound(element);
+        // test if we have to clamp max_index -> if so, factor has to be calculated with a check for NaN.
+        if self.len() == max_index {
+            let max_index = self.len()-1;
+            let min_index = max_index - 1;
+            return (min_index,max_index, self.linear_factor(min_index, max_index, element));
         }
-        [min_index, max_index]
-    }
-
-    /// Find the indices to the corresponding elements inside the collection
-    /// for which the given element is inbetween and a factor at how much it is close by the elements.
-    /// We assume that the collection is non-empty and ordered, to use binary search.
-    /// If one or more elements in the collections are exactly equal to the element,
-    /// the function will return a border where the smaller index correspondsto an element
-    /// which is equal to the element given and the other index corresponds to a bigger element.
-    /// If the given element is smaller/bigger than every element in the collection, then
-    /// the borders given will be the smallest/biggest possible and the factor will be 0.0 or 1.0.
-    ///
-    /// This function is only there for a performance boost, as calculating the factor for the specific case
-    /// of a border can be faster then the generic implementation here.
-    ///
-    /// # Panics
-    ///
-    /// Panics if `collection` is empty.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use enterpolation::utils::upper_border;
-    /// let arr = [0.0,0.1,0.2,0.7,0.7,0.7,0.8,1.0];
-    /// assert_eq!(upper_border(&arr,-1.0),(0,1));
-    /// assert_eq!(upper_border(&arr,0.15),(1,2));
-    /// assert_eq!(upper_border(&arr,0.7),(5,6));
-    /// assert_eq!(upper_border(&arr,20.0),(6,7));
-    /// ```
-    fn upper_border_with_factor(&self, element: Self::Output) -> (usize, usize, Self::Output)
-    where
-        Self::Output: PartialOrd + Sub<Output = Self::Output> + Div<Output = Self::Output> + Copy + Debug
-    {
-        let [min_index, max_index] = self.upper_border(element);
-        (min_index, max_index, self.factor(min_index, max_index, element))
+        if max_index == 0 {
+            let max_index = 1;
+            let min_index = 0;
+            return (min_index,max_index, self.linear_factor(min_index, max_index, element));
+        }
+        (max_index-1, max_index, self.linear_factor_unchecked(max_index-1, max_index, element))
     }
 
     /// Calculate the factor of `element` inbetween `min` and `max`.
+    ///
     /// That is, the factor would be needed to generate `element` from a linear interpolation of
     /// `min` and `max`, with `min` being the element generated by `min_index` and the same holds for `max_index`.
-    fn factor(&self, min_index: usize, max_index: usize, element: Self::Output) -> Self::Output
+    ///
+    /// This function may try to divide by zero if both elements behind the indices are the same.
+    /// This is not checked.
+    fn linear_factor_unchecked(&self, min_index: usize, max_index: usize, element: Self::Output) -> Self::Output
     where Self::Output: Sub<Output = Self::Output> + Div<Output = Self::Output> + Copy
     {
         let max = self.gen(max_index);
@@ -255,47 +205,22 @@ pub trait SortedGenerator : DiscreteGenerator
         (element - min) / (max - min)
     }
 
-    /// Find the indices to the corresponding elements inside the collection
-    /// for which the given element is inbetween.
-    /// We assume that the collection is non-empty and ordered, to use binary search.
-    /// If one or more elements in the collections are exactly equal to the element,
-    /// the function will return a border where the bigger index correspondsto an element
-    /// which is equal to the element given and the other index corresponds to a smaller element.
-    /// If the given element is smaller/bigger than every element in the collection, then
-    /// the borders given will be the smallest/biggest possible.
+    /// Calculate the factor of `element` inbetween `min` and `max`.
     ///
-    /// # Panics
+    /// That is, the factor would be needed to generate `element` from a linear interpolation of
+    /// `min` and `max`, with `min` being the element generated by `min_index` and the same holds for `max_index`.
     ///
-    /// Panics if `collection` is empty.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use enterpolation::utils::lower_border;
-    /// let arr = [0.0,0.1,0.2,0.7,0.7,0.7,0.8,1.0];
-    /// assert_eq!(lower_border(&arr,-1.0),(0,1));
-    /// assert_eq!(lower_border(&arr,0.15),(1,2));
-    /// assert_eq!(lower_border(&arr,0.7),(2,3));
-    /// assert_eq!(lower_border(&arr,20.0),(6,7));
-    /// ```
-    fn lower_border(&self, element: Self::Output) -> [usize; 2]
-    where
-        Self::Output: PartialOrd + Copy
+    /// If the factor could be anything, as both elements are the same, 1.0 is returned.
+    fn linear_factor(&self, min_index: usize, max_index: usize, element: Self::Output) -> Self::Output
+    where Self::Output: Sub<Output = Self::Output> + Div<Output = Self::Output> + Zero + Copy
     {
-        let mut min_index = 0;
-        let mut max_index = self.len() - 1;
-
-        while max_index - min_index > 1 {
-            let index = min_index + (max_index - min_index) / 2;
-            let sample = self.gen(index);
-
-            if element > sample {
-                min_index = index;
-            } else {
-                max_index = index;
-            }
+        let max = self.gen(max_index);
+        let min = self.gen(min_index);
+        let div = max - min;
+        if div.is_zero() {
+            return div;
         }
-        [min_index, max_index]
+        (element - min) / div
     }
 }
 
@@ -378,11 +303,15 @@ where C: DiscreteGenerator
 impl<C: DiscreteGenerator,const N: usize> MinSizeGenerator<N> for MinSize<C,N> {}
 impl<C: SortedGenerator,const N: usize> SortedGenerator for MinSize<C,N> {
     //TODO: implement all SortedGenerator functions with the underlying SortedGenerator!
-    fn upper_border_with_factor(&self, element: Self::Output) -> (usize, usize, Self::Output)
+    fn upper_border(&self, element: Self::Output) -> (usize, usize, Self::Output)
     where
-        Self::Output: PartialOrd + Sub<Output = Self::Output> + Div<Output = Self::Output> + Copy + Debug
+        Self::Output: PartialOrd + Sub<Output = Self::Output> + Div<Output = Self::Output> + Zero + Copy + Debug
     {
-        self.0.upper_border_with_factor(element)
+        self.0.upper_border(element)
+    }
+    fn strict_upper_bound(&self, element: Self::Output) -> usize
+    where Self::Output: PartialOrd + Copy {
+        self.0.strict_upper_bound(element)
     }
 }
 
@@ -443,6 +372,13 @@ where C: DiscreteGenerator
 
 impl<C: DiscreteGenerator> SortedGenerator for Sorted<C> {}
 impl<C: MinSizeGenerator<N>, const N: usize> MinSizeGenerator<N> for Sorted<C> {}
+
+impl<C,Idx> Index<Idx> for Sorted<C> where C: Index<Idx> {
+    type Output = C::Output;
+    fn index(&self, index: Idx) -> &Self::Output {
+        self.0.index(index)
+    }
+}
 
 /// Struct used as a generator for equidistant elements.
 /// Acts like an array of knots.
@@ -519,25 +455,64 @@ where R: Real + FromPrimitive
 impl<R> SortedGenerator for Equidistant<R>
 where R: Real + FromPrimitive
 {
-    // /// # Panics
-    // ///
-    // /// Panics if the SortedList has less than 2 elements.
-    // fn upper_border(&self, element: R) -> [usize; 2]
-    // where R: PartialOrd + Copy
-    // {
-    //     let scaled = element * R::from_usize(self.len()-1).unwrap();
-    //     let min_index = scaled.floor().to_usize().unwrap().min(self.len()-2).max(0);
-    //     let max_index = scaled.ceil().to_usize().unwrap().min(self.len()-1).max(1);
-    //     [min_index, max_index]
-    // }
-
-    fn upper_border_with_factor(&self, element: R) -> (usize, usize, R)
-    where
-        R: PartialOrd + Sub<Output = R> + Div<Output = R> + Copy
+    /// Find the values inside the collection for which the given element is inbetween
+    /// and a linear factor at how close it is to which value.
+    ///
+    /// This function in general returns indices corresponding to values (`first` and `second`)
+    /// such that `first <= value <= second` is true.
+    ///
+    /// If the given element is smaller/bigger than every element in the collection, then
+    /// the indices given will be the smallest/biggest possible and if the corresponding values are the same
+    /// the factor is only guaranteed to be a valid number.
+    ///
+    /// # Remark
+    ///
+    /// There are collections for which the returned values of this function are not uniquely defined.
+    /// You may not assume any other invariant except
+    /// `first * factor + second * (1.0 - factor) == value`,
+    /// *if* `first <= value <= second` holds true,
+    /// where `value` is the value inserted into this function,
+    /// and the function returned `(index_of_first, index_of_second, factor)`.
+    ///
+    /// Otherwise it may return any valid factor such that
+    /// `first * factor + second * (1.0 - factor) == first == second`
+    /// holds true.
+    ///
+    /// # Panics
+    ///
+    /// May Panic if `self` is has less than *two* elements.
+    /// Also panics if length-1 as usize can not be converted to `R`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use enterpolation::{SortedGenerator, Equidistant, Generator};
+    /// # use enterpolation::utils;
+    /// # use assert_float_eq::{afe_is_f64_near, afe_near_error_msg, assert_f64_near};
+    /// let equdist = Equidistant::normalized(6);
+    /// let values = vec![-1.0,0.0,0.15,0.6,1.0,20.0];
+    /// for value in values {
+    ///     let (min_index, max_index, factor) = equdist.upper_border(value);
+    ///     let min = equdist.gen(min_index);
+    ///     let max = equdist.gen(max_index);
+    ///     assert_f64_near!(utils::lerp(min,max,factor),value);
+    /// }
+    /// ```
+    fn upper_border(&self, element: R) -> (usize, usize, R)
     {
-        let scaled = element / self.step;
-        let min_index = scaled.floor().to_usize().unwrap().max(0);
-        let max_index = scaled.ceil().to_usize().unwrap().min(self.len()-1);
+
+        let scaled = (element - self.offset) / self.step;
+        // extrapolation to the left
+        if element < self.offset {
+            return (0,1,scaled);
+        }
+        // now unrwapping is fine as we are above zero.
+        let min_index = scaled.floor().to_usize().unwrap();
+        let max_index = scaled.ceil().to_usize().unwrap();
+        //extrapolation to the right
+        if max_index >= self.len {
+            return (self.len - 2, self.len - 1, scaled - R::from_usize(self.len-2).unwrap());
+        }
         let factor = scaled.fract();
         (min_index, max_index, factor)
     }
@@ -554,37 +529,31 @@ impl<R> MinSizeGenerator<1> for Equidistant<R> where R: Real + FromPrimitive {}
 /// In comparison to `Equidistant`, this struct is slower (as it has to do more calculations) and
 /// only represents knots in [0.0,1.0]. However as knot base for interpolations, it is more performant,
 /// as we have the knowledge of the domain.
-pub struct ConstEquidistant<R = f64>{
-    len: usize,
-    phantom: PhantomData<*const R>
-}
+pub struct ConstEquidistant<R/* = f64*/,const N: usize>(PhantomData<*const R>);
 
-impl<R> ConstEquidistant<R>
+impl<R,const N: usize> ConstEquidistant<R,N>
 {
     /// Create a list of equidistant real numbers.
     /// This struct should only be created in a constant context. Otherwise use Equidistant instead.
-    pub const fn new(len: usize) -> Self {
-        ConstEquidistant {
-            len,
-            phantom: PhantomData
-        }
+    pub const fn new() -> Self {
+        ConstEquidistant(PhantomData)
     }
 }
 
-impl<R> Generator<usize> for ConstEquidistant<R>
+impl<R, const N: usize> Generator<usize> for ConstEquidistant<R,N>
 where R: Real + FromPrimitive
 {
     type Output = R;
     fn gen(&self, input: usize) -> R {
-        R::from_usize(input).unwrap() / R::from_usize(self.len - 1).unwrap()
+        R::from_usize(input).unwrap() / R::from_usize(N - 1).unwrap()
     }
 }
 
-impl<R> DiscreteGenerator for ConstEquidistant<R>
+impl<R,const N: usize> DiscreteGenerator for ConstEquidistant<R,N>
 where R: Real + FromPrimitive
 {
     fn len(&self) -> usize {
-        self.len
+        N
     }
 }
 
@@ -593,28 +562,62 @@ where R: Real + FromPrimitive
 //TODO: we don't even have a contract for that, such we should think about it carefully!
 //TODO: It is important to note that upper_border_with_factor does not act like upper_border -> Change the name!
 
-impl<R> SortedGenerator for ConstEquidistant<R>
+impl<R, const N: usize> SortedGenerator for ConstEquidistant<R,N>
 where R: Real + FromPrimitive
 {
-    // /// # Panics
-    // ///
-    // /// Panics if the SortedList has less than 2 elements.
-    // fn upper_border(&self, element: R) -> [usize; 2]
-    // where R: PartialOrd + Copy
-    // {
-    //     let scaled = element * R::from_usize(self.len()-1).unwrap();
-    //     let min_index = scaled.floor().to_usize().unwrap().min(self.len()-2).max(0);
-    //     let max_index = scaled.ceil().to_usize().unwrap().min(self.len()-1).max(1);
-    //     [min_index, max_index]
-    // }
-
-    fn upper_border_with_factor(&self, element: R) -> (usize, usize, R)
+    /// Find the values inside the collection for which the given element is inbetween
+    /// and a linear factor at how close it is to which value.
+    ///
+    /// This function in general returns indices with values (`first` and `second`)
+    /// such that `first <= value <= second` is true.
+    ///
+    /// If the given element is smaller/bigger than every element in the collection, then
+    /// the indices given will be the smallest/biggest possible.
+    ///
+    /// # Remark
+    ///
+    /// There are collections for which the returned values of this function are not uniquely defined.
+    /// You may not assume any other invariant except
+    /// `first * factor + second * (1.0 - factor) == value`,
+    /// where `value` is the value inserted into this function,
+    /// and the function returned `(first, second, factor)`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `self` is has less than *two* elements.
+    /// Also panics if length-1 as usize can not be converted to `R`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use enterpolation::{SortedGenerator, ConstEquidistant, Generator};
+    /// # use enterpolation::utils;
+    /// # use assert_float_eq::{afe_is_f64_near, afe_near_error_msg, assert_f64_near};
+    /// let equdist = ConstEquidistant::<f64,6>::new();
+    /// let values = vec![-1.0,0.0,0.15,0.6,1.0,20.0];
+    /// for value in values {
+    ///     let (min_index, max_index, factor) = equdist.upper_border(value);
+    ///     let min = equdist.gen(min_index);
+    ///     let max = equdist.gen(max_index);
+    ///     assert_f64_near!(utils::lerp(min,max,factor),value);
+    /// }
+    /// ```
+    fn upper_border(&self, element: R) -> (usize, usize, R)
     where
         R: PartialOrd + Sub<Output = R> + Div<Output = R> + Copy + Debug
     {
-        let scaled = element * R::from_usize(self.len()-1).unwrap();
-        let min_index = scaled.floor().to_usize().unwrap().max(0);
-        let max_index = scaled.ceil().to_usize().unwrap().min(self.len()-1);
+        let scaled = element * R::from_usize(N-1).unwrap();
+        // extrapolation to the left
+        if element < R::zero() {
+            return (0,1,scaled);
+        }
+        // now unrwapping is fine as we are above zero.
+        let min_index = scaled.floor().to_usize().unwrap();
+        let max_index = scaled.ceil().to_usize().unwrap();
+        //extrapolation to the right
+        if max_index >= N {
+            return (N - 2, N - 1, scaled - R::from_usize(N-2).unwrap());
+        }
         let factor = scaled.fract();
         (min_index, max_index, factor)
     }

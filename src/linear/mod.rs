@@ -54,7 +54,7 @@ where
     R: Real + Debug
 {
     //we use upper_border_with_factor as this allows us a performance improvement for equidistant knots
-    let (min_index, max_index, factor) = knots.upper_border_with_factor(scalar);
+    let (min_index, max_index, factor) = knots.upper_border(scalar);
     let min_point = elements.gen(min_index);
     let max_point = elements.gen(max_index);
     min_point * (R::one() - factor) + max_point * factor
@@ -321,7 +321,7 @@ where
     }
 }
 
-impl<R,T,const N: usize> Linear<NonEmpty<ConstEquidistant<R>>,[T;N]>
+impl<R,T,const N: usize> Linear<NonEmpty<ConstEquidistant<R,N>>,[T;N]>
 {
     /// Create a linear interpolation with an array of elements.
     /// There has to be at least 1 element, which is NOT checked.
@@ -330,7 +330,7 @@ impl<R,T,const N: usize> Linear<NonEmpty<ConstEquidistant<R>>,[T;N]>
     {
         Linear {
             elements,
-            knots: NonEmpty::new_unchecked(ConstEquidistant::new(N)),
+            knots: NonEmpty::new_unchecked(ConstEquidistant::new()),
         }
     }
 }
@@ -354,7 +354,7 @@ pub type DynamicEquidistantLinear<R,T> = Linear<Equidistant<R>,Vec<T>>;
 /// An array-allocated, const-creatable, linear interpolation with equidistant knot distribution.
 ///
 /// **Because this is an alias, not all its methods are listed here. See the [`Linear`](crate::linear::Linear) type too.**
-pub type ConstEquidistantLinear<R,T,const N: usize> = Linear<NonEmpty<ConstEquidistant<R>>,[T;N]>;
+pub type ConstEquidistantLinear<R,T,const N: usize> = Linear<NonEmpty<ConstEquidistant<R,N>>,[T;N]>;
 
 
 #[cfg(test)]
@@ -394,17 +394,6 @@ mod test {
         assert_f64_near!(lin.gen(-1.0), -140.0);
         assert_f64_near!(lin.gen(5.0), 400.0);
     }
-
-    #[test]
-    fn constant_equidistant(){
-        let constant = StaticEquidistantLinear::equidistant([5.0]).unwrap();
-        // let constant = Linear::<f64,_,Equidistant<f64>,CollectionWrapper<[f64;1],f64>>::new([5.0],Equidistant::new(1)).unwrap();
-        assert_f64_near!(constant.gen(-1.0), 5.0);
-        assert_f64_near!(constant.gen(10.0), 5.0);
-        assert_f64_near!(constant.gen(0.5), 5.0);
-    }
-
-    //TODO: add constant test (not equidistant)
 
     #[test]
     fn const_creation(){
