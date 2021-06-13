@@ -3,6 +3,7 @@ use core::ops::{Sub, Div, Index};
 use num_traits::identities::Zero;
 use num_traits::real::Real;
 use num_traits::FromPrimitive;
+use thiserror::Error;
 
 use core::fmt::Debug;
 
@@ -202,19 +203,19 @@ where
     C::Output: PartialOrd
 {
     /// Returns Some(Sorted) if collection is sorted, otherwise returns None
-    pub fn new(col: C) -> Option<Self>{
+    pub fn new(col: C) -> Result<Self, NotSorted>{
         if col.is_empty() {
-            return Some(Sorted(col))
+            return Ok(Sorted(col))
         }
         let mut last = col.gen(0);
         for i in 1..col.len(){
             let current = col.gen(i);
             if !(last <= current){
-                return None;
+                return Err(NotSorted{index: i});
             }
             last = current;
         }
-        Some(Sorted(col))
+        Ok(Sorted(col))
     }
 }
 
@@ -251,6 +252,23 @@ impl<C,Idx> Index<Idx> for Sorted<C> where C: Index<Idx> {
     type Output = C::Output;
     fn index(&self, index: Idx) -> &Self::Output {
         self.0.index(index)
+    }
+}
+
+/// Error returned if the number of elements and the number of knots are not matching.
+#[derive(Error, Debug)]
+#[error("Given knots are not sorted.
+From index {} to {} we found decreasing values.", index, index+1)]
+pub struct NotSorted {
+    index: usize,
+}
+
+impl NotSorted {
+    /// Create a new error in which from index to index + 1 the values were decreasing.
+    pub fn new(index: usize) -> Self {
+        NotSorted{
+            index,
+        }
     }
 }
 

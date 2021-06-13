@@ -8,22 +8,22 @@ use core::ops::{Add, Mul};
 use core::marker::PhantomData;
 use num_traits::real::Real;
 use num_traits::FromPrimitive;
+use num_traits::identities::Zero;
 use crate::{DiscreteGenerator, SortedGenerator, Sorted, Equidistant, Homogeneous, Weighted};
 use super::Linear;
+use super::error::{LinearError, ToFewElements, WeightOfZero, KnotElementInequality};
 
-// API:
-// push_element
-// push_element_with_weight
-// push_knot
-// extend (with all different iterators?->different names)
+//TODO: add unchecked versions
 
 /// Struct indicator to mark if we use weights
 #[derive(Debug)]
 pub struct WithWeight<T>(T);
 
+/// Struct indicator to mark information not yet given.
 #[derive(Debug)]
 pub struct Unknown;
 
+/// Struct indicator to mark the wish of using equidistant knots.
 #[derive(Debug)]
 pub struct Output<R = f64>(PhantomData<*const R>);
 
@@ -33,11 +33,16 @@ impl<R> Output<R> {
     }
 }
 
-// /// Easy of use function to generate the builder. -> function inside of the struct itself (Linear::builder())
-// pub fn builder<R,E>(elements: E) -> LinearBuilder<Output<R>,E> {
-//     LinearBuilder::new(elements)
-// }
-
+/// Builder for linear interpolation.
+///
+/// This struct helps create linear interpolations.
+/// Usually one creates an instance by using the `builder()` method on the interpolation itself.
+///
+/// Before building, one has to give information for:
+/// - The elements the interpolation should use. Methods like `elements` and `elements_with_weights`
+/// exist for that cause.
+/// - The knots the interpolation uses. Either by giving them directly with `knots` or by using
+/// equidistant knots with `equidistant`.
 #[derive(Debug, Clone)]
 pub struct LinearBuilder<K,E> {
     knots: K,
@@ -51,6 +56,7 @@ impl Default for LinearBuilder<Unknown, Unknown> {
 }
 
 impl LinearBuilder<Unknown, Unknown> {
+    /// Create a new linear interpolation builder.
     pub fn new() -> Self {
         LinearBuilder {
             knots: Unknown,
@@ -60,45 +66,97 @@ impl LinearBuilder<Unknown, Unknown> {
 }
 
 impl LinearBuilder<Unknown, Unknown> {
-    pub fn elements<E>(self, elements: E) -> LinearBuilder<Unknown, E> {
-        LinearBuilder {
-            knots: Unknown,
-            elements,
-        }
-    }
-    //TODO: add from_collection?
-}
-
-impl<T,R> LinearBuilder<Unknown, WithWeight<Vec<Homogeneous<T,R>>>> {
-    pub fn elements_with_weights<K,E>(self, elements: E, weights: K) -> Self
-    where
-        E: IntoIterator<Item = T>,
-        K: IntoIterator<Item = R>,
-        R: Copy,
-        T: Mul<R, Output = T>,
+    /// Set the elements of the linear interpolation.
+    pub fn elements<E>(self, elements: E) -> Result<LinearBuilder<Unknown, E>, ToFewElements>
+    where E: DiscreteGenerator,
     {
-        let vec = elements.into_iter().zip(weights.into_iter())
-            .map(|(element,weight)| Homogeneous::weighted(element,weight)).collect();
-        LinearBuilder {
-            knots: Unknown,
-            elements: WithWeight(vec),
+        if elements.len() < 2 {
+            return Err(ToFewElements::new(elements.len()));
         }
+        Ok(LinearBuilder {
+            knots: self.knots,
+            elements,
+        })
     }
-}
-
-impl<T,R,const N: usize> LinearBuilder<Unknown, WithWeight<[Homogeneous<T,R>;N]>> {
-    pub fn elements_with_weights(self, elements: [T;N], weights: [R;N]) -> Self
+    /// Set the elements and their weights for this interpolation.
+    pub fn elements_with_weights<I,W,E>(self, iter: I)
+        -> Result<LinearBuilder<Unknown, WithWeight<Vec<Homogeneous<E,W>>>>,LinearError>
     where
-        R: Default + Copy,
+        I: IntoIterator<Item = (E,W)>,
+        W: Zero + Copy,
+        E: Mul<W, Output = E>,
+    {
+        // we can not use iterator style, as a closure does not work nicely with ? syntax.
+        let mut iter = iter.into_iter();
+        let mut vec = Vec::with_capacity(iter.size_hint().0);
+        for (element, weight) in iter {
+            vec.push(Homogeneous::weighted(element,weight).ok_or_else(|| WeightOfZero::new())?);
+        }
+        if vec.len() < 2 {
+            return Err(ToFewElements::new(vec.len()).into());
+        }
+        Ok(LinearBuilder {
+            knots: self.knots,
+            elements: WithWeight(vec),
+        })
+    }
+
+    /// Set the elements and their weights for this interpolation.
+    ///
+    /// # Performance
+    ///
+    /// This functions takes only arrays but is such able to store the data necessary for interpolation
+    /// into an array. No memory allcations are done therefore.
+    pub fn elements_with_weights_array<T,R,const N: usize>(self, arr: [(T,R);N])
+            -> Result<LinearBuilder<Unknown, WithWeight<[Homogeneous<T,R>;N]>>, LinearError>
+    where
+        R: Zero + Default + Copy,
         T: Default + Copy + Mul<R, Output = T>,
     {
-        let mut arr = [Default::default();N];
-        for i in 0..N {
-            arr[i] = Homogeneous::weighted(elements[i],weights[i]);
+        if N < 2 {
+            return Err(ToFewElements::new(N).into());
         }
+        let mut elements = [Default::default();N];
+        for i in 0..N {
+            elements[i] = Homogeneous::weighted(arr[i].0,arr[i].1).ok_or_else(|| WeightOfZero::new())?;
+        }
+        Ok(LinearBuilder {
+            knots: self.knots,
+            elements: WithWeight(elements),
+        })
+    }
+}
+
+impl<E> LinearBuilder<Unknown, E>
+{
+    /// Set the knots of the interpolation.
+    ///
+    /// The amount of knots must be equal to the amount of elements.
+    ///
+    /// # Performance
+    ///
+    /// If you have equidistant knots, near equidistant knots are you do not really care about
+    /// knots, consider using `equidistant()` instead.
+    pub fn knots<K>(self, knots: K) -> Result<LinearBuilder<Sorted<K>,E>, LinearError>
+    where
+        E: DiscreteGenerator,
+        K: DiscreteGenerator,
+        K::Output: PartialOrd
+    {
+        if self.elements.len() != knots.len() {
+            return Err(KnotElementInequality::new(self.elements.len(), knots.len()).into());
+        }
+        Ok(LinearBuilder {
+            knots: Sorted::new(knots)?,
+            elements: self.elements,
+        })
+    }
+
+    /// Build an interpolation with equidistant knots.
+    pub fn equidistant<R>(self) -> LinearBuilder<Output<R>,E>{
         LinearBuilder {
-            knots: Unknown,
-            elements: WithWeight(arr),
+            knots: Output::new(),
+            elements: self.elements,
         }
     }
 }
@@ -110,6 +168,7 @@ where
     E::Output: Add<Output = E::Output> + Mul<K::Output, Output = E::Output> + Copy,
     K::Output: Real
 {
+    /// Build a linear interpolation.
     pub fn build(self) -> Linear<K,E>{
         Linear::new(self.elements, self.knots).unwrap()
     }
@@ -121,6 +180,7 @@ where
     T: Add<Output = T> + Mul<R, Output = T> + Copy,
     R: Real + Copy
 {
+    /// Build a weighted linear interpolation.
     pub fn build(self) -> Weighted<Linear<K,Vec<Homogeneous<T,R>>>,T,R>{
         Weighted::new(Linear::new(self.elements.0, self.knots).unwrap())
     }
@@ -132,29 +192,9 @@ where
     T: Add<Output = T> + Mul<R, Output = T> + Copy,
     R: Real + Copy
 {
+    /// Build a weighted linear interpolation with backing arrays.
     pub fn build(self) -> Weighted<Linear<K,[Homogeneous<T,R>;N]>,T,R>{
         Weighted::new(Linear::new(self.elements.0, self.knots).unwrap())
-    }
-}
-
-impl<E> LinearBuilder<Unknown, E>
-{
-    pub fn knots<K>(self, knots: K) -> LinearBuilder<Sorted<K>,E>
-    where
-        K: DiscreteGenerator,
-        K::Output: PartialOrd
-    {
-        LinearBuilder {
-            knots: Sorted::new(knots).unwrap(),
-            elements: self.elements,
-        }
-    }
-
-    pub fn equidistant<R>(self) -> LinearBuilder<Output<R>,E>{
-        LinearBuilder {
-            knots: Output::new(),
-            elements: self.elements,
-        }
     }
 }
 
@@ -164,11 +204,13 @@ where
     E::Output: Add<Output = E::Output> + Mul<R, Output = E::Output> + Copy,
     R: Real + FromPrimitive
 {
+    /// Build a linear interpolation with equidistant knots with domain [0.0,1.0].
     pub fn build(self) -> Linear<Equidistant<R>,E> {
         let len = self.elements.len();
         Linear::new(self.elements, Equidistant::normalized(len)).unwrap()
     }
 
+    /// Build a linear interpolation with equidistant knots in the specified domain.
     pub fn build_with_domain(self, start:R, end: R) -> Linear<Equidistant<R>,E> {
         let len = self.elements.len();
         Linear::new(self.elements, Equidistant::new(start, end, len)).unwrap()

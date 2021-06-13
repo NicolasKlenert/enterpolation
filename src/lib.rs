@@ -33,7 +33,7 @@ use thiserror::Error;
 use crate::real::Real;
 pub use base::{Generator, Interpolation, Curve, Extract, Stepper, Space, ConstSpace, DynSpace,
     DiscreteGenerator, Equidistant, ConstEquidistant, Composite,
-    Sorted, SortedGenerator};
+    Sorted, SortedGenerator, NotSorted};
 pub use homogeneous::Homogeneous;
 pub use weighted::Weighted;
 

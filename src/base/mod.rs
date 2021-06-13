@@ -6,7 +6,7 @@ mod list;
 mod space;
 
 pub use generator::{Generator, Interpolation, Curve, DiscreteGenerator, Extract, Stepper};
-pub use list::{Equidistant, ConstEquidistant, SortedGenerator, Sorted};
+pub use list::{Equidistant, ConstEquidistant, SortedGenerator, Sorted, NotSorted};
 pub use space::{Space, DynSpace, ConstSpace};
 
 /// Trait for possible heterogen structures which can be disassembled step by step.

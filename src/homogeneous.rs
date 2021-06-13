@@ -5,6 +5,7 @@
 
 use core::ops::{Add, Sub, Mul, Div};
 use num_traits::real::Real;
+use num_traits::identities::Zero;
 
 /// Wrapper for elements to achieve weighted and rational curves.
 ///
@@ -52,10 +53,27 @@ where E: Copy
 impl<E,R> Homogeneous<E,R>
 where
     E: Mul<R, Output = E>,
-    R: Copy
+    R: Zero + Copy
 {
+    /// Create a homogeneous coordinate with the specified weight as long as the given weight is not zero.
+    ///
+    /// The weight should not be zero. If you want to represent a point at infinity, use
+    /// `infinity` instead.
+    pub fn weighted(element: E, weight: R) -> Option<Self> {
+        if weight.is_zero() {
+            return None;
+        }
+        Some(Homogeneous {
+            element: element * weight,
+            rational: weight,
+        })
+    }
+
     /// Create a homogeneous coordinate with the specified weight
-    pub fn weighted(element: E, weight: R) -> Self {
+    ///
+    /// The weight should not be zero. If you want to represent a point at infinity, use
+    /// `infinity` instead.
+    pub fn weighted_unchecked(element: E, weight: R) -> Self {
         Homogeneous {
             element: element * weight,
             rational: weight,

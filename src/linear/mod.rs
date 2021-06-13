@@ -25,6 +25,8 @@ use core::fmt::Debug;
 mod builder;
 pub use builder::LinearBuilder;
 
+pub mod error;
+
 /// Linear interpolate/extrapolate with the elements and knots given.
 /// Knots should be in increasing order and there has to be at least 2 knots.
 /// Also there has to be the same amount of elements and knots.
@@ -211,7 +213,7 @@ where
         let mut elements: Vec<Homogeneous<T,R>> = Vec::with_capacity(iter.size_hint().0);
         let mut knots: Vec<R> = Vec::with_capacity(iter.size_hint().0);
         for (elem, weight, knot) in iter {
-            elements.push(Homogeneous::weighted(elem, weight));
+            elements.push(Homogeneous::weighted(elem, weight).unwrap());
             knots.push(knot);
         }
         if elements.len() < 2 {
@@ -379,7 +381,7 @@ mod test {
     fn linear_equidistant() {
         //DynamicEquidistantLinear
         let lin = Linear::builder()
-            .elements(vec![20.0,100.0,0.0,200.0])
+            .elements(vec![20.0,100.0,0.0,200.0]).unwrap()
             .equidistant::<f64>()
             .build();
         let expected = [20.0,60.0,100.0,50.0,0.0,100.0,200.0];
@@ -394,8 +396,8 @@ mod test {
     fn linear() {
         //DynamicLinear
         let lin = Linear::builder()
-            .elements(vec![20.0,100.0,0.0,200.0])
-            .knots(vec![0.0,1.0/3.0,2.0/3.0,1.0])
+            .elements(vec![20.0,100.0,0.0,200.0]).unwrap()
+            .knots(vec![0.0,1.0/3.0,2.0/3.0,1.0]).unwrap()
             .build();
         let expected = [20.0,60.0,100.0,50.0,0.0,100.0,200.0];
         let mut iter = lin.take(expected.len());
@@ -408,13 +410,23 @@ mod test {
     #[test]
     fn extrapolation() {
         let lin = Linear::builder()
-            .elements([20.0,100.0,0.0,200.0])
-            .knots([1.0,2.0,3.0,4.0])
+            .elements([20.0,100.0,0.0,200.0]).unwrap()
+            .knots([1.0,2.0,3.0,4.0]).unwrap()
             .build();
         assert_f64_near!(lin.gen(1.5), 60.0);
         assert_f64_near!(lin.gen(2.5), 50.0);
         assert_f64_near!(lin.gen(-1.0), -140.0);
         assert_f64_near!(lin.gen(5.0), 400.0);
+    }
+
+    #[test]
+    fn weights(){
+        let lin = Linear::builder()
+            .elements_with_weights(vec![(0.0,9.0),(1.0,1.0)]).unwrap()
+            .equidistant::<f64>()
+            .build();
+        assert_f64_near!(lin.gen(0.5), 0.1);
+        // const LIN : Linear<f64,f64,ConstEquidistant<f64>,CollectionWrapper<[f64;4],f64>> = Linear::new_equidistant_unchecked([20.0,100.0,0.0,200.0]);
     }
 
     #[test]
