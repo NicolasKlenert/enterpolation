@@ -8,7 +8,7 @@ use core::ops::{Add, Mul};
 use core::marker::PhantomData;
 use num_traits::real::Real;
 use num_traits::FromPrimitive;
-use crate::{DiscreteGenerator, SortedGenerator, Equidistant, Homogeneous, Weighted};
+use crate::{DiscreteGenerator, SortedGenerator, Sorted, Equidistant, Homogeneous, Weighted};
 use super::Linear;
 
 // API:
@@ -19,13 +19,13 @@ use super::Linear;
 
 /// Struct indicator to mark if we use weights
 #[derive(Debug)]
-struct WithWeight<T>(T);
+pub struct WithWeight<T>(T);
 
 #[derive(Debug)]
-struct Unknown;
+pub struct Unknown;
 
 #[derive(Debug)]
-struct Output<R = f64>(PhantomData<*const R>);
+pub struct Output<R = f64>(PhantomData<*const R>);
 
 impl<R> Output<R> {
     pub fn new() -> Self {
@@ -60,7 +60,7 @@ impl LinearBuilder<Unknown, Unknown> {
 }
 
 impl LinearBuilder<Unknown, Unknown> {
-    pub fn elements<E>(elements: E) -> LinearBuilder<Unknown, E> {
+    pub fn elements<E>(self, elements: E) -> LinearBuilder<Unknown, E> {
         LinearBuilder {
             knots: Unknown,
             elements,
@@ -70,7 +70,7 @@ impl LinearBuilder<Unknown, Unknown> {
 }
 
 impl<T,R> LinearBuilder<Unknown, WithWeight<Vec<Homogeneous<T,R>>>> {
-    pub fn elements_with_weights<K,E>(elements: E, weights: K) -> Self
+    pub fn elements_with_weights<K,E>(self, elements: E, weights: K) -> Self
     where
         E: IntoIterator<Item = T>,
         K: IntoIterator<Item = R>,
@@ -87,7 +87,7 @@ impl<T,R> LinearBuilder<Unknown, WithWeight<Vec<Homogeneous<T,R>>>> {
 }
 
 impl<T,R,const N: usize> LinearBuilder<Unknown, WithWeight<[Homogeneous<T,R>;N]>> {
-    pub fn elements_with_weights(elements: [T;N], weights: [R;N]) -> Self
+    pub fn elements_with_weights(self, elements: [T;N], weights: [R;N]) -> Self
     where
         R: Default + Copy,
         T: Default + Copy + Mul<R, Output = T>,
@@ -139,12 +139,13 @@ where
 
 impl<E> LinearBuilder<Unknown, E>
 {
-    pub fn knots<K>(self, knots: K) -> LinearBuilder<K,E>
+    pub fn knots<K>(self, knots: K) -> LinearBuilder<Sorted<K>,E>
     where
-        K: SortedGenerator
+        K: DiscreteGenerator,
+        K::Output: PartialOrd
     {
         LinearBuilder {
-            knots,
+            knots: Sorted::new(knots).unwrap(),
             elements: self.elements,
         }
     }

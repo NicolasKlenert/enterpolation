@@ -22,7 +22,8 @@ use num_traits::cast::FromPrimitive;
 use core::fmt::Debug;
 
 // mod hyper;
-pub mod builder;
+mod builder;
+pub use builder::LinearBuilder;
 
 /// Linear interpolate/extrapolate with the elements and knots given.
 /// Knots should be in increasing order and there has to be at least 2 knots.
@@ -71,6 +72,12 @@ pub struct Linear<K,E>
 {
     elements: E,
     knots: K,
+}
+
+impl Linear<builder::Unknown,builder::Unknown> {
+    fn builder() -> LinearBuilder<builder::Unknown,builder::Unknown> {
+        LinearBuilder::new()
+    }
 }
 
 impl<R,K,E> Generator<R> for Linear<K,E>
@@ -370,8 +377,11 @@ mod test {
 
     #[test]
     fn linear_equidistant() {
-        let lin = DynamicEquidistantLinear::<f64,_>::from_collection(vec![20.0,100.0,0.0,200.0]).unwrap();
-        // let lin = Linear::<f64,_,_,_>::from_collection(vec![20.0,100.0,0.0,200.0]).unwrap();
+        //DynamicEquidistantLinear
+        let lin = Linear::builder()
+            .elements(vec![20.0,100.0,0.0,200.0])
+            .equidistant::<f64>()
+            .build();
         let expected = [20.0,60.0,100.0,50.0,0.0,100.0,200.0];
         let mut iter = lin.take(expected.len());
         for i in 0..expected.len() {
@@ -382,8 +392,11 @@ mod test {
 
     #[test]
     fn linear() {
-        let lin = DynamicLinear::from_collection_with_knots(vec![(20.0,0.0),(100.0,1.0/3.0),(0.0,2.0/3.0),(200.0,1.0)]).unwrap();
-        // let lin = Linear::<f64,_,_,_>::from_collection_with_knots(vec![(20.0,0.0),(100.0,1.0/3.0),(0.0,2.0/3.0),(200.0,1.0)]).unwrap();
+        //DynamicLinear
+        let lin = Linear::builder()
+            .elements(vec![20.0,100.0,0.0,200.0])
+            .knots(vec![0.0,1.0/3.0,2.0/3.0,1.0])
+            .build();
         let expected = [20.0,60.0,100.0,50.0,0.0,100.0,200.0];
         let mut iter = lin.take(expected.len());
         for i in 0..expected.len() {
@@ -394,7 +407,10 @@ mod test {
 
     #[test]
     fn extrapolation() {
-        let lin = Linear::from_collection_with_knots(vec![(20.0,1.0),(100.0,2.0),(0.0,3.0),(200.0,4.0)]).unwrap();
+        let lin = Linear::builder()
+            .elements([20.0,100.0,0.0,200.0])
+            .knots([1.0,2.0,3.0,4.0])
+            .build();
         assert_f64_near!(lin.gen(1.5), 60.0);
         assert_f64_near!(lin.gen(2.5), 50.0);
         assert_f64_near!(lin.gen(-1.0), -140.0);
