@@ -6,8 +6,7 @@ mod list;
 mod space;
 
 pub use generator::{Generator, Interpolation, Curve, DiscreteGenerator, Extract, Stepper};
-pub use list::{Equidistant, ConstEquidistant,
-    NonEmptyGenerator, MinSizeGenerator, SortedGenerator, NonEmpty, MinSize, Sorted};
+pub use list::{Equidistant, ConstEquidistant, SortedGenerator, Sorted};
 pub use space::{Space, DynSpace, ConstSpace};
 
 /// Trait for possible heterogen structures which can be disassembled step by step.
@@ -65,10 +64,6 @@ impl<T: Copy> DiscreteGenerator for Vec<T> {
     }
 }
 
-// temporary hack
-impl<R: Copy> SortedGenerator for Vec<R> {}
-impl<R: Copy> MinSizeGenerator<1> for Vec<R> {}
-
 /// A stack of values or generators
 impl<G,I> Generator<(usize, I)> for Vec<G>
 where G: Generator<I>
@@ -94,8 +89,7 @@ impl<T: Copy, const N: usize> DiscreteGenerator for [T;N] {
 
 // temporary hack
 // Only implement MinSizeGenerator<M> for [R;N] where M <= N.
-impl<R: Copy, const N: usize> SortedGenerator for [R;N] {}
-impl<R: Copy, const N: usize> MinSizeGenerator<1> for [R;N] {}
+// impl<R: Copy, const N: usize> MinSizeGenerator<2> for [R;N] {}
 
 /// A stack of values or generators
 impl<G,I, const N: usize> Generator<(usize, I)> for [G;N]

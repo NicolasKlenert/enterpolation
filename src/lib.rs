@@ -32,7 +32,8 @@ mod base;
 use thiserror::Error;
 use crate::real::Real;
 pub use base::{Generator, Interpolation, Curve, Extract, Stepper, Space, ConstSpace, DynSpace,
-    DiscreteGenerator, Equidistant, ConstEquidistant, Composite, NonEmpty, Sorted, NonEmptyGenerator, SortedGenerator};
+    DiscreteGenerator, Equidistant, ConstEquidistant, Composite,
+    Sorted, SortedGenerator};
 pub use homogeneous::Homogeneous;
 pub use weighted::Weighted;
 

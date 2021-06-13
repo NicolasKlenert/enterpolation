@@ -8,7 +8,7 @@ use core::ops::{Add, Mul};
 use core::marker::PhantomData;
 use num_traits::real::Real;
 use num_traits::FromPrimitive;
-use crate::{DiscreteGenerator, SortedGenerator, Equidistant, Homogeneous, Weighted, NonEmptyGenerator};
+use crate::{DiscreteGenerator, SortedGenerator, Equidistant, Homogeneous, Weighted};
 use super::Linear;
 
 // API:
@@ -105,7 +105,7 @@ impl<T,R,const N: usize> LinearBuilder<Unknown, WithWeight<[Homogeneous<T,R>;N]>
 
 impl<K,E> LinearBuilder<K,E>
 where
-    E: NonEmptyGenerator,
+    E: DiscreteGenerator,
     K: SortedGenerator,
     E::Output: Add<Output = E::Output> + Mul<K::Output, Output = E::Output> + Copy,
     K::Output: Real
@@ -159,7 +159,7 @@ impl<E> LinearBuilder<Unknown, E>
 
 impl<R,E> LinearBuilder<Output<R>, E>
 where
-    E: NonEmptyGenerator,
+    E: DiscreteGenerator,
     E::Output: Add<Output = E::Output> + Mul<R, Output = E::Output> + Copy,
     R: Real + FromPrimitive
 {
@@ -180,14 +180,16 @@ where
     R: Real + Copy + FromPrimitive
 {
     /// Build a weighted linear interpolation from a vector of elements and equidistant knots in [0.0,1.0].
-    pub fn build(self) -> Weighted<Linear<Equidistant<R>,Vec<Homogeneous<T,R>>>,T,R>{
+    pub fn build(self) -> Weighted<Linear<Equidistant<R>,Vec<Homogeneous<T,R>>>,T,R> {
         let len = self.elements.0.len();
-        Weighted::new(Linear::new(self.elements.0, Equidistant::normalized(len)).unwrap())
+        let knots = Equidistant::normalized(len);
+        Weighted::new(Linear::new(self.elements.0, knots).unwrap())
     }
     /// Build a weighted linear interpolation from a vector of elements and equidistant knots in the specified domain.
     pub fn build_with_domain(self, start:R, end: R) -> Weighted<Linear<Equidistant<R>,Vec<Homogeneous<T,R>>>,T,R> {
         let len = self.elements.0.len();
-        Weighted::new(Linear::new(self.elements.0, Equidistant::new(start, end, len)).unwrap())
+        let knots = Equidistant::new(start, end, len);
+        Weighted::new(Linear::new(self.elements.0, knots).unwrap())
     }
 }
 
@@ -199,11 +201,13 @@ where
     /// Build a weighted linear interpolation from an array of elements and equidistant knots in [0.0,1.0].
     pub fn build(self) -> Weighted<Linear<Equidistant<R>,[Homogeneous<T,R>;N]>,T,R>{
         let len = self.elements.0.len();
-        Weighted::new(Linear::new(self.elements.0, Equidistant::normalized(len)).unwrap())
+        let knots = Equidistant::normalized(len);
+        Weighted::new(Linear::new(self.elements.0,knots).unwrap())
     }
     /// Build a weighted linear interpolation from an array of elements and equidistant knots in the specified domain.
     pub fn build_with_domain(self, start:R, end: R) -> Weighted<Linear<Equidistant<R>,[Homogeneous<T,R>;N]>,T,R> {
         let len = self.elements.0.len();
-        Weighted::new(Linear::new(self.elements.0, Equidistant::new(start, end, len)).unwrap())
+        let knots = Equidistant::new(start, end, len);
+        Weighted::new(Linear::new(self.elements.0, knots).unwrap())
     }
 }

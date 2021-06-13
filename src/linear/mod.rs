@@ -8,11 +8,13 @@
 //! the border elements to calculate the linear interpolation with can be found in O(1)
 //! instead of O(log n) with n being the number of elements in the interpolation structure.
 
-//TODO: instead of NonEmpty, we want MinSize<2>!
+//TODO: do not use MinSize -> too much noise and we still have to check if #elements = #knots
+//TODO: instead use only Sorted and test for the other two (minsize 2 and same number) in the new function
+//TODO: only have new and new_unchecked in this module. All other constructions should be done in the builder!
 
 use core::ops::{Add, Mul};
 use crate::{Generator, Interpolation, Curve, EnterpolationError, Sorted, SortedGenerator,
-    DiscreteGenerator, Equidistant, ConstEquidistant, Homogeneous, NonEmpty, NonEmptyGenerator};
+    DiscreteGenerator, Equidistant, ConstEquidistant, Homogeneous};
 use crate::utils::upper_border;
 use num_traits::real::Real;
 use num_traits::cast::FromPrimitive;
@@ -62,6 +64,9 @@ where
 
 /// Linear Interpolation Structure with knots
 /// If knots are roughly or exactly equidistant, consider using LinearEquidistant instead.
+///
+/// K has to be a SortedGenerator and and also a generator with a minimum size of 2.
+/// Also this struct itself checks if the number of knots and elements are equal.
 pub struct Linear<K,E>
 {
     elements: E,
@@ -70,7 +75,7 @@ pub struct Linear<K,E>
 
 impl<R,K,E> Generator<R> for Linear<K,E>
 where
-    E: NonEmptyGenerator,
+    E: DiscreteGenerator,
     K: SortedGenerator<Output = R>,
     E::Output: Add<Output = E::Output> + Mul<R, Output = E::Output> + Copy + Debug,
     R: Real + Debug
@@ -86,7 +91,7 @@ where
 
 impl<R,K,E> Interpolation<R> for Linear<K,E>
 where
-    E: NonEmptyGenerator,
+    E: DiscreteGenerator,
     K: SortedGenerator<Output = R>,
     E::Output: Add<Output = E::Output> + Mul<R, Output = E::Output> + Copy + Debug,
     R: Real + Debug
@@ -94,17 +99,17 @@ where
 
 impl<R,K,E> Curve<R> for Linear<K,E>
 where
-    E: NonEmptyGenerator,
-    K: SortedGenerator<Output = R> + NonEmptyGenerator,
+    E: DiscreteGenerator,
+    K: SortedGenerator<Output = R>,
     E::Output: Add<Output = E::Output> + Mul<R, Output = E::Output> + Copy + Debug,
     R: Real + Debug
 {
     fn domain(&self) -> [R; 2] {
-        [NonEmptyGenerator::first(&self.knots), NonEmptyGenerator::last(&self.knots)]
+        [self.knots.first().unwrap(), self.knots.last().unwrap()]
     }
 }
 
-impl<R,T> Linear<Vec<R>,Vec<T>>
+impl<R,T> Linear<Sorted<Vec<R>>,Vec<T>>
 where
     T: Add<Output = T> + Mul<R, Output = T> + Copy,
     R: Real + FromPrimitive
@@ -119,17 +124,17 @@ where
         F: FnMut((usize,&T)) -> R,
     {
         let elements: Vec<T> = collection.into_iter().collect();
-        if elements.len() < 2 {
-            return Err(EnterpolationError::ToFewElements{
-                name: "Linear".to_string(),
-                found: elements.len(),
-                expected: 2,
-            });
-        }
+        // if elements.len() < 2 {
+        //     return Err(EnterpolationError::ToFewElements{
+        //         name: "Linear".to_string(),
+        //         found: elements.len(),
+        //         expected: 2,
+        //     });
+        // }
         let knots: Vec<R> = elements.iter().enumerate().map(func).collect();
         Ok(Linear {
             elements,
-            knots,
+            knots: Sorted::new(knots).unwrap(),
         })
     }
 
@@ -146,16 +151,16 @@ where
             elements.push(elem);
             knots.push(knot);
         }
-        if elements.len() < 2 {
-            return Err(EnterpolationError::ToFewElements{
-                name: "Linear".to_string(),
-                found: elements.len(),
-                expected: 2,
-            });
-        }
+        // if elements.len() < 2 {
+        //     return Err(EnterpolationError::ToFewElements{
+        //         name: "Linear".to_string(),
+        //         found: elements.len(),
+        //         expected: 2,
+        //     });
+        // }
         Ok(Linear {
             elements,
-            knots,
+            knots: Sorted::new(knots).unwrap(),
         })
     }
 }
@@ -227,13 +232,13 @@ where
     where C: IntoIterator<Item = T>
     {
         let elements: Vec<T> = collection.into_iter().collect();
-        if elements.len() < 2 {
-            return Err(EnterpolationError::ToFewElements{
-                name: "Linear".to_string(),
-                found: elements.len(),
-                expected: 2,
-            });
-        }
+        // if elements.len() < 2 {
+        //     return Err(EnterpolationError::ToFewElements{
+        //         name: "Linear".to_string(),
+        //         found: elements.len(),
+        //         expected: 2,
+        //     });
+        // }
         Ok(Linear {
             knots: Equidistant::normalized(elements.len()),
             elements,
@@ -243,7 +248,7 @@ where
 
 impl<K,E> Linear<K,E>
 where
-    E: NonEmptyGenerator,
+    E: DiscreteGenerator,
     K: SortedGenerator,
     E::Output: Add<Output = E::Output> + Mul<K::Output, Output = E::Output> + Copy,
     K::Output: Real
@@ -274,10 +279,10 @@ where
     }
 }
 
-impl<K,E> Linear<Sorted<NonEmpty<K>>,NonEmpty<E>>
+impl<K,E> Linear<K,E>
 where
     E: DiscreteGenerator,
-    K: DiscreteGenerator,
+    K: SortedGenerator,
     E::Output: Add<Output = E::Output> + Mul<K::Output, Output = E::Output> + Copy,
     K::Output: Real
 {
@@ -289,8 +294,8 @@ where
     pub fn new_unchecked(elements: E, knots: K) -> Result<Self, EnterpolationError>
     {
         Ok(Linear {
-            elements: NonEmpty::new_unchecked(elements),
-            knots: Sorted::new_unchecked(NonEmpty::new_unchecked(knots)),
+            elements: elements,
+            knots: knots,
         })
     }
 }
@@ -321,16 +326,17 @@ where
     }
 }
 
-impl<R,T,const N: usize> Linear<NonEmpty<ConstEquidistant<R,N>>,[T;N]>
+//when const generics have more features MinSize<2> won't be necessary here
+impl<R,T,const N: usize> Linear<ConstEquidistant<R,N>,[T;N]>
 {
     /// Create a linear interpolation with an array of elements.
-    /// There has to be at least 1 element, which is NOT checked.
+    /// There has to be at least *two* elements, which is NOT checked.
     /// Should be used if one wants to create a constant Interpolation
     pub const fn equidistant_unchecked(elements: [T;N]) -> Self
     {
         Linear {
             elements,
-            knots: NonEmpty::new_unchecked(ConstEquidistant::new()),
+            knots: ConstEquidistant::new(),
         }
     }
 }
@@ -338,11 +344,11 @@ impl<R,T,const N: usize> Linear<NonEmpty<ConstEquidistant<R,N>>,[T;N]>
 /// An array-allocated linear interpolation.
 ///
 /// **Because this is an alias, not all its methods are listed here. See the [`Linear`](crate::linear::Linear) type too.**
-pub type StaticLinear<R,T,const N: usize> = Linear<[R;N],[T;N]>;
+pub type StaticLinear<R,T,const N: usize> = Linear<Sorted<[R;N]>,[T;N]>;
 /// A vector-allocated linear interpolation.
 ///
 /// **Because this is an alias, not all its methods are listed here. See the [`Linear`](crate::linear::Linear) type too.**
-pub type DynamicLinear<R,T> = Linear<Vec<R>,Vec<T>>;
+pub type DynamicLinear<R,T> = Linear<Sorted<Vec<R>>,Vec<T>>;
 /// An array-allocated linear interpolation with equidistant knot distribution.
 ///
 /// **Because this is an alias, not all its methods are listed here. See the [`Linear`](crate::linear::Linear) type too.**
@@ -354,7 +360,7 @@ pub type DynamicEquidistantLinear<R,T> = Linear<Equidistant<R>,Vec<T>>;
 /// An array-allocated, const-creatable, linear interpolation with equidistant knot distribution.
 ///
 /// **Because this is an alias, not all its methods are listed here. See the [`Linear`](crate::linear::Linear) type too.**
-pub type ConstEquidistantLinear<R,T,const N: usize> = Linear<NonEmpty<ConstEquidistant<R,N>>,[T;N]>;
+pub type ConstEquidistantLinear<R,T,const N: usize> = Linear<ConstEquidistant<R,N>,[T;N]>;
 
 
 #[cfg(test)]

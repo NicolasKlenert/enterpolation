@@ -193,108 +193,6 @@ pub trait SortedGenerator : DiscreteGenerator
     // If you want to add a default implementation: The wrapper `Sorted` should forward to the implementation!
 }
 
-/// Marker trait to mark a generator to have at least a length of N.
-pub trait MinSizeGenerator<const N: usize> : DiscreteGenerator {}
-
-/// Marker trait to mark a generator as non empty.
-///
-/// This trait is not implemented by hand. Insted of implementing this trait, implement MinSizeGenerator<1>.
-/// There is no difference in these two except this implementation detail.
-/// When rust allows trait alias in stable, this will be unnecassary.
-pub trait NonEmptyGenerator : MinSizeGenerator<1> {
-    fn first(&self) -> Self::Output {
-        self.gen(0)
-    }
-    fn last(&self) -> Self::Output {
-        self.gen(self.len() - 1)
-    }
-}
-
-// Delete and make NonEmptyGenerator a trait alias when this is possible.
-impl<T> NonEmptyGenerator for T where T: MinSizeGenerator<1> {}
-// Do this with a macro and at some point maybe const features are strong enough to do it generically.
-// This implementation conflicts with generic implementations as we can't just take the maximum value for N, but do all N.
-// impl<T> MinSizeGenerator<0> for T where T: MinSizeGenerator<1> {}
-// impl<T> MinSizeGenerator<1> for T where T: MinSizeGenerator<2> {}
-// impl<T> MinSizeGenerator<2> for T where T: MinSizeGenerator<3> {}
-
-/// Struct to represent a collection/generator with a minimum size of N.
-#[derive(Copy,Clone,Eq,PartialEq,Ord,PartialOrd,Hash,Debug)]
-pub struct MinSize<C,const N: usize>(C);
-
-impl<C,const N: usize> MinSize<C,N>
-where C: DiscreteGenerator
-{
-    /// Returns Some(col) if collection has a minimum size of `N`, otherwise returns None.
-    pub fn new(col: C) -> Option<Self>{
-        if col.len() < N {
-            return None;
-        }
-        Some(MinSize(col))
-    }
-}
-
-// We are not able to implement `From<MinSize<C,N>> for C` because it might conflict with
-// `impl<C> From<MinSize<C,N>> for LocalType` in another crate, which is always allowed.
-// See https://stackoverflow.com/questions/63119000/why-am-i-required-to-cover-t-in-impl-foreigntraitlocaltype-for-t-e0210
-impl<C,const N: usize> MinSize<C,N> {
-    /// Creates a minimal size collection without checking if it has at least this size.
-    ///
-    /// As too few elements are not going to create UB, this functin is safe.
-    /// However at some point something will probably panic.
-    pub const fn new_unchecked(col: C) -> Self{
-        MinSize(col)
-    }
-
-    /// Returns the inner collection
-    pub fn get(self) -> C {
-        self.0
-    }
-}
-
-impl<C,const N: usize> Generator<usize> for MinSize<C,N>
-where C: Generator<usize>
-{
-    type Output = C::Output;
-    fn gen(&self, input: usize) -> Self::Output {
-        self.0.gen(input)
-    }
-}
-
-impl<C,const N: usize> DiscreteGenerator for MinSize<C,N>
-where C: DiscreteGenerator
-{
-    fn len(&self) -> usize {
-        self.0.len()
-    }
-}
-
-impl<C: DiscreteGenerator,const N: usize> MinSizeGenerator<N> for MinSize<C,N> {}
-impl<C: SortedGenerator,const N: usize> SortedGenerator for MinSize<C,N> {
-    //TODO: implement all SortedGenerator functions with the underlying SortedGenerator!
-    fn upper_border(&self, element: Self::Output) -> (usize, usize, Self::Output)
-    where
-        Self::Output: PartialOrd + Sub<Output = Self::Output> + Div<Output = Self::Output> + Zero + Copy + Debug
-    {
-        self.0.upper_border(element)
-    }
-    fn strict_upper_bound(&self, element: Self::Output) -> usize
-    where Self::Output: PartialOrd + Copy {
-        self.0.strict_upper_bound(element)
-    }
-    fn linear_factor(&self, min_index: usize, max_index: usize, element: Self::Output) -> Self::Output
-    where Self::Output: Sub<Output = Self::Output> + Div<Output = Self::Output> + Zero + Copy {
-        self.0.linear_factor(min_index, max_index, element)
-    }
-    fn linear_factor_unchecked(&self, min_index: usize, max_index: usize, element: Self::Output) -> Self::Output
-    where Self::Output: Sub<Output = Self::Output> + Div<Output = Self::Output> + Copy {
-        self.0.linear_factor_unchecked(min_index, max_index, element)
-    }
-}
-
-/// Type alias which is more telling.
-pub type NonEmpty<C> = MinSize<C,1>;
-
 /// Struct to represent a sorted collection/generator.
 pub struct Sorted<C>(C);
 
@@ -348,7 +246,6 @@ where C: DiscreteGenerator
 }
 
 impl<C: DiscreteGenerator> SortedGenerator for Sorted<C> {}
-impl<C: MinSizeGenerator<N>, const N: usize> MinSizeGenerator<N> for Sorted<C> {}
 
 impl<C,Idx> Index<Idx> for Sorted<C> where C: Index<Idx> {
     type Output = C::Output;
@@ -494,7 +391,6 @@ where R: Real + FromPrimitive
         (min_index, max_index, factor)
     }
 }
-impl<R> MinSizeGenerator<1> for Equidistant<R> where R: Real + FromPrimitive {}
 
 /// Struct used as a generator for equidistant elements in constant context.
 /// Acts like an array of knots.
@@ -599,3 +495,7 @@ where R: Real + FromPrimitive
         (min_index, max_index, factor)
     }
 }
+
+//implement MinSizeGenerator<M> for ConstEquidistant<R,N> where M<=N;
+// impl<R,const N: usize> MinSizeGenerator<2> for ConstEquidistant<R,N> where R: Real + FromPrimitive {}
+// impl<R,const N: usize> MinSizeGenerator<1> for ConstEquidistant<R,N> where R: Real + FromPrimitive {}
