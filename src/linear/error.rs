@@ -1,3 +1,5 @@
+//! All error types for linear interpolation.
+
 use thiserror::Error;
 pub use crate::NotSorted;
 

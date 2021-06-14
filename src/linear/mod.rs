@@ -26,6 +26,7 @@ mod builder;
 pub use builder::LinearBuilder;
 
 pub mod error;
+pub use error::{LinearError, ToFewElements, KnotElementInequality, WeightOfZero, NotSorted};
 
 /// Linear interpolate/extrapolate with the elements and knots given.
 /// Knots should be in increasing order and there has to be at least 2 knots.
@@ -77,7 +78,8 @@ pub struct Linear<K,E>
 }
 
 impl Linear<builder::Unknown,builder::Unknown> {
-    fn builder() -> LinearBuilder<builder::Unknown,builder::Unknown> {
+    /// Get the builder object of this interpolation.
+    pub fn builder() -> LinearBuilder<builder::Unknown,builder::Unknown> {
         LinearBuilder::new()
     }
 }
@@ -265,21 +267,13 @@ where
     /// Create a linear interpolation with slice-like collections of elements and knots.
     /// Knots should be in increasing order (not checked), there should be as many knots as elements
     /// and there has to be at least 2 elements.
-    pub fn new(elements: E, knots: K) -> Result<Self, EnterpolationError>
+    pub fn new(elements: E, knots: K) -> Result<Self, LinearError>
     {
         if elements.len() < 2 {
-            return Err(EnterpolationError::ToFewElements{
-                name: "Linear".to_string(),
-                found: elements.len(),
-                expected: 2,
-            });
+            return Err(ToFewElements::new(elements.len()).into());
         }
         if knots.len() != elements.len() {
-            return Err(EnterpolationError::InvalidNumberKnots{
-                name: "Linear".to_string(),
-                found: knots.len(),
-                expected: "same amount as elements".to_string(),
-            });
+            return Err(KnotElementInequality::new(elements.len(), knots.len()).into());
         }
         Ok(Linear {
             elements,
@@ -300,47 +294,25 @@ where
     /// and there has to be at least 2 elements.
     ///
     /// All requirements are not checked.
-    pub fn new_unchecked(elements: E, knots: K) -> Result<Self, EnterpolationError>
+    pub fn new_unchecked(elements: E, knots: K) -> Self
     {
-        Ok(Linear {
-            elements: elements,
-            knots: knots,
-        })
-    }
-}
-
-impl<R,E> Linear<Equidistant<R>,E>
-where
-    E: DiscreteGenerator,
-    E::Output: Add<Output = E::Output> + Mul<R, Output = E::Output> + Copy,
-    R: Real + FromPrimitive
-{
-    /// Create a linear interpolation with slice-like collections of elements.
-    /// There has to be at least 1 element.
-    /// We assume the knots to be equidistant distributed and to be inside [0.0,1.0].
-    pub fn equidistant(elements: impl Into<E>) -> Result<Self, EnterpolationError>
-    {
-        let elements = elements.into();
-        if elements.is_empty() {
-            return Err(EnterpolationError::ToFewElements{
-                name: "Linear".to_string(),
-                found: elements.len(),
-                expected: 1,
-            });
-        }
-        Ok(Linear {
-            knots: Equidistant::normalized(elements.len()),
+        Linear {
             elements,
-        })
+            knots,
+        }
     }
 }
 
-//when const generics have more features MinSize<2> won't be necessary here
 impl<R,T,const N: usize> Linear<ConstEquidistant<R,N>,[T;N]>
 {
     /// Create a linear interpolation with an array of elements.
+    ///
     /// There has to be at least *two* elements, which is NOT checked.
-    /// Should be used if one wants to create a constant Interpolation
+    /// This function should be used if one wants to create a constant Interpolation.
+    ///
+    /// # Requirements
+    ///
+    /// The array has to be at least of length *two*.
     pub const fn equidistant_unchecked(elements: [T;N]) -> Self
     {
         Linear {
@@ -350,22 +322,22 @@ impl<R,T,const N: usize> Linear<ConstEquidistant<R,N>,[T;N]>
     }
 }
 
-/// An array-allocated linear interpolation.
-///
-/// **Because this is an alias, not all its methods are listed here. See the [`Linear`](crate::linear::Linear) type too.**
-pub type StaticLinear<R,T,const N: usize> = Linear<Sorted<[R;N]>,[T;N]>;
-/// A vector-allocated linear interpolation.
-///
-/// **Because this is an alias, not all its methods are listed here. See the [`Linear`](crate::linear::Linear) type too.**
-pub type DynamicLinear<R,T> = Linear<Sorted<Vec<R>>,Vec<T>>;
-/// An array-allocated linear interpolation with equidistant knot distribution.
-///
-/// **Because this is an alias, not all its methods are listed here. See the [`Linear`](crate::linear::Linear) type too.**
-pub type StaticEquidistantLinear<R,T,const N: usize> = Linear<Equidistant<R>,[T;N]>;
-/// A vector-allocated linear interpolation with equidistant knot distribution.
-///
-/// **Because this is an alias, not all its methods are listed here. See the [`Linear`](crate::linear::Linear) type too.**
-pub type DynamicEquidistantLinear<R,T> = Linear<Equidistant<R>,Vec<T>>;
+// /// An array-allocated linear interpolation.
+// ///
+// /// **Because this is an alias, not all its methods are listed here. See the [`Linear`](crate::linear::Linear) type too.**
+// pub type StaticLinear<R,T,const N: usize> = Linear<Sorted<[R;N]>,[T;N]>;
+// /// A vector-allocated linear interpolation.
+// ///
+// /// **Because this is an alias, not all its methods are listed here. See the [`Linear`](crate::linear::Linear) type too.**
+// pub type DynamicLinear<R,T> = Linear<Sorted<Vec<R>>,Vec<T>>;
+// /// An array-allocated linear interpolation with equidistant knot distribution.
+// ///
+// /// **Because this is an alias, not all its methods are listed here. See the [`Linear`](crate::linear::Linear) type too.**
+// pub type StaticEquidistantLinear<R,T,const N: usize> = Linear<Equidistant<R>,[T;N]>;
+// /// A vector-allocated linear interpolation with equidistant knot distribution.
+// ///
+// /// **Because this is an alias, not all its methods are listed here. See the [`Linear`](crate::linear::Linear) type too.**
+// pub type DynamicEquidistantLinear<R,T> = Linear<Equidistant<R>,Vec<T>>;
 /// An array-allocated, const-creatable, linear interpolation with equidistant knot distribution.
 ///
 /// **Because this is an alias, not all its methods are listed here. See the [`Linear`](crate::linear::Linear) type too.**

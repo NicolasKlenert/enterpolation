@@ -33,6 +33,7 @@ where T: Default + Copy
 }
 
 impl<T, const N: usize> ConstSpace<T,N>{
+    /// Create a constant worksprace at compile-time.
     pub fn new() -> Self {
         ConstSpace {
             phantom: PhantomData
@@ -40,7 +41,7 @@ impl<T, const N: usize> ConstSpace<T,N>{
     }
 }
 
-/// Struct handles workspace in run-time
+/// Struct handles workspace at run-time.
 pub struct DynSpace<T>{
     len: usize,
     phantom: PhantomData<*const T>
@@ -59,6 +60,7 @@ where T: Default + Copy
 }
 
 impl<T> DynSpace<T>{
+    /// Create a workspace with given length at run-time.
     pub fn new(len: usize) -> Self {
         DynSpace{
             len,

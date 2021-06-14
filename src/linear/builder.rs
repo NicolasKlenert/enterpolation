@@ -57,7 +57,7 @@ impl Default for LinearBuilder<Unknown, Unknown> {
 
 impl LinearBuilder<Unknown, Unknown> {
     /// Create a new linear interpolation builder.
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         LinearBuilder {
             knots: Unknown,
             elements: Unknown,
@@ -78,6 +78,7 @@ impl LinearBuilder<Unknown, Unknown> {
             elements,
         })
     }
+
     /// Set the elements and their weights for this interpolation.
     pub fn elements_with_weights<I,W,E>(self, iter: I)
         -> Result<LinearBuilder<Unknown, WithWeight<Vec<Homogeneous<E,W>>>>,LinearError>
@@ -87,7 +88,7 @@ impl LinearBuilder<Unknown, Unknown> {
         E: Mul<W, Output = E>,
     {
         // we can not use iterator style, as a closure does not work nicely with ? syntax.
-        let mut iter = iter.into_iter();
+        let iter = iter.into_iter();
         let mut vec = Vec::with_capacity(iter.size_hint().0);
         for (element, weight) in iter {
             vec.push(Homogeneous::weighted(element,weight).ok_or_else(|| WeightOfZero::new())?);

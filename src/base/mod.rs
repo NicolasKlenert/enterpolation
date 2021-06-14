@@ -11,7 +11,9 @@ pub use space::{Space, DynSpace, ConstSpace};
 
 /// Trait for possible heterogen structures which can be disassembled step by step.
 pub trait Composite<Head>{
+    /// The Tail (everything except the head) of the composite type.
     type Tail;
+    /// Split the composite type to get its head and tail.
     fn split(self) -> (Head, Self::Tail);
 }
 

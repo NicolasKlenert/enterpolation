@@ -73,6 +73,10 @@ where
     ///
     /// The weight should not be zero. If you want to represent a point at infinity, use
     /// `infinity` instead.
+    ///
+    /// # Requirements
+    ///
+    /// Given weight shall *not* be zero.
     pub fn weighted_unchecked(element: E, weight: R) -> Self {
         Homogeneous {
             element: element * weight,
