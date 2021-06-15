@@ -21,6 +21,10 @@ impl<G,T,R> Weighted<G,T,R>{
             _phantoms: (PhantomData, PhantomData),
         }
     }
+    /// Return the inner interpolation.
+    pub fn inner(self) -> G {
+        self.inner
+    }
 }
 
 impl<T,R,G,I> Generator<I> for Weighted<G,T,R>

@@ -1,6 +1,10 @@
 use core::marker::PhantomData;
 
-/// Trait for constant or dynamic workspace handling
+/// Trait for constant or dynamic workspace handling.
+///
+/// We do want to generate workspaces every time the method is called as this allows as safe concurrency.
+/// This may impact performance as for DynSpace we always allocate memory. However as their is an alternative,
+/// this is accepted.
 pub trait Space<T> {
     // In the fututre with a more powerful type system
     // one may be able to put the definition of T from the trait to the function.
@@ -8,7 +12,7 @@ pub trait Space<T> {
     // "we will output an array of (any) T", which is not yet easily possible.
 
     /// The workspace given, this should be an array or a vector (AsMut<[T]>)
-    type Output;
+    type Output : AsMut<[T]>;
     /// Returns the length of the workspace given.
     fn len(&self) -> usize;
     /// The workspace itself.
@@ -17,7 +21,7 @@ pub trait Space<T> {
 
 /// Struct handles workspace while in compilation
 pub struct ConstSpace<T,const N: usize>{
-    phantom: PhantomData<*const T>
+    _phantom: PhantomData<*const T>,
 }
 
 impl<T,const N: usize> Space<T> for ConstSpace<T,N>
@@ -36,7 +40,7 @@ impl<T, const N: usize> ConstSpace<T,N>{
     /// Create a constant worksprace at compile-time.
     pub fn new() -> Self {
         ConstSpace {
-            phantom: PhantomData
+            _phantom: PhantomData
         }
     }
 }
@@ -44,7 +48,7 @@ impl<T, const N: usize> ConstSpace<T,N>{
 /// Struct handles workspace at run-time.
 pub struct DynSpace<T>{
     len: usize,
-    phantom: PhantomData<*const T>
+    _phantom: PhantomData<*const T>
 }
 
 impl<T> Space<T> for DynSpace<T>
@@ -64,7 +68,7 @@ impl<T> DynSpace<T>{
     pub fn new(len: usize) -> Self {
         DynSpace{
             len,
-            phantom: PhantomData
+            _phantom: PhantomData
         }
     }
 }

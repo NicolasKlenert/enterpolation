@@ -5,53 +5,62 @@ mod generator;
 mod list;
 mod space;
 
-pub use generator::{Generator, Interpolation, Curve, DiscreteGenerator, Extract, Stepper};
+pub use generator::{Generator, Interpolation, Curve, DiscreteGenerator, ConstDiscreteGenerator, Extract, Stepper, Take};
 pub use list::{Equidistant, ConstEquidistant, SortedGenerator, Sorted, NotSorted};
 pub use space::{Space, DynSpace, ConstSpace};
 
-/// Trait for possible heterogen structures which can be disassembled step by step.
-pub trait Composite<Head>{
-    /// The Tail (everything except the head) of the composite type.
-    type Tail;
-    /// Split the composite type to get its head and tail.
-    fn split(self) -> (Head, Self::Tail);
-}
+use num_traits::real::Real;
 
-impl<H,T> Composite<H> for (H,T){
-    type Tail = T;
-    fn split(self) -> (H, Self::Tail) {
-        self
+/// Generator Adaptor which takes two generators with Output S and T and stacks them, such that the output is (T,R).
+pub struct Stack<G,H>(G,H);
+
+impl<G,H,Input> Generator<Input> for Stack<G,H>
+where
+    G: Generator<Input>,
+    H: Generator<Input>,
+    Input: Copy,
+{
+    type Output = (G::Output, H::Output);
+    fn gen(&self, input: Input) -> Self::Output {
+        (self.0.gen(input), self.1.gen(input))
     }
 }
 
-// impl<H> Composite<H> for H {
-//     type Tail = ();
-//     fn split(self) -> (H, Self::Tail){
-//         (self, ())
-//     }
-// }
+impl<G,H> DiscreteGenerator for Stack<G,H>
+where
+    G: DiscreteGenerator,
+    H: DiscreteGenerator,
+{
+    fn len(&self) -> usize {
+        self.0.len().min(self.1.len())
+    }
+}
 
-// Not yet possible
-// impl<H,T, const N: usize> Composite<H> for [H;N] {
-//     type Tail = [H; N-1];
-//     fn split(self) -> (H, Self::Tail) {
-//         (self[0],)
-//     }
-// }
+impl<G,H, const N: usize> ConstDiscreteGenerator<N> for Stack<G,H>
+where
+    G: ConstDiscreteGenerator<N>,
+    H: ConstDiscreteGenerator<N>,
+{}
 
-// Instead of using a collectionwrapper which can be bothersome, we want to implement generator traits
-// for the collection itself. However because rust does not have GAT or specialization yet, we have to implement them
-// one by one, as we can not implement it generically
-//
-// If one wants to use it's own collection, they have to implement the Generator trait itself.
+impl<G,H,Input> Interpolation<Input> for Stack<G,H>
+where
+    G: Interpolation<Input>,
+    H: Interpolation<Input>,
+    Input: Copy
+{}
 
-// This would be needed to implement mutlivariate interpolations without any new struct.
-// impl<T: Copy> Generator<()> for T {
-//     type Output = T;
-//     fn gen(&self, _input: ()) -> Self::Output {
-//         *self
-//     }
-// }
+impl<G,H,R> Curve<R> for Stack<G,H>
+where
+    G: Curve<R>,
+    H: Curve<R>,
+    R: Real
+{
+    fn domain(&self) -> [R; 2] {
+        let first = self.0.domain();
+        let second = self.1.domain();
+        [first[0].max(second[0]),first[1].min(second[1])]
+    }
+}
 
 impl<T: Copy> Generator<usize> for Vec<T> {
     type Output = T;
@@ -89,9 +98,7 @@ impl<T: Copy, const N: usize> DiscreteGenerator for [T;N] {
     }
 }
 
-// temporary hack
-// Only implement MinSizeGenerator<M> for [R;N] where M <= N.
-// impl<R: Copy, const N: usize> MinSizeGenerator<2> for [R;N] {}
+impl<T:Copy, const N: usize> ConstDiscreteGenerator<N> for [T;N] {}
 
 /// A stack of values or generators
 impl<G,I, const N: usize> Generator<(usize, I)> for [G;N]

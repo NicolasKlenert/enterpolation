@@ -3,6 +3,7 @@ use num_traits::real::Real;
 use num_traits::FromPrimitive;
 
 use super::Equidistant;
+use super::Stack;
 
 /// Trait which symbolises the generation or copying of an element.
 ///
@@ -27,6 +28,18 @@ pub trait Generator<Input> {
             iterator,
         }
     }
+    /// Stack two generators together, that is for two generators with output T and R
+    /// the created generators output will be (T,R).
+    fn stack<G>(self, gen: G) -> Stack<Self,G>
+    where Self: Sized
+    {
+        Stack(self,gen)
+    }
+    /// Get a reference of the generator.
+    /// This is useful if one wants to add an adapter without consuming the original.
+    fn by_ref(&self) -> &Self {
+        self
+    }
     /// Helper function if one wants to sample values from the interpolation.
     ///
     /// It takes an iterator which yields items which are inputted into the `get` function
@@ -38,11 +51,6 @@ pub trait Generator<Input> {
         I: Iterator<Item = Input>
     {
         self.extract(iterator)
-    }
-    /// Get a reference of the generator.
-    /// This is useful if one wants to add an adapter without consuming the original.
-    fn by_ref(&self) -> &Self {
-        self
     }
 }
 
@@ -120,6 +128,16 @@ pub trait DiscreteGenerator : Generator<usize> {
         self.len() == 0
     }
 }
+
+/// ConstDiscreteGenerator is a marker for DiscreteGenerator where its length is knwon at compile-time
+/// and given by `N`.
+pub trait ConstDiscreteGenerator<const N: usize> : DiscreteGenerator {}
+
+// impl<G,const N: usize> DiscreteGenerator for G
+// where G: ConstDiscreteGenerator<N> + Generator<usize>
+// {
+//     fn len(&self) -> usize { N }
+// }
 
 /// Iterator adaptor, which transforms an iterator with InterScalar items to an iterator with the correspondending values of the interpolation
 pub struct Extract<G, I> {
