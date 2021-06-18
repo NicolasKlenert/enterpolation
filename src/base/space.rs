@@ -20,6 +20,7 @@ pub trait Space<T> {
 }
 
 /// Struct handles workspace while in compilation
+#[derive(Debug, Copy, Clone)]
 pub struct ConstSpace<T,const N: usize>{
     _phantom: PhantomData<*const T>,
 }
@@ -46,6 +47,7 @@ impl<T, const N: usize> ConstSpace<T,N>{
 }
 
 /// Struct handles workspace at run-time.
+#[derive(Debug, Copy, Clone)]
 pub struct DynSpace<T>{
     len: usize,
     _phantom: PhantomData<*const T>
@@ -54,7 +56,7 @@ pub struct DynSpace<T>{
 impl<T> Space<T> for DynSpace<T>
 where T: Default + Copy
 {
-    type Output = std::vec::Vec<T>;
+    type Output = Vec<T>;
     fn len(&self) -> usize {
         self.len
     }

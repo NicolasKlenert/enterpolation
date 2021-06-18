@@ -7,7 +7,7 @@ use thiserror::Error;
 
 use core::fmt::Debug;
 
-pub use super::{Generator, Interpolation, Curve, DiscreteGenerator, Extract, Stepper};
+use super::{Generator, DiscreteGenerator};
 
 // REMARK: It may be valuable to create traits SortedNonEmpty and SortedNonSingular
 // REMARK: These would be Sorted + NonEmpty and Sorted + MinSize<2>.
@@ -195,6 +195,7 @@ pub trait SortedGenerator : DiscreteGenerator
 }
 
 /// Struct to represent a sorted collection/generator.
+#[derive(Debug, Copy, Clone)]
 pub struct Sorted<C>(C);
 
 impl<C> Sorted<C>
@@ -256,7 +257,7 @@ impl<C,Idx> Index<Idx> for Sorted<C> where C: Index<Idx> {
 }
 
 /// Error returned if the number of elements and the number of knots are not matching.
-#[derive(Error, Debug)]
+#[derive(Error, Debug, Copy, Clone)]
 #[error("Given knots are not sorted.
 From index {} to {} we found decreasing values.", index, index+1)]
 pub struct NotSorted {
@@ -274,6 +275,7 @@ impl NotSorted {
 
 /// Struct used as a generator for equidistant elements.
 /// Acts like an array of knots.
+#[derive(Debug, Copy, Clone)]
 pub struct Equidistant<R = f64>{
     len: usize,
     step: R,
@@ -420,6 +422,7 @@ where R: Real + FromPrimitive
 /// In comparison to `Equidistant`, this struct is slower (as it has to do more calculations) and
 /// only represents knots in [0.0,1.0]. However as knot base for interpolations, it is more performant,
 /// as we have the knowledge of the domain.
+#[derive(Debug, Copy, Clone)]
 pub struct ConstEquidistant<R/* = f64*/,const N: usize>(PhantomData<*const R>);
 
 impl<R,const N: usize> ConstEquidistant<R,N>

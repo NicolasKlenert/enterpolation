@@ -4,8 +4,7 @@
 //! gives you a wrapper at hand which transforms any interplation into a rational interpolation.
 
 use core::ops::{Add, Sub, Mul, Div};
-use num_traits::real::Real;
-use num_traits::identities::Zero;
+use num_traits::identities::{Zero, One};
 
 /// Wrapper for elements to achieve weighted and rational curves.
 ///
@@ -17,7 +16,7 @@ pub struct Homogeneous<E,R> {
 }
 
 impl<E,R> Homogeneous<E,R>
-where R: Real
+where R: One
 {
     /// Lift your element to create a homogeneous coordinate.
     pub fn new(element: E) -> Self {
@@ -26,7 +25,11 @@ where R: Real
             rational: R::one(),
         }
     }
+}
 
+impl<E,R> Homogeneous<E,R>
+where R: Zero
+{
     /// Create a homogeneous coordinate which lies at infinity in the given direction.
     pub fn infinity(direction: E) -> Self {
         Homogeneous {
@@ -34,7 +37,11 @@ where R: Real
             rational: R::zero(),
         }
     }
+}
 
+impl<E,R> Homogeneous<E,R>
+where R: Zero + PartialEq
+{
     /// Returns true if value lies at infinity.
     pub fn is_infinite(&self) -> bool {
         self.rational == R::zero()
@@ -63,12 +70,39 @@ where
         if weight.is_zero() {
             return None;
         }
-        Some(Homogeneous {
-            element: element * weight,
-            rational: weight,
-        })
+        Some(Self::weighted_unchecked(element, weight))
     }
 
+    /// Create a homogeneous coordinate with the specified weight as long as the given weight is not zero.
+    /// Otherwise it will be infinite with the given element as direction.
+    pub fn weighted_or_infinite(element: E, weight: R) -> Self {
+        if weight.is_zero() {
+            return Self::infinity(element);
+        }
+        Self::weighted_unchecked(element, weight)
+    }
+}
+
+impl<E,R> Homogeneous<E,R>
+where
+    E: Mul<R, Output = E>,
+    R: One + Zero + Copy
+{
+    /// Create a homogeneous coordinate with the specified weight as long as the given weight is not zero.
+    /// Otherwise it falls back to the weight of one.
+    pub fn weighted_or_one(element: E, weight: R) -> Self {
+        if weight.is_zero() {
+            return Self::new(element);
+        }
+        Self::weighted_unchecked(element, weight)
+    }
+}
+
+impl<E,R> Homogeneous<E,R>
+where
+    E: Mul<R, Output = E>,
+    R: Copy
+{
     /// Create a homogeneous coordinate with the specified weight
     ///
     /// The weight should not be zero. If you want to represent a point at infinity, use

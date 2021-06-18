@@ -5,13 +5,18 @@ mod generator;
 mod list;
 mod space;
 
+// These get re-exported at the library level.
+#[allow(unreachable_pub)]
 pub use generator::{Generator, Interpolation, Curve, DiscreteGenerator, ConstDiscreteGenerator, Extract, Stepper, Take};
+#[allow(unreachable_pub)]
 pub use list::{Equidistant, ConstEquidistant, SortedGenerator, Sorted, NotSorted};
+#[allow(unreachable_pub)]
 pub use space::{Space, DynSpace, ConstSpace};
 
 use num_traits::real::Real;
 
 /// Generator Adaptor which takes two generators with Output S and T and stacks them, such that the output is (T,R).
+#[derive(Debug, Copy, Clone)]
 pub struct Stack<G,H>(G,H);
 
 impl<G,H,Input> Generator<Input> for Stack<G,H>

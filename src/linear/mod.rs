@@ -26,7 +26,7 @@ mod builder;
 pub use builder::LinearBuilder;
 
 pub mod error;
-pub use error::{LinearError, ToFewElements, KnotElementInequality, WeightOfZero, NotSorted};
+pub use error::{LinearError, ToFewElements, KnotElementInequality, NotSorted};
 
 /// Linear interpolate/extrapolate with the elements and knots given.
 /// Knots should be in increasing order and there has to be at least 2 knots.
@@ -71,6 +71,7 @@ where
 ///
 /// K has to be a SortedGenerator and and also a generator with a minimum size of 2.
 /// Also this struct itself checks if the number of knots and elements are equal.
+#[derive(Debug, Copy, Clone)]
 pub struct Linear<K,E>
 {
     elements: E,

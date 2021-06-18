@@ -1,6 +1,5 @@
 //! The adaptor `Weighted` can be used for all interpolations to hide the inner workings of a weighted element.
 
-use core::marker::PhantomData;
 use core::ops::Div;
 use num_traits::real::Real;
 use crate::{Generator, Interpolation, Curve, Homogeneous};
@@ -8,17 +7,16 @@ use crate::{Generator, Interpolation, Curve, Homogeneous};
 /// Interpolation Adaptor used for weighted elements to automatically unwrap them from their weights.
 ///
 /// This Adaptor is often appended to an interpolation with weighted elements to automatically unwrap them.
-pub struct Weighted<G,T,R>{
+#[derive(Debug, Copy, Clone)]
+pub struct Weighted<G>{
     inner: G,
-    _phantoms: (PhantomData<T>,PhantomData<R>),
 }
 
-impl<G,T,R> Weighted<G,T,R>{
+impl<G> Weighted<G>{
     /// Use the `Weighted` Adaptor on the given weighted interpolation to automatically unwrap the elements of their weight.
     pub fn new(gen: G) -> Self {
         Weighted {
             inner: gen,
-            _phantoms: (PhantomData, PhantomData),
         }
     }
     /// Return the inner interpolation.
@@ -27,30 +25,47 @@ impl<G,T,R> Weighted<G,T,R>{
     }
 }
 
-impl<T,R,G,I> Generator<I> for Weighted<G,T,R>
+impl<G,I> Generator<I> for Weighted<G>
 where
-    G: Generator<I, Output = Homogeneous<T,R>>,
-    T: Div<R, Output = T>
+    G: Generator<I>,
+    G::Output: FromWeight,
 {
-    type Output = T;
+    type Output = <G::Output as FromWeight>::Element;
     fn gen(&self, input: I) -> Self::Output {
-        self.inner.gen(input).project()
+        self.inner.gen(input).from_weight()
     }
 }
 
-impl<T,R,G,I> Interpolation<I> for Weighted<G,T,R>
+impl<G,I> Interpolation<I> for Weighted<G>
 where
-    G: Interpolation<I, Output = Homogeneous<T,R>>,
-    T: Div<R, Output = T>
+    G: Interpolation<I>,
+    G::Output: FromWeight,
 {}
 
-impl<T,R,G> Curve<R> for Weighted<G,T,R>
+impl<G,R> Curve<R> for Weighted<G>
 where
-    G: Curve<R, Output = Homogeneous<T,R>>,
-    T: Div<R, Output = T>,
-    R: Real
+    G: Curve<R>,
+    G::Output: FromWeight,
+    R: Real,
 {
     fn domain(&self) -> [R; 2] {
         self.inner.domain()
+    }
+}
+
+/// This trait is used to be able to implement Generator for Weights without having to add other generic variables.
+pub trait FromWeight {
+    type Element;
+    type Weight;
+    fn from_weight(self) -> Self::Element;
+}
+
+impl<T,R> FromWeight for Homogeneous<T,R>
+where T: Div<R,Output = T>,
+{
+    type Element = T;
+    type Weight = R;
+    fn from_weight(self) -> Self::Element {
+        self.project()
     }
 }

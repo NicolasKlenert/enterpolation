@@ -13,7 +13,21 @@
 //TODO: Afterwards delete the implementation of SortedList for array and vec
 //TODO: and add NonEmpty as super trait for SortedList!
 
-#![warn(missing_docs)]
+#![warn(
+    anonymous_parameters,
+    missing_copy_implementations,
+    missing_debug_implementations,
+    missing_docs,
+    nonstandard_style,
+    rust_2018_idioms,
+    single_use_lifetimes,
+    trivial_casts,
+    trivial_numeric_casts,
+    unreachable_pub,
+    unused_extern_crates,
+    unused_qualifications,
+    variant_size_differences
+)]
 
 #[macro_use]
 extern crate assert_float_eq;
@@ -33,8 +47,7 @@ use crate::real::Real;
 pub use base::{Generator, Interpolation, Curve, Extract, Stepper, Space, ConstSpace, DynSpace,
     DiscreteGenerator, ConstDiscreteGenerator, Equidistant, ConstEquidistant,
     Sorted, SortedGenerator, NotSorted};
-pub use weights::Homogeneous;
-pub use weights::Weighted;
+pub use weights::{Homogeneous, Weighted, Weights, IntoWeight};
 
 /// Struct which chains two Interpolation together to one Interpolation.
 ///

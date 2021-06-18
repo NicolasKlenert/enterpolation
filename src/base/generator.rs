@@ -103,6 +103,8 @@ where R: Real
 }
 
 /// DiscreteGenerator are generators which only guarantee creation of elements if the input is lower than their length.
+///
+/// All `DiscreteGenerators` should implement `IntoIterator` -> create derive macro.
 pub trait DiscreteGenerator : Generator<usize> {
     /// Returns the minimum amount of elements the generator can create.
     ///
@@ -127,11 +129,65 @@ pub trait DiscreteGenerator : Generator<usize> {
     fn is_empty(&self) -> bool {
         self.len() == 0
     }
+    /// Convert generator to an iterator which steps through all generatable values.
+    fn into_iter(self) -> IntoIter<Self>
+    where Self: Sized,
+    {
+        IntoIter::new(self)
+    }
+    //TODO: add derive macro to implement IntoIterator for all DiscreteGenerators
+    //TODO: add collect function like for iterators!
+    // fn to_collection<C>(self) -> C
+    // where C: FromDiscreteGenerator
+    // {
+    //
+    // }
 }
 
-/// ConstDiscreteGenerator is a marker for DiscreteGenerator where its length is knwon at compile-time
+/// ConstDiscreteGenerator is a marker for `DiscreteGenerator` where its length is knwon at compile-time
 /// and given by `N`.
-pub trait ConstDiscreteGenerator<const N: usize> : DiscreteGenerator {}
+pub trait ConstDiscreteGenerator<const N: usize> : DiscreteGenerator {
+    /// Collect all elements generated into an array.
+    fn to_array(&self) -> [Self::Output;N]
+    where Self::Output: Copy + Default
+    {
+        let mut arr = [Default::default();N];
+        for i in 0..N {
+            arr[i] = self.gen(i);
+        }
+        arr
+    }
+}
+
+/// Iterator constructed by the `into_iter` method of generators.
+#[derive(Debug,Clone)]
+pub struct IntoIter<G>{
+    gen: G,
+    index: usize,
+}
+
+impl<G> IntoIter<G>{
+    pub fn new(gen: G) -> Self {
+        IntoIter {
+            gen,
+            index: 0,
+        }
+    }
+}
+
+impl<G> Iterator for IntoIter<G>
+where G: DiscreteGenerator
+{
+    type Item = G::Output;
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.index < self.gen.len(){
+            let res = self.gen.gen(self.index);
+            self.index += 1;
+            return Some(res);
+        }
+        None
+    }
+}
 
 // impl<G,const N: usize> DiscreteGenerator for G
 // where G: ConstDiscreteGenerator<N> + Generator<usize>
@@ -140,6 +196,7 @@ pub trait ConstDiscreteGenerator<const N: usize> : DiscreteGenerator {}
 // }
 
 /// Iterator adaptor, which transforms an iterator with InterScalar items to an iterator with the correspondending values of the interpolation
+#[derive(Debug, Clone)] // Iterators shouldn't be Copy -- see #27186
 pub struct Extract<G, I> {
     generator: G,
     iterator: I,
@@ -157,6 +214,7 @@ where
 }
 
 /// Newtype Take to encapsulate implementation details of the curve method take
+#[derive(Debug, Clone)] // Iterators shouldn't be Copy -- see #27186
 pub struct Take<C, R>(Extract<C, Stepper<R>>)
 where
     R: Real;
@@ -174,6 +232,7 @@ where
 
 /// Newtype Steper to encapsulate implementation details.
 /// Stepper is an Iterator which steps from 0.0 to 1.0 in a specific amount of constant steps.
+#[derive(Debug, Clone)] // Iterators shouldn't be Copy -- see #27186
 pub struct Stepper<R: Real = f64>(Extract<Equidistant<R>,Range<usize>>);
 
 impl<R> Stepper<R>

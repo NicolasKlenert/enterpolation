@@ -9,22 +9,22 @@ use core::marker::PhantomData;
 use num_traits::real::Real;
 use num_traits::FromPrimitive;
 use num_traits::identities::Zero;
-use crate::{DiscreteGenerator, SortedGenerator, Sorted, Equidistant, Homogeneous, Weighted};
+use crate::{Generator, DiscreteGenerator, SortedGenerator, Sorted, Equidistant, Homogeneous, Weighted, Weights, IntoWeight};
 use super::Linear;
-use super::error::{LinearError, ToFewElements, WeightOfZero, KnotElementInequality};
+use super::error::{LinearError, ToFewElements, KnotElementInequality};
 
 //TODO: add unchecked versions
 
 /// Struct indicator to mark if we use weights
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct WithWeight<T>(T);
 
 /// Struct indicator to mark information not yet given.
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct Unknown;
 
 /// Struct indicator to mark the wish of using equidistant knots.
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct Output<R = f64>(PhantomData<*const R>);
 
 impl<R> Output<R> {
@@ -80,50 +80,43 @@ impl LinearBuilder<Unknown, Unknown> {
     }
 
     /// Set the elements and their weights for this interpolation.
-    pub fn elements_with_weights<I,W,E>(self, iter: I)
-        -> Result<LinearBuilder<Unknown, WithWeight<Vec<Homogeneous<E,W>>>>,LinearError>
+    ///
+    /// Weights of `Zero` can achieve unwanted results as their corresponding elements are considered
+    /// to be at infinity.
+    /// In this case the interpolation may generate NaN, infinite or even panic as elements
+    /// are divided by `Zero`.
+    ///
+    /// If you want to work with points at infinity,
+    /// you may want to use homogeneous data itself without this wrapping mechanism.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use enterpolation::{linear::Linear, Generator, Curve};
+    /// let linear = Linear::builder()
+    ///                 .elements_with_weights([(1.0,1.0),(2.0,4.0),(3.0,0.0)]).unwrap()
+    ///                 .equidistant::<f64>()
+    ///                 .build();
+    /// let results = [1.0,1.8,2.0,2.75,f64::INFINITY];
+    /// for (value,result) in linear.take(5).zip(results.iter().copied()){
+    ///     assert_eq!(value, result);
+    /// }
+    /// ```
+    pub fn elements_with_weights<G>(self, gen: G)
+        -> Result<LinearBuilder<Unknown, WithWeight<Weights<G>>>,ToFewElements>
     where
-        I: IntoIterator<Item = (E,W)>,
-        W: Zero + Copy,
-        E: Mul<W, Output = E>,
+        G: DiscreteGenerator,
+        G::Output: IntoWeight,
+        <G::Output as IntoWeight>::Element:
+            Mul<<G::Output as IntoWeight>::Weight, Output = <G::Output as IntoWeight>::Element>,
+        <G::Output as IntoWeight>::Weight: Zero + Copy,
     {
-        // we can not use iterator style, as a closure does not work nicely with ? syntax.
-        let iter = iter.into_iter();
-        let mut vec = Vec::with_capacity(iter.size_hint().0);
-        for (element, weight) in iter {
-            vec.push(Homogeneous::weighted(element,weight).ok_or_else(|| WeightOfZero::new())?);
-        }
-        if vec.len() < 2 {
-            return Err(ToFewElements::new(vec.len()).into());
+        if gen.len() < 2 {
+            return Err(ToFewElements::new(gen.len()));
         }
         Ok(LinearBuilder {
             knots: self.knots,
-            elements: WithWeight(vec),
-        })
-    }
-
-    /// Set the elements and their weights for this interpolation.
-    ///
-    /// # Performance
-    ///
-    /// This functions takes only arrays but is such able to store the data necessary for interpolation
-    /// into an array. No memory allcations are done therefore.
-    pub fn elements_with_weights_array<T,R,const N: usize>(self, arr: [(T,R);N])
-            -> Result<LinearBuilder<Unknown, WithWeight<[Homogeneous<T,R>;N]>>, LinearError>
-    where
-        R: Zero + Default + Copy,
-        T: Default + Copy + Mul<R, Output = T>,
-    {
-        if N < 2 {
-            return Err(ToFewElements::new(N).into());
-        }
-        let mut elements = [Default::default();N];
-        for i in 0..N {
-            elements[i] = Homogeneous::weighted(arr[i].0,arr[i].1).ok_or_else(|| WeightOfZero::new())?;
-        }
-        Ok(LinearBuilder {
-            knots: self.knots,
-            elements: WithWeight(elements),
+            elements: WithWeight(Weights::new(gen)),
         })
     }
 }
@@ -175,30 +168,6 @@ where
     }
 }
 
-impl<K,T,R> LinearBuilder<K,WithWeight<Vec<Homogeneous<T,R>>>>
-where
-    K: SortedGenerator<Output = R>,
-    T: Add<Output = T> + Mul<R, Output = T> + Copy,
-    R: Real + Copy
-{
-    /// Build a weighted linear interpolation.
-    pub fn build(self) -> Weighted<Linear<K,Vec<Homogeneous<T,R>>>,T,R>{
-        Weighted::new(Linear::new(self.elements.0, self.knots).unwrap())
-    }
-}
-
-impl<K,T,R, const N: usize> LinearBuilder<K,WithWeight<[Homogeneous<T,R>;N]>>
-where
-    K: SortedGenerator<Output = R>,
-    T: Add<Output = T> + Mul<R, Output = T> + Copy,
-    R: Real + Copy
-{
-    /// Build a weighted linear interpolation with backing arrays.
-    pub fn build(self) -> Weighted<Linear<K,[Homogeneous<T,R>;N]>,T,R>{
-        Weighted::new(Linear::new(self.elements.0, self.knots).unwrap())
-    }
-}
-
 impl<R,E> LinearBuilder<Output<R>, E>
 where
     E: DiscreteGenerator,
@@ -218,40 +187,73 @@ where
     }
 }
 
-impl<T,R> LinearBuilder<Output<R>,WithWeight<Vec<Homogeneous<T,R>>>>
+impl<K,G> LinearBuilder<K,WithWeight<Weights<G>>>
 where
-    T: Add<Output = T> + Mul<R, Output = T> + Copy,
-    R: Real + Copy + FromPrimitive
+    K: SortedGenerator,
+    K::Output: Real + Copy,
+    G: DiscreteGenerator,
+    G::Output: IntoWeight,
+    <Weights<G> as Generator<usize>>::Output:
+        Add<Output = <Weights<G> as Generator<usize>>::Output> +
+        Mul<K::Output, Output = <Weights<G> as Generator<usize>>::Output> +
+        Copy
+{
+    /// Build a weighted linear interpolation.
+    pub fn build(self) -> Weighted<Linear<K,Weights<G>>>
+    {
+        Weighted::new(Linear::new(self.elements.0, self.knots).unwrap())
+    }
+}
+
+impl<R,G> LinearBuilder<Output<R>,WithWeight<Weights<G>>>
+where
+    R: Real + Copy + FromPrimitive,
+    G: DiscreteGenerator,
+    G::Output: IntoWeight,
+    <Weights<G> as Generator<usize>>::Output:
+        Add<Output = <Weights<G> as Generator<usize>>::Output> +
+        Mul<R, Output = <Weights<G> as Generator<usize>>::Output> +
+        Copy,
 {
     /// Build a weighted linear interpolation from a vector of elements and equidistant knots in [0.0,1.0].
-    pub fn build(self) -> Weighted<Linear<Equidistant<R>,Vec<Homogeneous<T,R>>>,T,R> {
+    pub fn build(self) -> Weighted<Linear<Equidistant<R>,Weights<G>>> {
         let len = self.elements.0.len();
         let knots = Equidistant::normalized(len);
         Weighted::new(Linear::new(self.elements.0, knots).unwrap())
     }
     /// Build a weighted linear interpolation from a vector of elements and equidistant knots in the specified domain.
-    pub fn build_with_domain(self, start:R, end: R) -> Weighted<Linear<Equidistant<R>,Vec<Homogeneous<T,R>>>,T,R> {
+    pub fn build_with_domain(self, start:R, end: R) -> Weighted<Linear<Equidistant<R>,Weights<G>>> {
         let len = self.elements.0.len();
         let knots = Equidistant::new(start, end, len);
         Weighted::new(Linear::new(self.elements.0, knots).unwrap())
     }
 }
 
-impl<T,R, const N: usize> LinearBuilder<Output<R>,WithWeight<[Homogeneous<T,R>;N]>>
-where
-    T: Add<Output = T> + Mul<R, Output = T> + Copy,
-    R: Real + FromPrimitive + Copy
-{
-    /// Build a weighted linear interpolation from an array of elements and equidistant knots in [0.0,1.0].
-    pub fn build(self) -> Weighted<Linear<Equidistant<R>,[Homogeneous<T,R>;N]>,T,R>{
-        let len = self.elements.0.len();
-        let knots = Equidistant::normalized(len);
-        Weighted::new(Linear::new(self.elements.0,knots).unwrap())
-    }
-    /// Build a weighted linear interpolation from an array of elements and equidistant knots in the specified domain.
-    pub fn build_with_domain(self, start:R, end: R) -> Weighted<Linear<Equidistant<R>,[Homogeneous<T,R>;N]>,T,R> {
-        let len = self.elements.0.len();
-        let knots = Equidistant::new(start, end, len);
-        Weighted::new(Linear::new(self.elements.0, knots).unwrap())
+// possible variations:
+// elements (1) or elements_with_weights (3)
+// knots (1) or equidistant (1) [try to create a const building of equidistant]
+
+#[cfg(test)]
+mod test {
+    use super::LinearBuilder;
+    // Homogeneous for creating Homogeneous, Generator for using .stack()
+    use crate::{Homogeneous, Generator};
+    #[test]
+    fn elements_with_weights() {
+        LinearBuilder::new()
+            .elements_with_weights([(1.0,1.0),(2.0,2.0),(3.0,0.0)]).unwrap()
+            .equidistant::<f64>()
+            .build();
+        LinearBuilder::new()
+            .elements_with_weights([1.0,2.0,3.0].stack([1.0,2.0,0.0])).unwrap()
+            .equidistant::<f64>()
+            .build();
+        LinearBuilder::new()
+            .elements_with_weights([
+                Homogeneous::new(1.0),
+                Homogeneous::weighted_unchecked(2.0, 2.0),
+                Homogeneous::infinity(3.0)]).unwrap()
+            .equidistant::<f64>()
+            .build();
     }
 }
