@@ -41,6 +41,7 @@ pub mod weights;
 mod real;
 mod never;
 mod base;
+mod builder;
 
 use thiserror::Error;
 use crate::real::Real;

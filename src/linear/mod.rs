@@ -13,11 +13,11 @@
 //TODO: only have new and new_unchecked in this module. All other constructions should be done in the builder!
 
 use core::ops::{Add, Mul};
-use crate::{Generator, Interpolation, Curve, EnterpolationError, Sorted, SortedGenerator,
-    DiscreteGenerator, Equidistant, ConstEquidistant, Homogeneous};
+use crate::{Generator, Interpolation, Curve, SortedGenerator,
+    DiscreteGenerator, ConstEquidistant};
 use crate::utils::upper_border;
+use crate::builder::Unknown;
 use num_traits::real::Real;
-use num_traits::cast::FromPrimitive;
 
 use core::fmt::Debug;
 
@@ -78,9 +78,9 @@ pub struct Linear<K,E>
     knots: K,
 }
 
-impl Linear<builder::Unknown,builder::Unknown> {
+impl Linear<Unknown,Unknown> {
     /// Get the builder object of this interpolation.
-    pub fn builder() -> LinearBuilder<builder::Unknown,builder::Unknown> {
+    pub fn builder() -> LinearBuilder<Unknown,Unknown> {
         LinearBuilder::new()
     }
 }
@@ -118,143 +118,6 @@ where
 {
     fn domain(&self) -> [R; 2] {
         [self.knots.first().unwrap(), self.knots.last().unwrap()]
-    }
-}
-
-impl<R,T> Linear<Sorted<Vec<R>>,Vec<T>>
-where
-    T: Add<Output = T> + Mul<R, Output = T> + Copy,
-    R: Real + FromPrimitive
-{
-    /// Create a linear interpolation with at least 2 elements.
-    /// Knots are calculated with the given closure, which takes the index and the reference to the element.
-    /// Knots should be in increasing order. This is not checked.
-    /// For a constant speed of the curve, the distance between the elements should be used.
-    pub fn from_collection_with<C,F>(collection: C, func: F) -> Result<Self, EnterpolationError>
-    where
-        C: IntoIterator<Item = T>,
-        F: FnMut((usize,&T)) -> R,
-    {
-        let elements: Vec<T> = collection.into_iter().collect();
-        // if elements.len() < 2 {
-        //     return Err(EnterpolationError::ToFewElements{
-        //         name: "Linear".to_string(),
-        //         found: elements.len(),
-        //         expected: 2,
-        //     });
-        // }
-        let knots: Vec<R> = elements.iter().enumerate().map(func).collect();
-        Ok(Linear {
-            elements,
-            knots: Sorted::new(knots).unwrap(),
-        })
-    }
-
-    /// Create a linear interpolation of the elements with given knots.
-    /// Knots should be in increasing order and there has to be at least 2 elements.
-    /// The increasing order of knots is not checked.
-    pub fn from_collection_with_knots<C>(collection: C) -> Result<Self, EnterpolationError>
-    where C: IntoIterator<Item = (T, R)>
-    {
-        let iter = collection.into_iter();
-        let mut elements: Vec<T> = Vec::with_capacity(iter.size_hint().0);
-        let mut knots: Vec<R> = Vec::with_capacity(iter.size_hint().0);
-        for (elem, knot) in iter {
-            elements.push(elem);
-            knots.push(knot);
-        }
-        // if elements.len() < 2 {
-        //     return Err(EnterpolationError::ToFewElements{
-        //         name: "Linear".to_string(),
-        //         found: elements.len(),
-        //         expected: 2,
-        //     });
-        // }
-        Ok(Linear {
-            elements,
-            knots: Sorted::new(knots).unwrap(),
-        })
-    }
-}
-
-impl<R,T> Linear<Vec<R>,Vec<Homogeneous<T,R>>>
-where
-    T: Add<Output = T> + Mul<R, Output = T> + Copy,
-    R: Real + FromPrimitive
-{
-    // /// Create a linear interpolation with at least 2 elements.
-    // /// Knots are calculated with the given closure, which takes the index and the reference to the element.
-    // /// Knots should be in increasing order. This is not checked.
-    // /// For a constant speed of the curve, the distance between the elements should be used.
-    // pub fn from_collection_with<C,F>(collection: C, func: F) -> Result<Self, EnterpolationError>
-    // where
-    //     C: IntoIterator<Item = T>,
-    //     F: FnMut((usize,&T)) -> R,
-    // {
-    //     let elements: Vec<T> = collection.into_iter().collect();
-    //     if elements.len() < 2 {
-    //         return Err(EnterpolationError::ToFewElements{
-    //             name: "Linear".to_string(),
-    //             found: elements.len(),
-    //             expected: 2,
-    //         });
-    //     }
-    //     let knots: Vec<R> = elements.iter().enumerate().map(func).collect();
-    //     Ok(Linear {
-    //         elements,
-    //         knots,
-    //     })
-    // }
-
-    /// Create a linear interpolation of the elements with given knots and weights.
-    /// Knots should be in increasing order and there has to be at least 2 elements.
-    /// The increasing order of knots is not checked.
-    pub fn from_collection_with_weights_and_knots<C>(collection: C) -> Result<Self, EnterpolationError>
-    where C: IntoIterator<Item = (T, R, R)>
-    {
-        let iter = collection.into_iter();
-        let mut elements: Vec<Homogeneous<T,R>> = Vec::with_capacity(iter.size_hint().0);
-        let mut knots: Vec<R> = Vec::with_capacity(iter.size_hint().0);
-        for (elem, weight, knot) in iter {
-            elements.push(Homogeneous::weighted(elem, weight).unwrap());
-            knots.push(knot);
-        }
-        if elements.len() < 2 {
-            return Err(EnterpolationError::ToFewElements{
-                name: "Linear".to_string(),
-                found: elements.len(),
-                expected: 2,
-            });
-        }
-        Ok(Linear {
-            elements,
-            knots,
-        })
-    }
-}
-
-impl<R,T> Linear<Equidistant<R>,Vec<T>>
-where
-    T: Add<Output = T> + Mul<R, Output = T> + Copy,
-    R: Real + FromPrimitive
-{
-    /// Creates a linear interpolation of elements given with equidistant knots inside [0.0,1.0].
-    /// There has to be at least 2 elements.
-    pub fn from_collection<C>(collection: C) -> Result<Self, EnterpolationError>
-    where C: IntoIterator<Item = T>
-    {
-        let elements: Vec<T> = collection.into_iter().collect();
-        // if elements.len() < 2 {
-        //     return Err(EnterpolationError::ToFewElements{
-        //         name: "Linear".to_string(),
-        //         found: elements.len(),
-        //         expected: 2,
-        //     });
-        // }
-        Ok(Linear {
-            knots: Equidistant::normalized(elements.len()),
-            elements,
-        })
     }
 }
 

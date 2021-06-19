@@ -5,33 +5,15 @@
 //TODO: EXAMPLE
 
 use core::ops::{Add, Mul};
-use core::marker::PhantomData;
 use num_traits::real::Real;
 use num_traits::FromPrimitive;
 use num_traits::identities::Zero;
-use crate::{Generator, DiscreteGenerator, SortedGenerator, Sorted, Equidistant, Homogeneous, Weighted, Weights, IntoWeight};
+use crate::{Generator, DiscreteGenerator, SortedGenerator, Sorted, Equidistant, Weighted, Weights, IntoWeight};
+use crate::builder::{WithWeight,Output,Unknown};
 use super::Linear;
 use super::error::{LinearError, ToFewElements, KnotElementInequality};
 
 //TODO: add unchecked versions
-
-/// Struct indicator to mark if we use weights
-#[derive(Debug, Copy, Clone)]
-pub struct WithWeight<T>(T);
-
-/// Struct indicator to mark information not yet given.
-#[derive(Debug, Copy, Clone)]
-pub struct Unknown;
-
-/// Struct indicator to mark the wish of using equidistant knots.
-#[derive(Debug, Copy, Clone)]
-pub struct Output<R = f64>(PhantomData<*const R>);
-
-impl<R> Output<R> {
-    pub fn new() -> Self {
-        Output(PhantomData)
-    }
-}
 
 /// Builder for linear interpolation.
 ///
@@ -78,6 +60,8 @@ impl LinearBuilder<Unknown, Unknown> {
             elements,
         })
     }
+
+    //TODO: change example such that is does not use unwrap but ?
 
     /// Set the elements and their weights for this interpolation.
     ///
@@ -164,7 +148,8 @@ where
 {
     /// Build a linear interpolation.
     pub fn build(self) -> Linear<K,E>{
-        Linear::new(self.elements, self.knots).unwrap()
+        // safe as we check all requirements beforehand
+        Linear::new_unchecked(self.elements, self.knots)
     }
 }
 
@@ -177,13 +162,15 @@ where
     /// Build a linear interpolation with equidistant knots with domain [0.0,1.0].
     pub fn build(self) -> Linear<Equidistant<R>,E> {
         let len = self.elements.len();
-        Linear::new(self.elements, Equidistant::normalized(len)).unwrap()
+        // safe as we check all requirements beforehand
+        Linear::new_unchecked(self.elements, Equidistant::normalized(len))
     }
 
     /// Build a linear interpolation with equidistant knots in the specified domain.
     pub fn build_with_domain(self, start:R, end: R) -> Linear<Equidistant<R>,E> {
         let len = self.elements.len();
-        Linear::new(self.elements, Equidistant::new(start, end, len)).unwrap()
+        // safe as we check all requirements beforehand
+        Linear::new_unchecked(self.elements, Equidistant::new(start, end, len))
     }
 }
 
@@ -201,7 +188,8 @@ where
     /// Build a weighted linear interpolation.
     pub fn build(self) -> Weighted<Linear<K,Weights<G>>>
     {
-        Weighted::new(Linear::new(self.elements.0, self.knots).unwrap())
+        // safe as we check all requirements beforehand
+        Weighted::new(Linear::new_unchecked(self.elements.0, self.knots))
     }
 }
 
@@ -219,13 +207,15 @@ where
     pub fn build(self) -> Weighted<Linear<Equidistant<R>,Weights<G>>> {
         let len = self.elements.0.len();
         let knots = Equidistant::normalized(len);
-        Weighted::new(Linear::new(self.elements.0, knots).unwrap())
+        // safe as we check all requirements beforehand
+        Weighted::new(Linear::new_unchecked(self.elements.0, knots))
     }
     /// Build a weighted linear interpolation from a vector of elements and equidistant knots in the specified domain.
     pub fn build_with_domain(self, start:R, end: R) -> Weighted<Linear<Equidistant<R>,Weights<G>>> {
         let len = self.elements.0.len();
         let knots = Equidistant::new(start, end, len);
-        Weighted::new(Linear::new(self.elements.0, knots).unwrap())
+        // safe as we check all requirements beforehand
+        Weighted::new(Linear::new_unchecked(self.elements.0, knots))
     }
 }
 
