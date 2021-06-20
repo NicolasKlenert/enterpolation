@@ -265,15 +265,16 @@ where
 
 /// Calculate a pascalsche triangle with the given closure until the maximal steps as levels are reached.
 /// If one wants to fold all values into the first position of the given buffer
-/// a step size of the length of the buffer should be used.
+/// a step size of the length of the buffer - 1 should be used.
 pub fn triangle_folding_inline<P,T>(mut triangle: P, func: impl Fn(T,T) -> T, steps: usize)
 where
     P: AsMut<[T]>,
     T: Copy
 {
     let elements = triangle.as_mut();
-    for k in 1..steps {
-        for i in 0..steps-k {
+    let len = elements.len();
+    for k in 1..=steps {
+        for i in 0..len-k {
             elements[i] = func(elements[i], elements[i+1]);
         }
     }
@@ -281,15 +282,16 @@ where
 
 /// Calculate a pascalsche triangle with the given closure until the maximal steps as levels are reached.
 /// If one wants to fold all values into the last position of the given buffer
-/// a step size of the length of the buffer should be used.
+/// a step size of the length of the buffer - 1 should be used.
 pub fn lower_triangle_folding_inline<P,T>(mut triangle: P, func: impl Fn(T,T) -> T, steps: usize)
 where
     P: AsMut<[T]>,
     T: Copy
 {
     let elements = triangle.as_mut();
+    let len = elements.len();
     for k in 1..=steps {
-        for i in k..steps {
+        for i in k..len {
             elements[i] = func(elements[i-1], elements[i]);
         }
     }

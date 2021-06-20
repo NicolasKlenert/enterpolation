@@ -15,8 +15,6 @@ use super::Bezier;
 use super::error::Empty;
 // use super::error::{LinearError, ToFewElements, KnotElementInequality};
 
-//TODO: add const and dyn functin (or only const) to set the space!
-
 /// Builder for linear interpolation.
 ///
 /// This struct helps create linear interpolations.

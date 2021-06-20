@@ -1,15 +1,12 @@
 //! Bezier curves do have a performance of O(n^2), as their degree corresponds with the number of elements.
 
-// TODO: creation of Interpolations should not panic, instead it should return a Result!
-// TODO: rational Bezier curves!
-
 // TODO: create LinearEquidistant Interpolation from Bezier, when a constant speed is wished for
 // TODO: -> see https://www.researchgate.net/post/How-can-I-assign-a-specific-velocity-to-a-point-moving-on-a-Bezier-curve
 use core::ops::{Add, Mul, Sub};
-use crate::{Generator, Interpolation, Curve, Stepper, Space, DynSpace, ConstSpace, DiscreteGenerator, ConstDiscreteGenerator};
+use crate::{Generator, Interpolation, Curve, Stepper, Space, DiscreteGenerator};
 use crate::utils::{triangle_folding_inline, lower_triangle_folding_inline};
 use crate::builder::Unknown;
-use crate::real::Real;
+use num_traits::real::Real;
 use num_traits::cast::FromPrimitive;
 use core::marker::PhantomData;
 
@@ -18,7 +15,6 @@ pub use builder::BezierBuilder;
 mod error;
 pub use error::{BezierError, Empty, TooSmallWorkspace};
 
-//TODO: test by bezier_with_tangent and bezier_with_deriatives for too few elements
 //TODO: add examples for builder
 
 /// Bezier curve interpolate/extrapolate with the elements given.
@@ -31,7 +27,7 @@ where
     R: Real
 {
     let len = elements.as_mut().len();
-    triangle_folding_inline(elements.as_mut(), |first, second| first * (R::one()-scalar) + second * scalar , len);
+    triangle_folding_inline(elements.as_mut(), |first, second| first * (R::one()-scalar) + second * scalar , len - 1);
     elements.as_mut()[0]
 }
 
@@ -49,9 +45,9 @@ where
         // if we have less than two elements, we just return the one element and a zero out vector.
         return [elements.as_mut()[0], elements.as_mut()[0] * R::zero()];
     }
-    triangle_folding_inline(elements.as_mut(), |first, second| first * (R::one()-scalar) + second * scalar , len - 1);
+    triangle_folding_inline(elements.as_mut(), |first, second| first * (R::one()-scalar) + second * scalar , len - 2);
     let elements = elements.as_mut();
-    let tangent = (elements[1] - elements[0]) * R::from_usize(len).unwrap();
+    let tangent = (elements[1] - elements[0]) * R::from_usize(len-1).unwrap();
     let result = elements[0]*(R::one()-scalar)+elements[1]*scalar;
     [result, tangent]
 }
@@ -69,12 +65,13 @@ where
     R: Real + FromPrimitive
 {
     let len = elements.as_mut().len();
-    triangle_folding_inline(elements.as_mut(), |first, second| first * (R::one()-scalar) + second * scalar, len - K);
+    let deg = K.min(len-1);
+    triangle_folding_inline(elements.as_mut(), |first, second| first * (R::one()-scalar) + second * scalar, len - deg -1);
     // take a zero out vector which can be copied to initialise the array (and have the right default)
     let mut grad = [elements.as_mut()[0] * R::zero();K];
-    for k in (1..=K.min(len)).rev() {
+    for k in (1..=deg).rev() {
         //calculate difference folding
-        let grad_slice = &mut grad[..k];
+        let grad_slice = &mut grad[..=k];
         lower_triangle_folding_inline(grad_slice, |first, second| second - first, k);
         let prod = R::from_usize((len-k..len).product::<usize>()).unwrap();
         grad[k] = grad[k] * prod;
@@ -182,7 +179,7 @@ where
     fn workspace(&self) -> impl AsMut<[E::Output]>{
         let mut workspace = self.space.workspace();
         let mut_workspace = workspace.as_mut();
-        for i in 0..self.space.len(){
+        for i in 0..self.elements.len(){
             mut_workspace[i] = self.elements.gen(i);
         }
         workspace
@@ -198,7 +195,8 @@ where
 {
     type Output = E::Output;
     fn gen(&self, scalar: R) -> E::Output {
-        bezier(self.workspace(), scalar)
+        // we pass only slices to guarantee the size of workspace to match the number of elements
+        bezier(&mut self.workspace().as_mut()[..self.elements.len()], scalar)
     }
 }
 
@@ -232,12 +230,14 @@ where
 {
     /// Generate the value and its tangent, in this order.
     pub fn gen_with_tangent(&self, scalar: R) -> [E::Output;2] {
-        bezier_with_tangent(self.workspace(), scalar)
+        // we pass only slices to guarantee the size of workspace to match the number of elements
+        bezier_with_tangent(&mut self.workspace().as_mut()[..self.elements.len()], scalar)
     }
 
     /// Generate the value and its deriatives, the order hereby is from value, then firt deriative, then second and so on.
     pub fn gen_with_deriatives<const K: usize>(&self, scalar: R) -> [E::Output;K] {
-        bezier_with_deriatives(self.workspace(), scalar)
+        // we pass only slices to guarantee the size of workspace to match the number of elements
+        bezier_with_deriatives(&mut self.workspace().as_mut()[..self.elements.len()], scalar)
     }
 }
 
@@ -293,49 +293,14 @@ where
     /// Create generic bezier curve without doing any checking.
     ///
     /// Building a bezier curve with the associated builder is recommended.
+    ///
+    /// # Panics
+    ///
+    /// May panic or return non-expected values if the space given is less than the number of elements.
+    /// Will panic if the given generator does not generate any element.
     pub fn new_unchecked(elements: E, space: S) -> Self {
         Bezier {
             space,
-            elements,
-            _input: PhantomData,
-        }
-    }
-}
-
-impl<R,E> Bezier<R,E,DynSpace<E::Output>>
-where E: DiscreteGenerator
-{
-    /// Creates a bezier curve of elements given.
-    ///
-    /// There has to be at least 2 elements.
-    pub fn with_dyn_size(elements: E) -> Self
-    {
-        assert!(elements.len() > 1);
-        Bezier {
-            space: DynSpace::new(elements.len()),
-            elements,
-            _input: PhantomData,
-        }
-    }
-}
-
-impl<R,E,const N: usize> Bezier<R,E,ConstSpace<E::Output,N>>
-where E: ConstDiscreteGenerator<N>
-{
-    /// Create a bezier curve of elements given.
-    ///
-    /// There has to be at least 2 elements.
-    ///
-    /// # Performance
-    ///
-    /// If you know the number of elements used for the bezier curve at compile time,
-    /// you should be able to use this method instead of `new`.
-    /// This allows to do all calculations inside of array instead of vectors, such
-    /// no memory allocations are necessary.
-    pub fn with_known_size(elements: E) -> Self {
-        assert!(N > 1);
-        Bezier {
-            space: ConstSpace::new(),
             elements,
             _input: PhantomData,
         }
@@ -382,10 +347,11 @@ where E: ConstDiscreteGenerator<N>
 mod test {
     use super::*;
     use crate::Curve;
+    use crate::ConstSpace;
 
     #[test]
-    fn linear() {
-        let bez = Bezier::<f64,_,_>::with_dyn_size([20.0,100.0,0.0,200.0]);
+    fn gen() {
+        let bez = Bezier::<f64,_,_>::new([20.0,100.0,0.0,200.0], ConstSpace::<_,4>::new()).unwrap();
         // fully qualified syntax or type annotations are necessary to convey which type of knots
         // we want to use.
         let mut iter /*: Take<_,f64>*/ = <Bezier<_,_,_> as Curve<f64>>::take(bez,5);
@@ -398,20 +364,51 @@ mod test {
 
     #[test]
     fn extrapolation() {
-        let bez = Bezier::<f64,_,_>::with_dyn_size([20.0,0.0,200.0]);
+        let bez = Bezier::<f64,_,_>::new([20.0,0.0,200.0], ConstSpace::<_,3>::new()).unwrap();
         assert_f64_near!(bez.gen(2.0), 820.0);
         assert_f64_near!(bez.gen(-1.0), 280.0);
     }
 
     #[test]
+    fn bigger_workspace() {
+        let bez = Bezier::new([5.0], ConstSpace::<_,3>::new()).unwrap();
+        let res = bez.gen_with_tangent(0.5);
+        assert_f64_near!(res[0], 5.0);
+        assert_f64_near!(res[1], 0.0);
+    }
+
+    #[test]
     fn constant() {
-        let bez = Bezier::with_dyn_size([5.0,5.0]);
+        let bez = Bezier::new([5.0], ConstSpace::<_,1>::new()).unwrap();
         let res = bez.gen_with_tangent(0.25);
         assert_f64_near!(res[0], 5.0);
         assert_f64_near!(res[1], 0.0);
         let res = bez.gen_with_tangent(0.75);
         assert_f64_near!(res[0], 5.0);
         assert_f64_near!(res[1], 0.0);
+    }
+
+    #[test]
+    fn deriatives(){
+        let bez = Bezier::builder()
+            .elements([1.0,2.0,3.0]).unwrap()
+            .input::<f64>()
+            .constant()
+            .build();
+        let res = bez.gen_with_tangent(0.5);
+        assert_f64_near!(res[0], 2.0);
+        assert_f64_near!(res[1], 2.0);
+        let res = bez.gen_with_deriatives::<3>(0.5);
+        assert_f64_near!(res[0], 2.0);
+        assert_f64_near!(res[1], 2.0);
+        assert_f64_near!(res[2], 0.0);
+        // check if asking of to many deriatives does not panic
+        let res = bez.gen_with_deriatives::<5>(0.5);
+        assert_f64_near!(res[0], 2.0);
+        assert_f64_near!(res[1], 2.0);
+        assert_f64_near!(res[2], 0.0);
+        assert_f64_near!(res[3], 0.0);
+        assert_f64_near!(res[4], 0.0);
     }
 
 }

@@ -10,7 +10,7 @@ use core::ops::{Add, Mul};
 use core::marker::PhantomData;
 use crate::{Generator, Interpolation, Curve};
 use crate::utils::strict_upper_bound;
-use crate::real::Real;
+use num_traits::real::Real;
 
 /// BSpline curve interpolate/extrapolate with the elements given. (De Boors Algorithm)
 /// This mutates the elements, such copying them first is necessary.
@@ -80,6 +80,7 @@ where
 /// They allow you to define curves with a lot of control points without increasing the degree of the curve.
 /// In contrast to Bezier Curves, BSplines do have a locally property.
 /// That is, changing one control points only affects a local area of the curve, not the whole curve.
+#[derive(Debug, Copy, Clone)]
 pub struct BSpline<R,E,T,K>
 {
     elements: E,
@@ -277,9 +278,9 @@ mod test {
         let knots = [0.0f32, 0.0, 0.0, 1.0, 2.0, 3.0, 3.0, 3.0];
         let degree = 2;
         for i in 0..expect.len(){
-            let index = super::strict_upper_bound(&knots[degree..knots.len()-degree-1],expect[i].0)+degree;
+            let index = strict_upper_bound(&knots[degree..knots.len()-degree-1],expect[i].0)+degree;
             assert_f32_near!(
-                super::bspline_element_slice(&mut points.clone()[index-degree-1..index],
+                bspline_element_slice(&mut points.clone()[index-degree-1..index],
                 &knots, index, 2, expect[i].0),expect[i].1);
         }
     }

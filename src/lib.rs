@@ -38,12 +38,12 @@ pub mod bspline;
 pub mod utils;
 pub mod weights;
 
-mod real;
-mod never;
+// mod real;
+// mod never;
 mod base;
 mod builder;
 
-use crate::real::Real;
+use num_traits::real::Real;
 pub use base::{Generator, Interpolation, Curve, Extract, Stepper, Space, ConstSpace, DynSpace,
     DiscreteGenerator, ConstDiscreteGenerator, Equidistant, ConstEquidistant,
     Sorted, SortedGenerator, NotSorted};
