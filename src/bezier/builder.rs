@@ -169,6 +169,59 @@ where E: DiscreteGenerator
     }
 }
 
+//Copy for WithWeight
+impl<R,E> BezierBuilder<R,WithWeight<Weights<E>>, Unknown>
+where
+    E: DiscreteGenerator,
+    E::Output: IntoWeight,
+{
+    /// Set the workspace which the interpolation uses.
+    ///
+    /// Tells the builder to use a vector as workspace,
+    /// such you don't need to know the degree of the bezier curve at compile-time,
+    /// but every generation of a value an allocation of memory will be necessary.
+    pub fn dynamic(self) -> BezierBuilder<R,WithWeight<Weights<E>>,DynSpace<<Weights<E> as Generator<usize>>::Output>>{
+        BezierBuilder{
+            _input: self._input,
+            space: DynSpace::new(self.elements.0.len()),
+            elements: self.elements,
+        }
+    }
+
+    /// Set the workspace which the interpolation uses.
+    ///
+    /// Tells the builder the size of the workspace needed such that no memory allocations are needed
+    /// when interpolating.
+    pub fn constant<const N: usize>(self) -> BezierBuilder<R,WithWeight<Weights<E>>,ConstSpace<<Weights<E> as Generator<usize>>::Output,N>>
+    where E: ConstDiscreteGenerator<N>
+    {
+        BezierBuilder{
+            _input: self._input,
+            space: ConstSpace::new(),
+            elements: self.elements,
+        }
+    }
+
+    /// Set the workspace whcih the interpolation uses.
+    ///
+    /// The workspace has to have a size of the number of elements in the bezier curve.
+    ///
+    /// If the degree of the bezier curve is known at compile-time, consider using `constant` instead.
+    /// Otherwise without std support, one has to set a specific object implementing the `Space` trait.
+    pub fn workspace<S>(self, space: S) -> BezierBuilder<R,WithWeight<Weights<E>>,S>
+    where S: Space<<Weights<E> as Generator<usize>>::Output>,
+    {
+        //TODO: return error instead of panic
+        assert!(space.len() >= self.elements.0.len());
+
+        BezierBuilder{
+            _input: self._input,
+            space,
+            elements: self.elements,
+        }
+    }
+}
+
 impl<R,E,S> BezierBuilder<R,E,S>
 where
     E: DiscreteGenerator,
@@ -220,6 +273,23 @@ mod test {
     use crate::{Homogeneous, Generator};
     #[test]
     fn elements_with_weights() {
-
-    }
+        BezierBuilder::new()
+            .elements_with_weights([(1.0,1.0),(2.0,2.0),(3.0,0.0)]).unwrap()
+            .input::<f64>()
+            .constant()
+            .build();
+        BezierBuilder::new()
+            .elements_with_weights([1.0,2.0,3.0].stack([1.0,2.0,0.0])).unwrap()
+            .input::<f64>()
+            .constant()
+            .build();
+        BezierBuilder::new()
+            .elements_with_weights([
+                Homogeneous::new(1.0),
+                Homogeneous::weighted_unchecked(2.0, 2.0),
+                Homogeneous::infinity(3.0)]).unwrap()
+            .input::<f64>()
+            .constant()
+            .build();
+        }
 }

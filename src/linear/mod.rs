@@ -8,10 +8,6 @@
 //! the border elements to calculate the linear interpolation with can be found in O(1)
 //! instead of O(log n) with n being the number of elements in the interpolation structure.
 
-//TODO: do not use MinSize -> too much noise and we still have to check if #elements = #knots
-//TODO: instead use only Sorted and test for the other two (minsize 2 and same number) in the new function
-//TODO: only have new and new_unchecked in this module. All other constructions should be done in the builder!
-
 use core::ops::{Add, Mul};
 use crate::{Generator, Interpolation, Curve, SortedGenerator,
     DiscreteGenerator, ConstEquidistant};
