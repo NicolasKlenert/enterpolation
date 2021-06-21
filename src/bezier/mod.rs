@@ -2,7 +2,7 @@
 
 // TODO: create LinearEquidistant Interpolation from Bezier, when a constant speed is wished for
 // TODO: -> see https://www.researchgate.net/post/How-can-I-assign-a-specific-velocity-to-a-point-moving-on-a-Bezier-curve
-use core::ops::{Add, Mul, Sub};
+use core::ops::{Add, Mul, Sub, IndexMut};
 use crate::{Generator, Interpolation, Curve, Stepper, Space, DiscreteGenerator};
 use crate::utils::{triangle_folding_inline, lower_triangle_folding_inline};
 use crate::builder::Unknown;
@@ -15,12 +15,10 @@ pub use builder::BezierBuilder;
 mod error;
 pub use error::{BezierError, Empty, TooSmallWorkspace};
 
-//TODO: add examples for builder
-
 /// Bezier curve interpolate/extrapolate with the elements given.
 /// This mutates the elements, such copying them first is necessary!
 /// Panics if not at least 1 element exists.
-pub fn bezier<R,P,T>(mut elements: P, scalar: R) -> T
+fn bezier<R,P,T>(mut elements: P, scalar: R) -> T
 where
     P: AsMut<[T]>,
     T: Add<Output = T> + Mul<R, Output = T> + Copy,
@@ -34,7 +32,7 @@ where
 /// Bezier curve interpolate/extrapolate and tangent calculation with the elements given.
 /// This mutates the elements, such copying them first is necessary!
 /// Panics if not at least 1 elements exist.
-pub fn bezier_with_tangent<R,P,T>(mut elements: P, scalar: R) -> [T;2]
+fn bezier_with_tangent<R,P,T>(mut elements: P, scalar: R) -> [T;2]
 where
     P: AsMut<[T]>,
     T: Add<Output = T> + Mul<R, Output = T> + Sub<Output = T> + Copy,
@@ -52,13 +50,11 @@ where
     [result, tangent]
 }
 
-//TODO: test if for k elements this function panics or not (at least k or k+1 elements?)
-
 /// Bezier curve interpolation and deriative calculation with the elements given.
 /// This returns an array [v,d1,d2,..] with v interpolated value, d1 as the first deriative and so on.
 /// This mutates the elements, such copying them first is necessary!
 /// Panics if no element exists.
-pub fn bezier_with_deriatives<R,P,T,const K: usize>(mut elements: P, scalar: R) -> [T;K]
+fn bezier_with_deriatives<R,P,T,const K: usize>(mut elements: P, scalar: R) -> [T;K]
 where
     P: AsMut<[T]>,
     T: Add<Output = T> + Mul<R, Output = T> + Sub<Output = T> + Copy,
@@ -83,68 +79,6 @@ where
     grad
 }
 
-/// Trims the given bezier curve at the point given by scalar.
-/// Mutates the given elements such that they represent the right half of the bezier curve.
-pub fn bezier_trim_left<R,P,T>(mut elements: P, scalar: R)
-where
-    P: AsMut<[T]>,
-    T: Add<Output = T> + Mul<R, Output = T> + Copy,
-    R: Real
-{
-    let len = elements.as_mut().len();
-    lower_triangle_folding_inline(elements.as_mut(), |first, second| first * (R::one()-scalar) + second * scalar, len);
-}
-
-/// Trims the given bezier curve at the point given by scalar.
-/// Mutates the given elements such that they represent the left half of the bezier curve.
-pub fn bezier_trim_right<R,P,T>(mut elements: P, scalar: R)
-where
-    P: AsMut<[T]>,
-    T: Add<Output = T> + Mul<R, Output = T> + Copy,
-    R: Real
-{
-    let len = elements.as_mut().len();
-    triangle_folding_inline(elements.as_mut(), |first, second| first * (R::one()-scalar) + second * scalar, len);
-}
-
-/// Elevates the curve such that it's degree increases by one.
-pub fn bezier_elevate_inplace<R,T>(elements: &mut Vec<T>)
-where
-    T: Add<Output = T> + Mul<R, Output = T> + Copy,
-    R: Real + FromPrimitive
-{
-    let stepper = Stepper::normalized(elements.len() + 2);
-    elements.push(elements.last().unwrap());
-    //TODO: instead of last and temp we could just reverse our order (go from n to 1)
-    let mut last = elements[0];
-    for (i, factor) in stepper.enumerate().skip(1).take(elements.len()) {
-        let temp = elements[i];
-        elements[i] = last * factor + elements[i] * (R::one()-factor);
-        last = temp;
-    }
-}
-
-/// Elevates the curve and outputs it. The given buffer is used.
-/// The buffer needs to have a length of 1 bigger then the current one.
-/// That is, it must have a length of degree + 2
-pub fn bezier_elevate<R,P,Q,T>(source: P, mut target: Q)
-where
-    P: AsRef<[T]>,
-    Q: AsMut<[T]>,
-    T: Add<Output = T> + Mul<R, Output = T> + Copy,
-    R: Real + FromPrimitive
-{
-    let other = target.as_mut();
-    let me = source.as_ref();
-    assert!(other.len() == me.len() + 1);
-    let stepper = Stepper::normalized(me.len() + 2);
-    other[0] = me[0];
-    other[me.len()] = me[me.len()-1];
-    for (i, factor) in stepper.enumerate().skip(1).take(me.len()) {
-        other[i] = me[i-1] * factor + me[i] * (R::one()-factor);
-    }
-}
-
 /// Bezier curve with given elements.
 #[derive(Debug, Copy, Clone)]
 pub struct Bezier<R,E,S>
@@ -164,7 +98,27 @@ impl Bezier<Unknown, Unknown, Unknown> {
     ///
     /// # Examples
     ///
-    ///
+    /// ```rust
+    /// # use std::error::Error;
+    /// # use enterpolation::{bezier::Bezier, Generator, Curve};
+    /// # use assert_float_eq::{afe_is_f64_near, afe_near_error_msg, assert_f64_near};
+    /// #
+    /// # fn main() -> Result<(), Box<dyn Error>> {
+    /// let bez = Bezier::builder()
+    ///     .elements([20.0,100.0,0.0,200.0])?
+    ///     .input::<f64>()
+    ///     .constant()
+    ///     .build();
+    /// let mut iter = bez.take(5);
+    /// let expected = [20.0,53.75,65.0,98.75,200.0];
+    /// for i in 0..=4 {
+    ///     let val = iter.next().unwrap();
+    ///     assert_f64_near!(val, expected[i]);
+    /// }
+    /// #
+    /// #     Ok(())
+    /// # }
+    /// ```
     pub fn builder() -> BezierBuilder<Unknown, Unknown, Unknown>{
         BezierBuilder::new()
     }
@@ -241,33 +195,6 @@ where
     }
 }
 
-// impl<R,T> Bezier<R,Vec<T>,T>
-// {
-//     /// Creates a bezier curve of elements given.
-//     /// There has to be at least 2 elements.
-//     pub fn from_collection<C>(collection: C) -> Self
-//     where C: IntoIterator<Item = T>
-//     {
-//         let elements: Vec<T> = collection.into_iter().collect();
-//         assert!(elements.len() > 1);
-//         Bezier {
-//             elements,
-//             _phantoms: (PhantomData, PhantomData)
-//         }
-//     }
-// }
-//
-// impl<R,T> Bezier<R,Vec<T>,T>
-// where
-//     T: Add<Output = T> + Mul<R, Output = T> + Copy,
-//     R: Real + FromPrimitive
-// {
-//     /// Elevates the curve such that it's degree increases by one.
-//     pub fn elevate_inplace(&mut self){
-//         bezier_elevate_inplace(&mut self.elements)
-//     }
-// }
-
 impl<R,E,S> Bezier<R,E,S>
 where
     E: DiscreteGenerator,
@@ -307,64 +234,44 @@ where
     }
 }
 
-// impl<R,P,T> Bezier<R,P,T>
-// where
-//     P: AsRef<[T]>,
-//     T: Add<Output = T> + Mul<R, Output = T> + Copy,
-//     R: Real + FromPrimitive
-// {
-//     /// Elevates the curve and outputs it. The given buffer is used.
-//     /// The buffer needs to have a length of 1 bigger then the current one.
-//     /// That is, it must have a length of degree + 2
-//     pub fn elevate<Q>(&self, mut elements: Q) -> Bezier<R,Q,T>
-//     where Q: AsRef<[T]> + AsMut<[T]>
-//     {
-//         bezier_elevate(self.elements.as_ref(),elements.as_mut());
-//         Bezier::new(elements)
-//     }
-// }
-//
-// impl<R,P,T> Bezier<R,P,T>
-// where
-//     P: AsMut<[T]>,
-//     T: Add<Output = T> + Mul<R, Output = T> + Copy,
-//     R: Real
-// {
-//     /// Trims the given bezier curve at the point given by scalar.
-//     /// Mutates the curve such that it represents the the original curve from the point given to the end.
-//     pub fn trim_left(&mut self, scalar: R){
-//         bezier_trim_left(self.elements.as_mut(), scalar)
-//     }
-//
-//     /// Trims the given bezier curve at the point given by scalar.
-//     /// Mutates the curve such that it represents the the original curve from the start to the point given.
-//     pub fn trim_right(&mut self, scalar: R){
-//         bezier_trim_right(self.elements.as_mut(), scalar)
-//     }
-// }
+impl<R,E,S> Bezier<R,E,S>
+where
+    E: DiscreteGenerator + Extend<<E as Generator<usize>>::Output> + IndexMut<usize, Output = <E as Generator<usize>>::Output>,
+    <E as Generator<usize>>::Output: Add<Output = <E as Generator<usize>>::Output> + Mul<R, Output = <E as Generator<usize>>::Output> + Copy,
+    R: Real + FromPrimitive
+{
+    /// Elevates the curve such that it's degree increases by one.
+    pub fn elevate_inplace(&mut self){
+        //TODO: test if workspace is big enough, otherwise return error?!
+        //TODO: otherwise increase workspace -> DynSpace would by a trait, current DynSpace would be renamed to VecSpace
+        //TODO: this trait would have something like "set_len" which would set the length of the space created.
+        //TODO: this would allow our space to work with the newly grown elements.
+        //TODO: however we would like to be able to give a bigger workspace in the beginning (workspace) and elevating just fills in the space...
+        //TODO: so we only want to test? And one has to find out the space needed at creation?
+        let stepper = Stepper::normalized(self.elements.len() + 2);
+        self.elements.extend(core::iter::once(self.elements.last().unwrap()));
+        //TODO: instead of last and temp we could just reverse our order (go from n to 1)
+        let mut last = self.elements.gen(0);
+        for (i, factor) in stepper.enumerate().skip(1).take(self.elements.len()) {
+            let temp = self.elements.gen(i);
+            self.elements[i] = last * factor + self.elements.gen(i) * (R::one()-factor);
+            last = temp;
+        }
+    }
+}
 
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::Curve;
     use crate::ConstSpace;
 
     #[test]
-    fn gen() {
-        let bez = Bezier::<f64,_,_>::new([20.0,100.0,0.0,200.0], ConstSpace::<_,4>::new()).unwrap();
-        // fully qualified syntax or type annotations are necessary to convey which type of knots
-        // we want to use.
-        let mut iter /*: Take<_,f64>*/ = <Bezier<_,_,_> as Curve<f64>>::take(bez,5);
-        let expected = [20.0,53.75,65.0,98.75,200.0];
-        for i in 0..=4 {
-            let val = iter.next().unwrap();
-            assert_f64_near!(val, expected[i]);
-        }
-    }
-
-    #[test]
     fn extrapolation() {
-        let bez = Bezier::<f64,_,_>::new([20.0,0.0,200.0], ConstSpace::<_,3>::new()).unwrap();
+        let bez = Bezier::builder()
+            .elements([20.0,0.0,200.0]).unwrap()
+            .input::<f64>()
+            .constant()
+            .build();
         assert_f64_near!(bez.gen(2.0), 820.0);
         assert_f64_near!(bez.gen(-1.0), 280.0);
     }
@@ -379,7 +286,11 @@ mod test {
 
     #[test]
     fn constant() {
-        let bez = Bezier::new([5.0], ConstSpace::<_,1>::new()).unwrap();
+        let bez = Bezier::builder()
+            .elements([5.0]).unwrap()
+            .input::<f64>()
+            .constant()
+            .build();
         let res = bez.gen_with_tangent(0.25);
         assert_f64_near!(res[0], 5.0);
         assert_f64_near!(res[1], 0.0);

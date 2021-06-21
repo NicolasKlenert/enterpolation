@@ -1,9 +1,10 @@
-use core::ops::Range;
 use num_traits::real::Real;
 use num_traits::FromPrimitive;
 
+use core::ops::RangeBounds;
+
 use super::Equidistant;
-use super::Stack;
+use super::{Stack, Slice};
 
 /// Trait which symbolises the generation or copying of an element.
 ///
@@ -90,6 +91,16 @@ where R: Real
     {
         let [start, end] = self.domain();
         Take(self.extract(Stepper::new(start, end, samples)))
+    }
+    /// Take a slice of a curve.
+    ///
+    /// A slice of a curve has the same domain as the curve itself but maps the domain onto the given range.
+    fn slice<B>(&self, bounds: B) -> Slice<'_,Self,R>
+    where
+        Self: Sized,
+        B: RangeBounds<R>,
+    {
+        Slice::new(self, bounds)
     }
 }
 
@@ -230,10 +241,10 @@ where
     }
 }
 
-/// Newtype Steper to encapsulate implementation details.
+/// Newtype Stepper to encapsulate implementation details.
 /// Stepper is an Iterator which steps from 0.0 to 1.0 in a specific amount of constant steps.
 #[derive(Debug, Clone)] // Iterators shouldn't be Copy -- see #27186
-pub struct Stepper<R: Real = f64>(Extract<Equidistant<R>,Range<usize>>);
+pub struct Stepper<R: Real = f64>(IntoIter<Equidistant<R>>);
 
 impl<R> Stepper<R>
 where
@@ -246,7 +257,7 @@ where
     ///
     /// Panics if the given steps are 0 and if `steps -1` can not be transformed into R.
     pub fn normalized(steps: usize) -> Self {
-        Stepper(Equidistant::normalized(steps).extract(0..steps))
+        Stepper(Equidistant::normalized(steps).into_iter())
     }
 
     /// Creates a new Stepper stepping from `start` to `end`
@@ -256,7 +267,7 @@ where
     ///
     /// Panics if the given steps are 0 and if `steps -1` can not be transformed into R.
     pub fn new(start: R, end: R, steps: usize) -> Self {
-        Stepper(Equidistant::new(start, end, steps).extract(0..steps))
+        Stepper(Equidistant::new(start, end, steps).into_iter())
     }
 }
 

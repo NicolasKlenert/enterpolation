@@ -75,16 +75,23 @@ impl LinearBuilder<Unknown, Unknown> {
     ///
     /// # Examples
     ///
-    /// ```
-    /// use enterpolation::{linear::Linear, Generator, Curve};
+    /// ```rust
+    /// # use std::error::Error;
+    /// # use enterpolation::{linear::Linear, Generator, Curve};
+    /// # use assert_float_eq::{afe_is_f64_near, afe_near_error_msg, assert_f64_near};
+    /// #
+    /// # fn main() -> Result<(), Box<dyn Error>> {
     /// let linear = Linear::builder()
-    ///                 .elements_with_weights([(1.0,1.0),(2.0,4.0),(3.0,0.0)]).unwrap()
+    ///                 .elements_with_weights([(1.0,1.0),(2.0,4.0),(3.0,0.0)])?
     ///                 .equidistant::<f64>()
     ///                 .build();
     /// let results = [1.0,1.8,2.0,2.75,f64::INFINITY];
     /// for (value,result) in linear.take(5).zip(results.iter().copied()){
-    ///     assert_eq!(value, result);
+    ///     assert_f64_near!(value, result);
     /// }
+    /// #
+    /// #     Ok(())
+    /// # }
     /// ```
     pub fn elements_with_weights<G>(self, gen: G)
         -> Result<LinearBuilder<Unknown, WithWeight<Weights<G>>>,ToFewElements>

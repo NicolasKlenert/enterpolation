@@ -15,7 +15,6 @@
 use core::ops::{Add, Mul};
 use crate::{Generator, Interpolation, Curve, SortedGenerator,
     DiscreteGenerator, ConstEquidistant};
-use crate::utils::upper_border;
 use crate::builder::Unknown;
 use num_traits::real::Real;
 
@@ -27,26 +26,6 @@ pub use builder::LinearBuilder;
 
 pub mod error;
 pub use error::{LinearError, ToFewElements, KnotElementInequality, NotSorted};
-
-/// Linear interpolate/extrapolate with the elements and knots given.
-/// Knots should be in increasing order and there has to be at least 2 knots.
-/// Also there has to be the same amount of elements and knots.
-/// These constrains are not checked!
-pub fn linear_array<R,T,K,E>(elements: E, knots: K, scalar: R) -> T
-where
-    E: AsRef<[T]>,
-    K: AsRef<[R]>,
-    T: Add<Output = T> + Mul<R, Output = T> + Copy,
-    R: Real
-{
-    let (min_index, max_index) = upper_border(knots.as_ref(), scalar);
-    let min = knots.as_ref()[min_index];
-    let max = knots.as_ref()[max_index];
-    let min_point = elements.as_ref()[min_index];
-    let max_point = elements.as_ref()[max_index];
-    let factor = (scalar - min) / (max - min);
-    min_point * (R::one() - factor) + max_point * factor
-}
 
 /// Linear interpolate/extrapolate with the elements and knots given.
 /// Knots should be in increasing order and there has to be at least 2 knots.
@@ -66,11 +45,7 @@ where
     min_point * (R::one() - factor) + max_point * factor
 }
 
-/// Linear Interpolation Structure with knots
-/// If knots are roughly or exactly equidistant, consider using LinearEquidistant instead.
-///
-/// K has to be a SortedGenerator and and also a generator with a minimum size of 2.
-/// Also this struct itself checks if the number of knots and elements are equal.
+/// Linear Interpolation.
 #[derive(Debug, Copy, Clone)]
 pub struct Linear<K,E>
 {
@@ -79,7 +54,32 @@ pub struct Linear<K,E>
 }
 
 impl Linear<Unknown,Unknown> {
-    /// Get the builder object of this interpolation.
+    /// Get the builder for a linear interpolation.
+    ///
+    /// The builder takes:
+    /// - elements with `elements` or `elements_with_weights`
+    /// - knots with either `knots` or `equidistant`
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use std::error::Error;
+    /// # use enterpolation::{linear::Linear, Generator, Curve};
+    /// # use assert_float_eq::{afe_is_f64_near, afe_near_error_msg, assert_f64_near};
+    /// #
+    /// # fn main() -> Result<(), Box<dyn Error>> {
+    /// let linear = Linear::builder()
+    ///                 .elements([0.0,5.0,3.0])?
+    ///                 .equidistant::<f64>()
+    ///                 .build();
+    /// let results = [0.0,2.5,5.0,4.0,3.0];
+    /// for (value,result) in linear.take(5).zip(results.iter().copied()){
+    ///     assert_f64_near!(value, result);
+    /// }
+    /// #
+    /// #     Ok(())
+    /// # }
+    /// ```
     pub fn builder() -> LinearBuilder<Unknown,Unknown> {
         LinearBuilder::new()
     }
@@ -186,23 +186,9 @@ impl<R,T,const N: usize> Linear<ConstEquidistant<R,N>,[T;N]>
     }
 }
 
-// /// An array-allocated linear interpolation.
-// ///
-// /// **Because this is an alias, not all its methods are listed here. See the [`Linear`](crate::linear::Linear) type too.**
-// pub type StaticLinear<R,T,const N: usize> = Linear<Sorted<[R;N]>,[T;N]>;
-// /// A vector-allocated linear interpolation.
-// ///
-// /// **Because this is an alias, not all its methods are listed here. See the [`Linear`](crate::linear::Linear) type too.**
-// pub type DynamicLinear<R,T> = Linear<Sorted<Vec<R>>,Vec<T>>;
-// /// An array-allocated linear interpolation with equidistant knot distribution.
-// ///
-// /// **Because this is an alias, not all its methods are listed here. See the [`Linear`](crate::linear::Linear) type too.**
-// pub type StaticEquidistantLinear<R,T,const N: usize> = Linear<Equidistant<R>,[T;N]>;
-// /// A vector-allocated linear interpolation with equidistant knot distribution.
-// ///
-// /// **Because this is an alias, not all its methods are listed here. See the [`Linear`](crate::linear::Linear) type too.**
-// pub type DynamicEquidistantLinear<R,T> = Linear<Equidistant<R>,Vec<T>>;
 /// An array-allocated, const-creatable, linear interpolation with equidistant knot distribution.
+///
+/// This alias is used for convenience to help create constant curves.
 ///
 /// **Because this is an alias, not all its methods are listed here. See the [`Linear`](crate::linear::Linear) type too.**
 pub type ConstEquidistantLinear<R,T,const N: usize> = Linear<ConstEquidistant<R,N>,[T;N]>;
