@@ -119,7 +119,7 @@ impl Bezier<Unknown, Unknown, Unknown> {
     /// #     Ok(())
     /// # }
     /// ```
-    pub fn builder() -> BezierBuilder<Unknown, Unknown, Unknown>{
+    pub fn builder() -> BezierBuilder<Unknown, Unknown, Unknown, Unknown>{
         BezierBuilder::new()
     }
 }

@@ -2,9 +2,15 @@
 
 use core::marker::PhantomData;
 
-/// Struct indicator to mark if we use weights
+// pub trait WeightMarker{}
+
+/// Struct indicator to mark that we don't use weights
 #[derive(Debug, Copy, Clone)]
-pub struct WithWeight<T>(pub T);
+pub struct WithoutWeight;
+
+/// Struct indicator to mark that we use weights
+#[derive(Debug, Copy, Clone)]
+pub struct WithWeight;
 
 /// Struct indicator to mark information not yet given.
 #[derive(Debug, Copy, Clone)]

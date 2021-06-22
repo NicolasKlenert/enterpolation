@@ -76,7 +76,7 @@ impl Linear<Unknown,Unknown> {
     /// #     Ok(())
     /// # }
     /// ```
-    pub fn builder() -> LinearBuilder<Unknown,Unknown> {
+    pub fn builder() -> LinearBuilder<Unknown,Unknown,Unknown> {
         LinearBuilder::new()
     }
 }
