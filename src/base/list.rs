@@ -340,15 +340,33 @@ where R: Real + FromPrimitive
     }
 }
 
-//TODO: Test upper_border_with_factor for all implementations -> collection, equidistant and ConstEquidistant!
-//TODO: Returning an Option or such would be more idiomatic! -> what to do with 0 or 1 element?!
-//TODO: upper_border is difficult to write for equidistant (making sure both indices are valid but are not the same!)
-//TODO: we don't even have a contract for that, such we should think about it carefully!
-//TODO: It is important to note that upper_border_with_factor does not act like upper_border -> Change the name!
-
 impl<R> SortedGenerator for Equidistant<R>
 where R: Real + FromPrimitive
 {
+    /// Returns the smallest index for which the corresponding element is bigger then the input.
+    /// If all elements are bigger, this function will return self.len().
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use enterpolation::{SortedGenerator, Equidistant};
+    /// let equi = Equidistant::normalized(11);
+    /// assert_eq!(equi.strict_upper_bound(-1.0),0);
+    /// assert_eq!(equi.strict_upper_bound(0.15),2);
+    /// assert_eq!(equi.strict_upper_bound(20.0),11);
+    /// ```
+    fn strict_upper_bound(&self, element: Self::Output) -> usize
+    where Self::Output: PartialOrd + Copy
+    {
+        // extrapolation to the left
+        if element < self.offset {
+            return 0;
+        }
+        let scaled = (element - self.offset) / self.step;
+        // now unrwapping is fine as we are above zero.
+        let min_index = scaled.floor().to_usize().unwrap();
+        self.len().min(min_index + 1)
+    }
     /// Find the values inside the collection for which the given element is inbetween
     /// and a linear factor at how close it is to which value.
     ///
@@ -451,14 +469,38 @@ where R: Real + FromPrimitive
     }
 }
 
-//TODO: Returning an Option or such would be more idiomatic! -> what to do with 0 or 1 element?!
-//TODO: upper_border is difficult to write for equidistant (making sure both indices are valid but are not the same!)
-//TODO: we don't even have a contract for that, such we should think about it carefully!
-//TODO: It is important to note that upper_border_with_factor does not act like upper_border -> Change the name!
-
 impl<R, const N: usize> SortedGenerator for ConstEquidistant<R,N>
 where R: Real + FromPrimitive
 {
+    /// Returns the smallest index for which the corresponding element is bigger then the input.
+    /// If all elements are bigger, this function will return self.len().
+    ///
+    /// # Panics
+    ///
+    /// Panics if `N` is 0.
+    /// May panic if `N-1` can not be converted to type `R`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use enterpolation::{SortedGenerator, ConstEquidistant};
+    /// let equi = ConstEquidistant::<f64,11>::new();
+    /// assert_eq!(equi.strict_upper_bound(-1.0),0);
+    /// assert_eq!(equi.strict_upper_bound(0.15),2);
+    /// assert_eq!(equi.strict_upper_bound(20.0),11);
+    /// ```
+    fn strict_upper_bound(&self, element: Self::Output) -> usize
+    where Self::Output: PartialOrd + Copy
+    {
+        // extrapolation to the left
+        if element < R::zero() {
+            return 0;
+        }
+        let scaled = element * R::from_usize(N-1).unwrap();
+        // now unrwapping is fine as we are above zero.
+        let min_index = scaled.floor().to_usize().unwrap();
+        self.len().min(min_index + 1)
+    }
     /// Find the values inside the collection for which the given element is inbetween
     /// and a linear factor at how close it is to which value.
     ///
@@ -516,7 +558,3 @@ where R: Real + FromPrimitive
         (min_index, max_index, factor)
     }
 }
-
-//implement MinSizeGenerator<M> for ConstEquidistant<R,N> where M<=N;
-// impl<R,const N: usize> MinSizeGenerator<2> for ConstEquidistant<R,N> where R: Real + FromPrimitive {}
-// impl<R,const N: usize> MinSizeGenerator<1> for ConstEquidistant<R,N> where R: Real + FromPrimitive {}

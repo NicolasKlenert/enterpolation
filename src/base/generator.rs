@@ -5,7 +5,7 @@ use core::ops::RangeBounds;
 use core::iter::FusedIterator;
 
 use super::Equidistant;
-use super::{Stack, Slice};
+use super::{Stack, Slice, Repeat};
 
 /// Trait which symbolises the generation or copying of an element.
 ///
@@ -35,7 +35,7 @@ pub trait Generator<Input> {
     fn stack<G>(self, gen: G) -> Stack<Self,G>
     where Self: Sized
     {
-        Stack(self,gen)
+        Stack::new(self,gen)
     }
     /// Get a reference of the generator.
     /// This is useful if one wants to add an adapter without consuming the original.
@@ -148,9 +148,15 @@ pub trait DiscreteGenerator : Generator<usize> {
     {
         IntoIter::new(self)
     }
-    /// Convert generator to an iterator which steps through all generatable values.
+    /// create iterator which steps through all generatable values.
     fn iter(&self) -> IntoIter<&Self>{
         IntoIter::new(self)
+    }
+    /// Transfrom generator to one which repeats its elements.
+    fn repeat(self) -> Repeat<Self>
+    where Self: Sized,
+    {
+        Repeat::new(self)
     }
 }
 
