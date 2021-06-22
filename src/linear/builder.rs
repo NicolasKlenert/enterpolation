@@ -233,10 +233,6 @@ where
     }
 }
 
-// possible variations:
-// elements (1) or elements_with_weights (3)
-// knots (1) or equidistant (1) [try to create a const building of equidistant]
-
 #[cfg(test)]
 mod test {
     use super::LinearBuilder;
@@ -264,5 +260,7 @@ mod test {
             .equidistant::<f64>()
             .build();
         assert!(LinearBuilder::new().elements::<[f64;0]>([]).is_err());
+        assert!(LinearBuilder::new().elements([1.0]).is_err());
+        assert!(LinearBuilder::new().elements([1.0,2.0]).unwrap().knots([1.0,2.0,3.0]).is_err());
     }
 }

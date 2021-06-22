@@ -80,13 +80,14 @@ impl BezierBuilder<Unknown, Unknown, Unknown, Unknown> {
     /// # Examples
     ///
     /// ```
-    /// use enterpolation::{linear::Linear, Generator, Curve};
-    /// let linear = Linear::builder()
+    /// use enterpolation::{bezier::Bezier, Generator, Curve};
+    /// let bez = Bezier::builder()
     ///                 .elements_with_weights([(1.0,1.0),(2.0,4.0),(3.0,0.0)]).unwrap()
-    ///                 .equidistant::<f64>()
+    ///                 .input::<f64>()
+    ///                 .constant()
     ///                 .build();
-    /// let results = [1.0,1.8,2.0,2.75,f64::INFINITY];
-    /// for (value,result) in linear.take(5).zip(results.iter().copied()){
+    /// let results = [1.0,15.0/8.25,10.0/4.5,19.0/6.25,f64::INFINITY];
+    /// for (value,result) in bez.take(5).zip(results.iter().copied()){
     ///     assert_eq!(value, result);
     /// }
     /// ```
@@ -246,5 +247,11 @@ mod test {
             .input::<f64>()
             .constant()
             .build();
-        }
+        BezierBuilder::new()
+            .elements(vec![0.1,0.2,0.3]).unwrap()
+            .input::<f64>()
+            .dynamic()
+            .build();
+        assert!(BezierBuilder::new().elements::<[f64;0]>([]).is_err());
+    }
 }
