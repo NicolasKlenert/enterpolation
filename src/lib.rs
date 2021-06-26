@@ -34,7 +34,7 @@ extern crate assert_float_eq;
 
 pub mod linear;
 pub mod bezier;
-// pub mod bspline;
+pub mod bspline;
 pub mod utils;
 pub mod weights;
 

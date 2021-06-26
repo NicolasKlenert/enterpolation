@@ -67,6 +67,7 @@ impl Linear<Unknown,Unknown> {
     /// let linear = Linear::builder()
     ///                 .elements([0.0,5.0,3.0])?
     ///                 .equidistant::<f64>()
+    ///                 .normalized()
     ///                 .build();
     /// let results = [0.0,2.5,5.0,4.0,3.0];
     /// for (value,result) in linear.take(5).zip(results.iter().copied()){
@@ -201,6 +202,7 @@ mod test {
         let lin = Linear::builder()
             .elements(vec![20.0,100.0,0.0,200.0]).unwrap()
             .equidistant::<f64>()
+            .normalized()
             .build();
         let expected = [20.0,60.0,100.0,50.0,0.0,100.0,200.0];
         let mut iter = lin.take(expected.len());
@@ -242,6 +244,7 @@ mod test {
         let lin = Linear::builder()
             .elements_with_weights(vec![(0.0,9.0),(1.0,1.0)]).unwrap()
             .equidistant::<f64>()
+            .normalized()
             .build();
         assert_f64_near!(lin.gen(0.5), 0.1);
         // const LIN : Linear<f64,f64,ConstEquidistant<f64>,CollectionWrapper<[f64;4],f64>> = Linear::new_equidistant_unchecked([20.0,100.0,0.0,200.0]);

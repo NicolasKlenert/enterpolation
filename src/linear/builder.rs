@@ -88,6 +88,7 @@ impl LinearBuilder<Unknown, Unknown, Unknown> {
     /// let linear = Linear::builder()
     ///                 .elements_with_weights([(1.0,1.0),(2.0,4.0),(3.0,0.0)])?
     ///                 .equidistant::<f64>()
+    ///                 .normalized()
     ///                 .build();
     /// let results = [1.0,1.8,2.0,2.75,f64::INFINITY];
     /// for (value,result) in linear.take(5).zip(results.iter().copied()){
@@ -153,6 +154,30 @@ impl<E,W> LinearBuilder<Unknown, E, W>
     }
 }
 
+impl<R,E,W> LinearBuilder<Output<R>,E,W>
+where
+    E: DiscreteGenerator,
+    R: Real + FromPrimitive,
+{
+    /// Set the domain of the interpolation.
+    pub fn domain(self, start: R, end: R) -> LinearBuilder<Equidistant<R>,E,W>{
+        LinearBuilder {
+            knots: Equidistant::new(self.elements.len(), start, end),
+            elements: self.elements,
+            _phantom: self._phantom,
+        }
+    }
+
+    /// Set the domain of the interpolation to be [0.0,1.0].
+    pub fn normalized(self) -> LinearBuilder<Equidistant<R>,E,W>{
+        LinearBuilder {
+            knots: Equidistant::normalized(self.elements.len()),
+            elements: self.elements,
+            _phantom: self._phantom,
+        }
+    }
+}
+
 impl<K,E> LinearBuilder<K,E,WithoutWeight>
 where
     E: DiscreteGenerator,
@@ -164,27 +189,6 @@ where
     pub fn build(self) -> Linear<K,E>{
         // safe as we check all requirements beforehand
         Linear::new_unchecked(self.elements, self.knots)
-    }
-}
-
-impl<R,E> LinearBuilder<Output<R>, E, WithoutWeight>
-where
-    E: DiscreteGenerator,
-    E::Output: Add<Output = E::Output> + Mul<R, Output = E::Output> + Copy,
-    R: Real + FromPrimitive
-{
-    /// Build a linear interpolation with equidistant knots with domain [0.0,1.0].
-    pub fn build(self) -> Linear<Equidistant<R>,E> {
-        let len = self.elements.len();
-        // safe as we check all requirements beforehand
-        Linear::new_unchecked(self.elements, Equidistant::normalized(len))
-    }
-
-    /// Build a linear interpolation with equidistant knots in the specified domain.
-    pub fn build_with_domain(self, start:R, end: R) -> Linear<Equidistant<R>,E> {
-        let len = self.elements.len();
-        // safe as we check all requirements beforehand
-        Linear::new_unchecked(self.elements, Equidistant::new(start, end, len))
     }
 }
 
@@ -207,32 +211,6 @@ where
     }
 }
 
-impl<R,G> LinearBuilder<Output<R>,Weights<G>,WithWeight>
-where
-    R: Real + Copy + FromPrimitive,
-    G: DiscreteGenerator,
-    G::Output: IntoWeight,
-    <Weights<G> as Generator<usize>>::Output:
-        Add<Output = <Weights<G> as Generator<usize>>::Output> +
-        Mul<R, Output = <Weights<G> as Generator<usize>>::Output> +
-        Copy,
-{
-    /// Build a weighted linear interpolation from a vector of elements and equidistant knots in [0.0,1.0].
-    pub fn build(self) -> Weighted<Linear<Equidistant<R>,Weights<G>>> {
-        let len = self.elements.len();
-        let knots = Equidistant::normalized(len);
-        // safe as we check all requirements beforehand
-        Weighted::new(Linear::new_unchecked(self.elements, knots))
-    }
-    /// Build a weighted linear interpolation from a vector of elements and equidistant knots in the specified domain.
-    pub fn build_with_domain(self, start:R, end: R) -> Weighted<Linear<Equidistant<R>,Weights<G>>> {
-        let len = self.elements.len();
-        let knots = Equidistant::new(start, end, len);
-        // safe as we check all requirements beforehand
-        Weighted::new(Linear::new_unchecked(self.elements, knots))
-    }
-}
-
 #[cfg(test)]
 mod test {
     use super::LinearBuilder;
@@ -243,10 +221,12 @@ mod test {
         LinearBuilder::new()
             .elements_with_weights([(1.0,1.0),(2.0,2.0),(3.0,0.0)]).unwrap()
             .equidistant::<f64>()
+            .normalized()
             .build();
         LinearBuilder::new()
             .elements_with_weights([1.0,2.0,3.0].stack([1.0,2.0,0.0])).unwrap()
             .equidistant::<f64>()
+            .normalized()
             .build();
         LinearBuilder::new()
             .elements_with_weights([
@@ -258,6 +238,7 @@ mod test {
         LinearBuilder::new()
             .elements(vec![0.1,0.2,0.3]).unwrap()
             .equidistant::<f64>()
+            .normalized()
             .build();
         assert!(LinearBuilder::new().elements::<[f64;0]>([]).is_err());
         assert!(LinearBuilder::new().elements([1.0]).is_err());

@@ -44,11 +44,43 @@ use super::{Generator, DiscreteGenerator};
 /// - semi-constant array with values outside of the array (both_sides)
 pub trait SortedGenerator : DiscreteGenerator
 {
-    /// This function has a slightly better performance in the specific case one only needs the max_index of the function
-    /// upper_border. That is `strict_upper_bound(collection, element) == upper_border(collection, element).1`.
-    /// Also they are diferent in the edge case that if all elements in the array are smaller, this function **will** return 0.
-    /// `upper_border` on the other hand will return 1 (as the min_index occupies 0).
-    /// If all elements are bigger, this function will return len().
+    /// Returns the smallest index between `min` and `max`
+    /// for which the corresponding element is bigger then the input.
+    /// If all elements are bigger, this function will return the given maximum.
+    ///
+    /// #Panic
+    ///
+    /// Panics if `min` or `max` are not within [0,self.len()].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use enterpolation::{SortedGenerator, Sorted};
+    /// let arr = Sorted::new_unchecked([0.0,0.1,0.2,0.7,0.7,0.7,0.8,1.0]);
+    /// assert_eq!(arr.strict_upper_bound_clamped(-1.0,1,5),1);
+    /// assert_eq!(arr.strict_upper_bound_clamped(0.15,1,5),2);
+    /// assert_eq!(arr.strict_upper_bound_clamped(0.7,1,5),5);
+    /// assert_eq!(arr.strict_upper_bound_clamped(20.0,1,5),5);
+    /// ```
+    fn strict_upper_bound_clamped(&self, element: Self::Output, min: usize, max: usize) -> usize
+    where Self::Output: PartialOrd + Copy
+    {
+        let mut pointer = min;
+        let mut dist = max - min;
+        while dist > 0 {
+            let step = dist / 2;
+            let sample = pointer + step;
+            if element >= self.gen(sample){
+                pointer = sample +1;
+                dist -= step +1;
+            }else{
+                dist = step;
+            }
+        }
+        pointer
+    }
+    /// Returns the smallest index for which the corresponding element is bigger then the input.
+    /// If all elements are bigger, this function will return self.len().
     ///
     /// #Panic
     ///
@@ -67,19 +99,7 @@ pub trait SortedGenerator : DiscreteGenerator
     fn strict_upper_bound(&self, element: Self::Output) -> usize
     where Self::Output: PartialOrd + Copy
     {
-        let mut pointer = 0;
-        let mut count = self.len();
-        while count > 0 {
-            let step = count / 2;
-            let sample = pointer + step;
-            if element >= self.gen(sample){
-                pointer = sample +1;
-                count -= step +1;
-            }else{
-                count = step;
-            }
-        }
-        pointer
+        self.strict_upper_bound_clamped(element, 0, self.len())
     }
 
     /// Find the values inside the collection for which the given element is inbetween
@@ -314,7 +334,7 @@ where R: Real + FromPrimitive
     /// #Panics
     ///
     /// Panics if the given length is 0 or `length -  1` can not be transformed into R.
-    pub fn new(start: R, end: R, len: usize) -> Self {
+    pub fn new(len: usize, start: R, end: R) -> Self {
         Equidistant {
             len,
             step: (end - start) / R::from_usize(len - 1).unwrap(),
@@ -366,6 +386,35 @@ where R: Real + FromPrimitive
         // now unrwapping is fine as we are above zero.
         let min_index = scaled.floor().to_usize().unwrap();
         self.len().min(min_index + 1)
+    }
+    /// Returns the smallest index between `min` and `max`
+    /// for which the corresponding element is bigger then the input.
+    /// If all elements are bigger, this function will return the given maximum.
+    ///
+    /// #Panic
+    ///
+    /// Panics if `min` or `max` are not within [0,self.len()].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use enterpolation::{SortedGenerator, Equidistant};
+    /// let equi = Equidistant::normalized(11);
+    /// assert_eq!(equi.strict_upper_bound_clamped(-1.0,1,3),1);
+    /// assert_eq!(equi.strict_upper_bound_clamped(0.15,1,3),2);
+    /// assert_eq!(equi.strict_upper_bound_clamped(20.0,1,3),3);
+    /// ```
+    fn strict_upper_bound_clamped(&self, element: Self::Output, min: usize, max: usize) -> usize
+    where Self::Output: PartialOrd + Copy
+    {
+        // extrapolation to the left
+        if element < self.gen(min) {
+            return min;
+        }
+        let scaled = (element - self.offset) / self.step;
+        // now unrwapping is fine as we are above zero.
+        let min_index = scaled.floor().to_usize().unwrap();
+        max.min(min_index + 1)
     }
     /// Find the values inside the collection for which the given element is inbetween
     /// and a linear factor at how close it is to which value.
@@ -500,6 +549,35 @@ where R: Real + FromPrimitive
         // now unrwapping is fine as we are above zero.
         let min_index = scaled.floor().to_usize().unwrap();
         self.len().min(min_index + 1)
+    }
+    /// Returns the smallest index between `min` and `max`
+    /// for which the corresponding element is bigger then the input.
+    /// If all elements are bigger, this function will return the given maximum.
+    ///
+    /// #Panic
+    ///
+    /// Panics if `min` or `max` are not within [0,self.len()].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use enterpolation::{SortedGenerator, ConstEquidistant};
+    /// let equi = ConstEquidistant::<f64,11>::new();
+    /// assert_eq!(equi.strict_upper_bound_clamped(-1.0,1,3),1);
+    /// assert_eq!(equi.strict_upper_bound_clamped(0.15,1,3),2);
+    /// assert_eq!(equi.strict_upper_bound_clamped(20.0,1,3),3);
+    /// ```
+    fn strict_upper_bound_clamped(&self, element: Self::Output, min: usize, max: usize) -> usize
+    where Self::Output: PartialOrd + Copy
+    {
+        // extrapolation to the left
+        if element < self.gen(min) {
+            return min;
+        }
+        let scaled = element * R::from_usize(N-1).unwrap();
+        // now unrwapping is fine as we are above zero.
+        let min_index = scaled.floor().to_usize().unwrap();
+        max.min(min_index + 1)
     }
     /// Find the values inside the collection for which the given element is inbetween
     /// and a linear factor at how close it is to which value.

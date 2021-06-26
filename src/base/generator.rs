@@ -91,7 +91,7 @@ where R: Real
         R: FromPrimitive
     {
         let [start, end] = self.domain();
-        Take(self.extract(Stepper::new(start, end, samples)))
+        Take(self.extract(Stepper::new(samples, start, end)))
     }
     /// Take a slice of a curve.
     ///
@@ -395,8 +395,8 @@ where
     /// #Panics
     ///
     /// Panics if the given steps are 0 and if `steps -1` can not be transformed into R.
-    pub fn new(start: R, end: R, steps: usize) -> Self {
-        Stepper(Equidistant::new(start, end, steps).into_iter())
+    pub fn new(steps: usize, start: R, end: R) -> Self {
+        Stepper(Equidistant::new(steps, start, end).into_iter())
     }
 }
 
@@ -450,7 +450,7 @@ mod test {
             assert_f64_near!(val,res[i]);
         }
 
-        let mut stepper = Stepper::new(3.0,5.0,5);
+        let mut stepper = Stepper::new(5,3.0,5.0);
         let res = [3.0,3.5,4.0,4.5,5.0];
         for i in 0..5 {
             let val = stepper.next().unwrap();
