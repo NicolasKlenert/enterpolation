@@ -10,7 +10,7 @@ use num_traits::real::Real;
 use num_traits::FromPrimitive;
 use num_traits::identities::Zero;
 use crate::{Generator, DiscreteGenerator, SortedGenerator, Sorted, Equidistant, Weighted, Weights, IntoWeight};
-use crate::builder::{WithWeight, WithoutWeight, Output, Unknown};
+use crate::builder::{WithWeight, WithoutWeight, Type, Unknown};
 use super::Linear;
 use super::error::{LinearError, ToFewElements, KnotElementInequality};
 
@@ -145,16 +145,16 @@ impl<E,W> LinearBuilder<Unknown, E, W>
     }
 
     /// Build an interpolation with equidistant knots.
-    pub fn equidistant<R>(self) -> LinearBuilder<Output<R>,E,W>{
+    pub fn equidistant<R>(self) -> LinearBuilder<Type<R>,E,W>{
         LinearBuilder {
-            knots: Output::new(),
+            knots: Type::new(),
             elements: self.elements,
             _phantom: self._phantom,
         }
     }
 }
 
-impl<R,E,W> LinearBuilder<Output<R>,E,W>
+impl<R,E,W> LinearBuilder<Type<R>,E,W>
 where
     E: DiscreteGenerator,
     R: Real + FromPrimitive,

@@ -17,13 +17,39 @@ pub struct WithWeight;
 #[derive(Debug, Copy, Clone)]
 pub struct Unknown;
 
-/// Struct indicator to mark the wish of using equidistant knots.
+/// Struct to indicate to use normalized Input
 #[derive(Debug, Copy, Clone)]
-pub struct Output<R = f64>(PhantomData<*const R>);
+pub struct NormalizedInput<R = f64>(PhantomData<*const R>);
 
-impl<R> Output<R> {
+impl<R> NormalizedInput<R> {
     pub const fn new() -> Self {
-        Output(PhantomData)
+        NormalizedInput(PhantomData)
+    }
+}
+
+/// Struct to indicate which input domain to use
+#[derive(Debug, Copy, Clone)]
+pub struct InputDomain<R = f64>{
+    pub start: R,
+    pub end: R,
+}
+
+impl<R> InputDomain<R>{
+    pub fn new(start: R, end: R) -> Self {
+        InputDomain{
+            start,
+            end
+        }
+    }
+}
+
+/// Struct indicator to mark which type to use
+#[derive(Debug, Copy, Clone)]
+pub struct Type<R = f64>(PhantomData<*const R>);
+
+impl<R> Type<R> {
+    pub const fn new() -> Self {
+        Type(PhantomData)
     }
 }
 

@@ -9,11 +9,11 @@ use core::marker::PhantomData;
 use num_traits::real::Real;
 use num_traits::FromPrimitive;
 use num_traits::identities::Zero;
-use crate::{Generator, DiscreteGenerator, ConstDiscreteGenerator, Weighted, Weights,
+use crate::{Generator, DiscreteGenerator, Weighted, Weights,
     IntoWeight, Homogeneous, Space, DynSpace, ConstSpace, Sorted, SortedGenerator, Equidistant};
-use crate::builder::{WithWeight,WithoutWeight,Unknown, Output};
+use crate::builder::{WithWeight,WithoutWeight,Unknown, Type};
 use super::BSpline;
-use super::error::{Empty, BSplineError, NonStrictPositiveDegree};
+use super::error::{Empty, BSplineError, NonStrictPositiveDegree, TooSmallWorkspace};
 // use super::error::{LinearError, ToFewElements, KnotElementInequality};
 
 /// Marker Struct which saves a type and an usize.
@@ -151,9 +151,9 @@ impl<E,W> BSplineBuilder<Unknown, E, Unknown, W>
     }
 
     /// Build an interpolation with equidistant knots.
-    pub fn equidistant<R>(self) -> BSplineBuilder<Output<R>,E, Unknown, W>{
+    pub fn equidistant<R>(self) -> BSplineBuilder<Type<R>,E, Unknown, W>{
         BSplineBuilder {
-            knots: Output::new(),
+            knots: Type::new(),
             elements: self.elements,
             space: self.space,
             _phantom: self._phantom,
@@ -161,7 +161,7 @@ impl<E,W> BSplineBuilder<Unknown, E, Unknown, W>
     }
 }
 
-impl<R,E,W> BSplineBuilder<Output<R>, E, Unknown, W>
+impl<R,E,W> BSplineBuilder<Type<R>, E, Unknown, W>
 where
     E: DiscreteGenerator,
 {
@@ -208,7 +208,9 @@ where
 }
 
 impl<K,E,W> BSplineBuilder<K,E, Unknown, W>
-where E: DiscreteGenerator
+where
+    E: DiscreteGenerator,
+    K: SortedGenerator,
 {
     /// Set the workspace which the interpolation uses.
     ///
@@ -217,8 +219,8 @@ where E: DiscreteGenerator
     /// but every generation of a value an allocation of memory will be necessary.
     pub fn dynamic(self) -> BSplineBuilder<K,E,DynSpace<E::Output>,W>{
         BSplineBuilder{
+            space: DynSpace::new(self.knots.len() - self.elements.len()),
             knots: self.knots,
-            space: DynSpace::new(self.elements.len()),
             elements: self.elements,
             _phantom: self._phantom,
         }
@@ -228,15 +230,20 @@ where E: DiscreteGenerator
     ///
     /// Tells the builder the size of the workspace needed such that no memory allocations are needed
     /// when interpolating.
-    pub fn constant<const N: usize>(self) -> BSplineBuilder<K,E,ConstSpace<E::Output,N>,W>
-    where E: ConstDiscreteGenerator<N>
+    ///
+    /// The size needed is the degree of the interpolation + 1.
+    pub fn constant<const N: usize>(self) -> Result<BSplineBuilder<K,E,ConstSpace<E::Output,N>,W>,TooSmallWorkspace>
     {
-        BSplineBuilder{
+        //testing must be done at run-time until we can calulate with constants
+        if self.knots.len() - self.elements.len() > N {
+            return Err(TooSmallWorkspace::new(N, self.knots.len() - self.elements.len()));
+        }
+        Ok(BSplineBuilder{
             knots: self.knots,
             space: ConstSpace::new(),
             elements: self.elements,
             _phantom: self._phantom,
-        }
+        })
     }
 
     /// Set the workspace whcih the interpolation uses.
@@ -245,18 +252,20 @@ where E: DiscreteGenerator
     ///
     /// If the degree of the bezier curve is known at compile-time, consider using `constant` instead.
     /// Otherwise without std support, one has to set a specific object implementing the `Space` trait.
-    pub fn workspace<S>(self, space: S) -> BSplineBuilder<K,E,S,W>
+    pub fn workspace<S>(self, space: S) -> Result<BSplineBuilder<K,E,S,W>,TooSmallWorkspace>
     where S: Space<E::Output>
     {
-        //TODO: return error instead of panic
+        if space.len() < self.knots.len() - self.elements.len() {
+            return Err(TooSmallWorkspace::new(space.len(), self.knots.len() - self.elements.len()));
+        }
         assert!(space.len() >= self.elements.len());
 
-        BSplineBuilder{
+        Ok(BSplineBuilder{
             knots: self.knots,
             space,
             elements: self.elements,
             _phantom: self._phantom,
-        }
+        })
     }
 }
 
@@ -307,14 +316,14 @@ mod test {
             .equidistant::<f64>()
             .degree(2).unwrap()
             .domain(0.0,5.0)
-            .constant()
+            .constant::<3>().unwrap()
             .build();
         BSplineBuilder::new()
             .elements_with_weights([1.0,2.0,3.0].stack([1.0,2.0,0.0])).unwrap()
             .equidistant::<f64>()
             .degree(1).unwrap()
             .normalized()
-            .constant()
+            .constant::<2>().unwrap()
             .build();
         BSplineBuilder::new()
             .elements_with_weights([
@@ -322,7 +331,7 @@ mod test {
                 Homogeneous::weighted_unchecked(2.0, 2.0),
                 Homogeneous::infinity(3.0)]).unwrap()
             .knots([0.0,1.0,2.0,3.0,4.0]).unwrap()
-            .constant()
+            .constant::<2>().unwrap()
             .build();
         BSplineBuilder::new()
             .elements(vec![0.1,0.2,0.3]).unwrap()

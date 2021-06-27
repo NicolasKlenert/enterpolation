@@ -13,75 +13,8 @@ pub use error::{BSplineError, NonStrictPositiveDegree, Empty, TooSmallWorkspace,
 pub use builder::BSplineBuilder;
 
 use core::ops::{Add, Mul};
-use crate::{Generator, SortedGenerator, DiscreteGenerator, Space, Interpolation, Curve};
+use crate::{Generator, SortedGenerator, DiscreteGenerator, Space, Interpolation, Curve, Sorted};
 use num_traits::real::Real;
-
-/// BSpline curve interpolate/extrapolate with the elements given. (De Boors Algorithm)
-/// This mutates the elements, such copying them first is necessary.
-/// Also we assume that only the necessary elements given (in a slice).
-/// If one has the whole array at hand, slicing would have to be done with
-/// [index-degree-1..index] with index being the result of
-/// strict_upper_bound of knots[degree, len - degree -1] + degree.
-///
-/// This function is used internally for generic use cases, where the calculation of an element is costly.
-///
-/// Panics if not at least 1 element exists.
-fn bspline_element_slice<R,E,K,T>(mut elements: E, knots: K, index: usize, degree: usize, scalar: R) -> T
-where
-    E: AsMut<[T]>,
-    K: AsRef<[R]>,
-    T: Add<Output = T> + Mul<R, Output = T> + Copy,
-    R: Real
-{
-    let knots = knots.as_ref();
-    let elements = elements.as_mut();
-    for r in 1..=degree {
-        for j in 0..=(degree-r){
-            let i = j+r+index-degree;
-            let factor = (scalar - knots[i-1])/(knots[i+degree-r] - knots[i-1]);
-            elements[j] = elements[j] * (R::one() - factor) + elements[j+1] * factor;
-        }
-    }
-    elements[0]
-}
-
-/// BSpline curve interpolate/extrapolate with the elements given. (De Boors Algorithm)
-/// This mutates the elements, such copying them first is necessary!
-///
-/// Panics if not at least 1 element exists.
-pub fn bspline<R,E,K,T>(mut elements: E, knots: K, degree: usize, scalar: R) -> T
-where
-    E: AsMut<[T]>,
-    K: SortedGenerator<Output = R>,
-    T: Add<Output = T> + Mul<R, Output = T> + Copy,
-    R: Real
-{
-    // we do NOT calculaute a possible multiplicity of the scalar, as we assume
-    // the chance of hitting a knot is almost zero.
-    let lower_cut = degree;
-    let upper_cut = knots.len() - degree -1;
-    // The strict_upper_bound is easier to calculate and behaves nicely on the edges of the array.
-    // Such it is more ergonomic than using upper_border.
-    let index = knots.strict_upper_bound_clamped(scalar, lower_cut, upper_cut);
-    let elements = elements.as_mut();
-    for r in 1..=degree {
-        for j in 0..=(degree-r){
-            let i = j+r+index-degree;
-            let factor = (scalar - knots.gen(i-1))/(knots.gen(i+degree-r) - knots.gen(i-1));
-            elements[j] = elements[j] * (R::one() - factor) + elements[j+1] * factor;
-        }
-        // we always have only the slice of elements which matter, otherwise we would need this
-        // for i in ((index+r-degree-1)..index).rev(){
-        //     let factor = (scalar - knots.gen(i))/(knots.gen(i+degree-r+1) - knots.gen(i));
-        //     elements[i] = elements[i-1] * (R::one() - factor) + elements[i] * factor;
-        // }
-    }
-    elements[index-1]
-}
-
-//BSPline takes: KnotGenerator [SortedList<R>], ElementGenerator [Generator<usize, Output = T>], Deg [Space<T>]
-// with R and T. KnotGenerator and ElementGenerator not directly but with Into<K> and Into<E>
-// Such Bspline takes the same generics AND Deg!
 
 /// BSplines are generalisations of Bezier Curves.
 /// They allow you to define curves with a lot of control points without increasing the degree of the curve.
@@ -211,10 +144,11 @@ where
 //     }
 // }
 
-impl<K,E,S> BSpline<K,E,S>
+impl<K,E,S> BSpline<Sorted<K>,E,S>
 where
     E: DiscreteGenerator,
-    K: SortedGenerator,
+    K: DiscreteGenerator,
+    K::Output: PartialOrd,
     S: Space<E::Output>,
 {
     /// Creates a bspline curve of elements and knots given.
@@ -222,19 +156,33 @@ where
     /// The degree has to be at least 1.
     /// The knots should be sorted.
     /// The domain for the curve with degree p is knots[p] and knots[knots.len() - p -1].
-    pub fn new(elements: E, knots: K, space: S) -> Self
+    pub fn new(elements: E, knots: K, space: S) -> Result<Self, BSplineError>
     {
-        assert!(knots.len() > elements.len() + 1);
+        if elements.is_empty() {
+            return Err(Empty::new().into());
+        }
+        if knots.len() <= elements.len() + 1{
+            return Err(NonStrictPositiveDegree::new(elements.len(),knots.len()).into());
+        }
         let degree = knots.len() - elements.len() - 1;
-        assert!(space.len() >= degree);
-        //test if workspace is the same as the degree of the curve
-        BSpline {
+        if space.len() < degree {
+            return Err(TooSmallWorkspace::new(space.len(),degree).into());
+        }
+        Ok(BSpline {
             elements,
-            knots,
+            knots: Sorted::new(knots)?,
             degree,
             space,
-        }
+        })
     }
+}
+
+impl<K,E,S> BSpline<K,E,S>
+where
+    E: DiscreteGenerator,
+    K: SortedGenerator,
+    S: Space<E::Output>,
+{
     /// Creates a bspline curve of elements and knots given.
     /// The resulting degree of the curve is elements.len() - knots.len() -1
     /// The degree has to be at least 1.

@@ -269,7 +269,7 @@ mod test {
     fn extrapolation() {
         let bez = Bezier::builder()
             .elements([20.0,0.0,200.0]).unwrap()
-            .input::<f64>()
+            .normalized::<f64>()
             .constant()
             .build();
         assert_f64_near!(bez.gen(2.0), 820.0);
@@ -288,7 +288,7 @@ mod test {
     fn constant() {
         let bez = Bezier::builder()
             .elements([5.0]).unwrap()
-            .input::<f64>()
+            .normalized::<f64>()
             .constant()
             .build();
         let res = bez.gen_with_tangent(0.25);
@@ -303,7 +303,7 @@ mod test {
     fn deriatives(){
         let bez = Bezier::builder()
             .elements([1.0,2.0,3.0]).unwrap()
-            .input::<f64>()
+            .normalized::<f64>()
             .constant()
             .build();
         let res = bez.gen_with_tangent(0.5);
