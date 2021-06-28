@@ -46,4 +46,4 @@ mod builder;
 pub use base::{Generator, Interpolation, Curve, Extract, Stepper, Space, ConstSpace, DynSpace,
     DiscreteGenerator, ConstDiscreteGenerator, Equidistant, ConstEquidistant,
     Sorted, SortedGenerator, NotSorted, TransformInput, Chain, Stack, Slice, Repeat, Wrap, BorderBuffer};
-pub use weights::{Homogeneous, Weighted, Weights, IntoWeight};
+// pub use weights::{Homogeneous, Weighted, Weights, IntoWeight};

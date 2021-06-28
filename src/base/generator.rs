@@ -181,8 +181,8 @@ pub trait ConstDiscreteGenerator<const N: usize> : DiscreteGenerator {
     where Self::Output: Copy + Default
     {
         let mut arr = [Default::default();N];
-        for i in 0..N {
-            arr[i] = self.gen(i);
+        for (i,val) in arr.iter_mut().enumerate().take(N) {
+            *val = self.gen(i);
         }
         arr
     }

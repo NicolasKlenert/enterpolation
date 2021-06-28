@@ -9,7 +9,7 @@
 mod error;
 mod builder;
 
-pub use error::{BSplineError, NonStrictPositiveDegree, Empty, TooSmallWorkspace, NotSorted};
+pub use error::{BSplineError, NonValidDegree, Empty, TooSmallWorkspace, NotSorted};
 pub use builder::BSplineBuilder;
 
 use core::ops::{Add, Mul};
@@ -38,8 +38,8 @@ where
     fn workspace(&self, index: usize) -> impl AsMut<[E::Output]>{
         let mut workspace = self.space.workspace();
         let mut_workspace = workspace.as_mut();
-        for i in 0..=self.degree{
-            mut_workspace[i] = self.elements.gen(index-self.degree-1+i);
+        for (i,val) in mut_workspace.iter_mut().enumerate().take(self.degree + 1){
+            *val = self.elements.gen(index-self.degree-1+i);
         }
         workspace
     }
@@ -161,8 +161,8 @@ where
         if elements.is_empty() {
             return Err(Empty::new().into());
         }
-        if knots.len() <= elements.len() + 1{
-            return Err(NonStrictPositiveDegree::new(elements.len(),knots.len()).into());
+        if knots.len() <= elements.len() + 1 {
+            return Err(NonValidDegree::new(knots.len() as isize - elements.len() as isize -1).into());
         }
         let degree = knots.len() - elements.len() - 1;
         if space.len() < degree {
@@ -194,8 +194,8 @@ where
         BSpline {
             elements,
             knots,
-            degree,
             space,
+            degree,
         }
     }
 }

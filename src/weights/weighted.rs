@@ -2,7 +2,8 @@
 
 use core::ops::Div;
 use num_traits::real::Real;
-use crate::{Generator, Interpolation, Curve, Homogeneous};
+use crate::{Generator, Interpolation, Curve};
+use crate::weights::Homogeneous;
 
 /// Interpolation Adaptor used for weighted elements to automatically unwrap them from their weights.
 ///
@@ -28,24 +29,24 @@ impl<G> Weighted<G>{
 impl<G,I> Generator<I> for Weighted<G>
 where
     G: Generator<I>,
-    G::Output: FromWeight,
+    G::Output: Project,
 {
-    type Output = <G::Output as FromWeight>::Element;
+    type Output = <G::Output as Project>::Element;
     fn gen(&self, input: I) -> Self::Output {
-        self.inner.gen(input).from_weight()
+        self.inner.gen(input).project()
     }
 }
 
 impl<G,I> Interpolation<I> for Weighted<G>
 where
     G: Interpolation<I>,
-    G::Output: FromWeight,
+    G::Output: Project,
 {}
 
 impl<G,R> Curve<R> for Weighted<G>
 where
     G: Curve<R>,
-    G::Output: FromWeight,
+    G::Output: Project,
     R: Real,
 {
     fn domain(&self) -> [R; 2] {
@@ -54,18 +55,18 @@ where
 }
 
 /// This trait is used to be able to implement Generator for Weights without having to add other generic variables.
-pub trait FromWeight {
+pub trait Project {
     type Element;
     type Weight;
-    fn from_weight(self) -> Self::Element;
+    fn project(self) -> Self::Element;
 }
 
-impl<T,R> FromWeight for Homogeneous<T,R>
+impl<T,R> Project for Homogeneous<T,R>
 where T: Div<R,Output = T>,
 {
     type Element = T;
     type Weight = R;
-    fn from_weight(self) -> Self::Element {
+    fn project(self) -> Self::Element {
         self.project()
     }
 }

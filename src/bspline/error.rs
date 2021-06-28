@@ -17,7 +17,7 @@ pub enum BSplineError {
     TooSmallWorkspace(#[from] TooSmallWorkspace),
     /// Error returned if the number of knots and elements would need a degree which is 0 or smaller.
     #[error(transparent)]
-    NonStrictPositiveDegree(#[from] NonStrictPositiveDegree),
+    NonValidDegree(#[from] NonValidDegree),
     /// Error returned if knots are not sorted.
     #[error(transparent)]
     NotSorted(#[from] NotSorted),
@@ -25,25 +25,18 @@ pub enum BSplineError {
 
 /// Error returned if the number of elements and the number of knots are not matching.
 #[derive(Error, Debug, Copy, Clone)]
-#[error("Degree is calculated witht the number of elements and knots,
-    however we found {elements} elements and {knots} knots, such resulting in a degree of {degree}
-    which is forbidden.")]
-pub struct NonStrictPositiveDegree {
-    /// The number of elements found.
-    elements: usize,
-    /// The number of knots found.
-    knots: usize,
+#[error("The degree of the resulting curve is {degree} and such not valid.
+    Only striclty positive degrees less than the number of elements are allowed.")]
+pub struct NonValidDegree {
     /// The calculated degree
     degree: isize,
 }
 
-impl NonStrictPositiveDegree {
+impl NonValidDegree {
     /// Create a new error with the number of elements and knots found.
-    pub fn new(elements: usize, knots: usize) -> Self {
-        NonStrictPositiveDegree{
-            elements,
-            knots,
-            degree: knots as isize - elements as isize -1,
+    pub fn new(degree: isize) -> Self {
+        NonValidDegree{
+            degree,
         }
     }
 }

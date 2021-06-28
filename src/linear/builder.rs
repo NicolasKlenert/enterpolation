@@ -9,7 +9,8 @@ use core::marker::PhantomData;
 use num_traits::real::Real;
 use num_traits::FromPrimitive;
 use num_traits::identities::Zero;
-use crate::{Generator, DiscreteGenerator, SortedGenerator, Sorted, Equidistant, Weighted, Weights, IntoWeight};
+use crate::{Generator, DiscreteGenerator, SortedGenerator, Sorted, Equidistant};
+use crate::weights::{Weighted, Weights, IntoWeight};
 use crate::builder::{WithWeight, WithoutWeight, Type, Unknown};
 use super::Linear;
 use super::error::{LinearError, ToFewElements, KnotElementInequality};
@@ -215,7 +216,7 @@ where
 mod test {
     use super::LinearBuilder;
     // Homogeneous for creating Homogeneous, Generator for using .stack()
-    use crate::{Homogeneous, Generator};
+    use crate::{weights::Homogeneous, Generator};
     #[test]
     fn building() {
         LinearBuilder::new()

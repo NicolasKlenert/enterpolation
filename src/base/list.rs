@@ -1,5 +1,6 @@
 use core::marker::PhantomData;
 use core::ops::{Sub, Div, Index};
+use core::cmp::Ordering;
 use num_traits::identities::Zero;
 use num_traits::real::Real;
 use num_traits::FromPrimitive;
@@ -223,7 +224,7 @@ where
     C: DiscreteGenerator,
     C::Output: PartialOrd
 {
-    /// Returns Some(Sorted) if collection is sorted, otherwise returns None
+    /// Returns Some(Sorted) if collection is sorted, otherwise returns `NotSorted` Error.
     pub fn new(col: C) -> Result<Self, NotSorted>{
         if col.is_empty() {
             return Ok(Sorted(col))
@@ -231,10 +232,10 @@ where
         let mut last = col.gen(0);
         for i in 1..col.len(){
             let current = col.gen(i);
-            if !(last <= current){
-                return Err(NotSorted{index: i});
+            match last.partial_cmp(&current){
+                None | Some(Ordering::Greater) => return Err(NotSorted{index: i}),
+                _ => {last = current;},
             }
-            last = current;
         }
         Ok(Sorted(col))
     }

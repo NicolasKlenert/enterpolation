@@ -9,31 +9,47 @@ use core::marker::PhantomData;
 use num_traits::real::Real;
 use num_traits::FromPrimitive;
 use num_traits::identities::Zero;
-use crate::{Generator, DiscreteGenerator, Weighted, Weights,
-    IntoWeight, Homogeneous, Space, DynSpace, ConstSpace, Sorted, SortedGenerator, Equidistant};
+use crate::{Generator, DiscreteGenerator, Space, DynSpace, ConstSpace, Sorted, SortedGenerator, Equidistant, BorderBuffer};
+use crate::weights::{Weighted, Weights, IntoWeight, Homogeneous};
 use crate::builder::{WithWeight,WithoutWeight,Unknown, Type};
 use super::BSpline;
-use super::error::{Empty, BSplineError, NonStrictPositiveDegree, TooSmallWorkspace};
+use super::error::{Empty, BSplineError, NonValidDegree, TooSmallWorkspace};
 // use super::error::{LinearError, ToFewElements, KnotElementInequality};
 
-/// Marker Struct which saves a type and an usize.
+/// Marker struct to signify the building of a closed curve.
+#[derive(Debug, Clone, Copy)]
+pub struct Closed;
+/// Marker struct to signify the building of an open or generic curve.
+#[derive(Debug, Clone, Copy)]
+pub struct Open;
+// #[derive(Debug, Clone, Copy)]
+// pub struct Loop;
+
+/// Marker Struct which saves data for equidistant.
 ///
-/// Used to save the which of equidistant with a specific length.
+/// This struct has len and degree, which are dependent on each other.
+/// However the equation between these two variables changes, depending on the specifics of the curve.
+/// Such, both should be calculated.
 #[derive(Debug, Clone)]
 pub struct UnknownDomain<R> {
     _phantom: PhantomData<*const R>,
     len: usize,
+    deg: usize,
 }
 
 impl<R> UnknownDomain<R>{
-    pub fn new(len: usize) -> Self {
+    pub fn new(len: usize, deg: usize) -> Self {
         UnknownDomain {
             _phantom: PhantomData,
             len,
+            deg,
         }
     }
     pub fn len(&self) -> usize {
         self.len
+    }
+    pub fn deg(&self) -> usize {
+        self.deg
     }
 }
 
@@ -50,34 +66,55 @@ impl<R> UnknownDomain<R>{
 /// - A workspace to use, that is, a mutable slice-like object to do operations on.
 /// Usually this is done by calling `constant` or `dynamic`.
 #[derive(Debug, Clone)]
-pub struct BSplineBuilder<K,E,S,W> {
+pub struct BSplineBuilder<K,E,S,W,M> {
     elements: E,
     knots: K,
     space: S,
-    _phantom: PhantomData<*const W>,
+    _phantoms: (PhantomData<*const W>,PhantomData<*const M>),
 }
 
-impl Default for BSplineBuilder<Unknown, Unknown, Unknown, Unknown> {
+impl Default for BSplineBuilder<Unknown, Unknown, Unknown, Unknown, Open> {
     fn default() -> Self {
         BSplineBuilder::new()
     }
 }
 
-impl BSplineBuilder<Unknown, Unknown, Unknown, Unknown> {
+impl BSplineBuilder<Unknown, Unknown, Unknown, Unknown, Open> {
     /// Create a new linear interpolation builder.
     pub const fn new() -> Self {
         BSplineBuilder {
             elements: Unknown,
             knots: Unknown,
             space: Unknown,
-            _phantom: PhantomData,
+            _phantoms: (PhantomData,PhantomData),
         }
     }
 }
 
-impl BSplineBuilder<Unknown, Unknown, Unknown, Unknown> {
+impl<M> BSplineBuilder<Unknown, Unknown, Unknown, Unknown, M> {
+
+    /// Change the mode to an open curve.
+    pub fn open(self) -> BSplineBuilder<Unknown, Unknown, Unknown, Unknown, Open> {
+        BSplineBuilder {
+            knots: self.knots,
+            space: self.space,
+            elements: self.elements,
+            _phantoms: (self._phantoms.0,PhantomData),
+        }
+    }
+
+    /// Change the mode to a closed curve.
+    pub fn closed(self) -> BSplineBuilder<Unknown, Unknown, Unknown, Unknown, Closed> {
+        BSplineBuilder {
+            knots: self.knots,
+            space: self.space,
+            elements: self.elements,
+            _phantoms: (self._phantoms.0,PhantomData),
+        }
+    }
+
     /// Set the elements of the bspline interpolation.
-    pub fn elements<E>(self, elements: E) -> Result<BSplineBuilder<Unknown, E, Unknown, WithoutWeight>, Empty>
+    pub fn elements<E>(self, elements: E) -> Result<BSplineBuilder<Unknown, E, Unknown, WithoutWeight, M>, Empty>
     where E: DiscreteGenerator,
     {
         if elements.is_empty() {
@@ -87,7 +124,7 @@ impl BSplineBuilder<Unknown, Unknown, Unknown, Unknown> {
             knots: self.knots,
             space: self.space,
             elements,
-            _phantom: PhantomData,
+            _phantoms: (PhantomData,self._phantoms.1),
         })
     }
 
@@ -100,8 +137,12 @@ impl BSplineBuilder<Unknown, Unknown, Unknown, Unknown> {
     ///
     /// If you want to work with points at infinity,
     /// you may want to use homogeneous data itself without this wrapping mechanism.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Empty` if the generator is empty.
     pub fn elements_with_weights<G>(self, gen: G)
-        -> Result<BSplineBuilder<Unknown, Weights<G>,Unknown, WithWeight>,Empty>
+        -> Result<BSplineBuilder<Unknown, Weights<G>,Unknown, WithWeight, M>,Empty>
     where
         G: DiscreteGenerator,
         G::Output: IntoWeight,
@@ -116,113 +157,245 @@ impl BSplineBuilder<Unknown, Unknown, Unknown, Unknown> {
             space: self.space,
             knots: self.knots,
             elements: Weights::new(gen),
-            _phantom: PhantomData,
+            _phantoms: (PhantomData, self._phantoms.1),
         })
     }
 }
 
-impl<E,W> BSplineBuilder<Unknown, E, Unknown, W>
+impl<E,W,M> BSplineBuilder<Unknown, E, Unknown, W, M>
+{
+    /// Build an interpolation with equidistant knots.
+    pub fn equidistant<R>(self) -> BSplineBuilder<Type<R>,E, Unknown, W, M>{
+        BSplineBuilder {
+            knots: Type::new(),
+            elements: self.elements,
+            space: self.space,
+            _phantoms: self._phantoms,
+        }
+    }
+}
+
+impl<E,W> BSplineBuilder<Unknown, E, Unknown, W, Open>
 {
     /// Set the knots of the interpolation.
     ///
     /// The degree of this bspline interplation is given by knots.len() - elements.len() - 1.
-    /// Only degress of >= 1 are allowed.
+    ///
+    /// # Errors
+    ///
+    /// Returns NotSorted if a knot is not greater or equal then the knot before him.
     ///
     /// # Performance
     ///
     /// If you have equidistant knots, near equidistant knots are you do not really care about
     /// knots, consider using `equidistant()` instead.
-    pub fn knots<K>(self, knots: K) -> Result<BSplineBuilder<Sorted<K>,E, Unknown, W>, BSplineError>
+    pub fn knots<K>(self, knots: K) -> Result<BSplineBuilder<Sorted<K>,E, Unknown, W, Open>, BSplineError>
     where
         E: DiscreteGenerator,
         K: DiscreteGenerator,
         K::Output: PartialOrd
     {
-        if knots.is_empty() || knots.len() - 1 <= self.elements.len()
+        // Test if degree is strict positive
+        if knots.len() <= self.elements.len() + 1
         {
-            return Err(NonStrictPositiveDegree::new(self.elements.len(), knots.len()).into());
+            return Err(NonValidDegree::new(knots.len() as isize - self.elements.len() as isize -1).into());
         }
         Ok(BSplineBuilder {
             knots: Sorted::new(knots)?,
             elements: self.elements,
             space: self.space,
-            _phantom: self._phantom,
+            _phantoms: self._phantoms,
         })
-    }
-
-    /// Build an interpolation with equidistant knots.
-    pub fn equidistant<R>(self) -> BSplineBuilder<Type<R>,E, Unknown, W>{
-        BSplineBuilder {
-            knots: Type::new(),
-            elements: self.elements,
-            space: self.space,
-            _phantom: self._phantom,
-        }
     }
 }
 
-impl<R,E,W> BSplineBuilder<Type<R>, E, Unknown, W>
+impl<E,W> BSplineBuilder<Unknown, E, Unknown, W, Closed>
+{
+    /// Set the knots of the interpolation.
+    ///
+    /// The degree of this bspline interplation is given by knots.len() - elements.len() - 1.
+    ///
+    /// # Errors
+    ///
+    /// Returns NotSorted if a knot is not greater or equal then the knot before him.
+    ///
+    /// # Performance
+    ///
+    /// If you have equidistant knots, near equidistant knots are you do not really care about
+    /// knots, consider using `equidistant()` instead.
+    pub fn knots<K>(self, knots: K) -> Result<BSplineBuilder<Sorted<K>,E, Unknown, W, Closed>, BSplineError>
+    where
+        E: DiscreteGenerator,
+        K: DiscreteGenerator,
+        K::Output: PartialOrd
+    {
+        // Test if degree is strict positive
+        if knots.len() > self.elements.len()
+        {
+            return Err(NonValidDegree::new(self.elements.len() as isize - knots.len() as isize +1).into());
+        }
+        Ok(BSplineBuilder {
+            knots: Sorted::new(knots)?,
+            elements: self.elements,
+            space: self.space,
+            _phantoms: self._phantoms,
+        })
+    }
+}
+
+impl<R,E,W> BSplineBuilder<Type<R>, E, Unknown, W, Open>
 where
     E: DiscreteGenerator,
 {
-    /// Set the degree of the curve. The degree has to be bigger then 0, otherwise it will return an error.
-    pub fn degree(self, degree: usize) -> Result<BSplineBuilder<UnknownDomain<R>,E,Unknown,W>,NonStrictPositiveDegree>{
+    /// Set the degree of the curve. The degree has to be bigger than 0 and less than the number of elements,
+    /// otherwise it will return an error.
+    pub fn degree(self, degree: usize) -> Result<BSplineBuilder<UnknownDomain<R>,E,Unknown,W, Open>,NonValidDegree>{
 
-        if degree == 0 {
-            return Err(NonStrictPositiveDegree::new(self.elements.len() + degree + 1, self.elements.len()));
+        if degree == 0 || degree > self.elements.len(){
+            return Err(NonValidDegree::new(degree as isize));
         }
 
         Ok(BSplineBuilder{
-            knots: UnknownDomain::new(self.elements.len() + degree + 1),
+            knots: UnknownDomain::new(self.elements.len() + degree + 1, degree),
             elements: self.elements,
             space: self.space,
-            _phantom: self._phantom,
+            _phantoms: self._phantoms,
+        })
+    }
+
+    /// Set the number of knots.
+    ///
+    /// For open curves, the number of knots has to be bigger then the number of elements.
+    /// For closed curves, the number of knots has to be at most as big as the number of elements.
+    pub fn quantity(self, quantity: usize) -> Result<BSplineBuilder<UnknownDomain<R>,E,Unknown,W, Open>, NonValidDegree>{
+        // an equation is missing!
+        if quantity < self.elements.len() + 1 {
+            return Err(NonValidDegree::new(quantity as isize - self.elements.len() as isize -1))
+        }
+        Ok(BSplineBuilder{
+            knots: UnknownDomain::new(quantity, quantity - self.elements.len() -1),
+            elements: self.elements,
+            space: self.space,
+            _phantoms: self._phantoms,
         })
     }
 }
 
-impl<R,E,W> BSplineBuilder<UnknownDomain<R>, E, Unknown, W>
+impl<R,E,W> BSplineBuilder<Type<R>, E, Unknown, W, Closed>
+where
+    E: DiscreteGenerator,
+{
+    // TODO: change NotStrictlyPositiveDegree to NotValidDegree
+
+    /// Set the degree of the curve. The degree has to be bigger than 0 and less than the number of elements,
+    /// otherwise it will return an error.
+    pub fn degree(self, degree: usize) -> Result<BSplineBuilder<UnknownDomain<R>,E,Unknown,W, Closed>,NonValidDegree>{
+
+        if degree == 0 || degree > self.elements.len() {
+            return Err(NonValidDegree::new(degree as isize));
+        }
+
+        Ok(BSplineBuilder{
+            knots: UnknownDomain::new(self.elements.len() - degree + 1, degree),
+            elements: self.elements,
+            space: self.space,
+            _phantoms: self._phantoms,
+        })
+    }
+
+    /// Set the number of knots.
+    ///
+    /// For open curves, the number of knots has to be bigger then the number of elements.
+    /// For closed curves, the number of knots has to be at most as big as the number of elements.
+    pub fn quantity(self, quantity: usize) -> Result<BSplineBuilder<UnknownDomain<R>,E,Unknown,W, Closed>,NonValidDegree>{
+        if quantity > self.elements.len() {
+            // we would have to add something to quantity, as quantity is not the resulting knot amount...
+            return Err(NonValidDegree::new(self.elements.len() as isize - quantity as isize + 1))
+        }
+        Ok(BSplineBuilder{
+            knots: UnknownDomain::new(quantity, self.elements.len() - quantity + 1),
+            elements: self.elements,
+            space: self.space,
+            _phantoms: self._phantoms,
+        })
+    }
+}
+
+impl<R,E,W> BSplineBuilder<UnknownDomain<R>, E, Unknown, W,Open>
 where
     E: DiscreteGenerator,
     R: Real + FromPrimitive,
 {
     /// Set the domain of the interpolation.
-    pub fn domain(self, start: R, end: R) -> BSplineBuilder<Equidistant<R>,E,Unknown,W>{
+    pub fn domain(self, start: R, end: R) -> BSplineBuilder<Equidistant<R>,E,Unknown,W,Open>{
         BSplineBuilder {
             knots: Equidistant::new(self.knots.len(), start, end),
             elements: self.elements,
             space: self.space,
-            _phantom: self._phantom,
+            _phantoms: self._phantoms,
         }
     }
 
     /// Set the domain of the interpolation to be [0.0,1.0].
-    pub fn normalized(self) -> BSplineBuilder<Equidistant<R>,E,Unknown,W>{
+    pub fn normalized(self) -> BSplineBuilder<Equidistant<R>,E,Unknown,W,Open>{
         BSplineBuilder {
             knots: Equidistant::normalized(self.knots.len()),
             elements: self.elements,
             space: self.space,
-            _phantom: self._phantom,
+            _phantoms: self._phantoms,
         }
     }
 }
 
-impl<K,E,W> BSplineBuilder<K,E, Unknown, W>
+impl<R,E,W> BSplineBuilder<UnknownDomain<R>, E, Unknown, W, Closed>
+where
+    E: DiscreteGenerator,
+    R: Real + FromPrimitive,
+{
+    /// Set the domain of the interpolation.
+    pub fn domain(self, start: R, end: R) -> BSplineBuilder<BorderBuffer<Equidistant<R>>,E,Unknown,W,Closed>{
+        BSplineBuilder {
+            knots: BorderBuffer::new(Equidistant::new(self.knots.len(), start, end), self.knots.deg()),
+            elements: self.elements,
+            space: self.space,
+            _phantoms: self._phantoms,
+        }
+    }
+
+    /// Set the domain of the interpolation to be [0.0,1.0].
+    pub fn normalized(self) -> BSplineBuilder<BorderBuffer<Equidistant<R>>,E,Unknown,W,Closed>{
+        BSplineBuilder {
+            knots: BorderBuffer::new(Equidistant::normalized(self.knots.len()), self.knots.deg()),
+            elements: self.elements,
+            space: self.space,
+            _phantoms: self._phantoms,
+        }
+    }
+}
+
+impl<K,E,W,M> BSplineBuilder<K,E, Unknown, W,M>
 where
     E: DiscreteGenerator,
     K: SortedGenerator,
 {
+        // /// Ensure the curve to be a loop, that is, its start and end point are equal and have a smooth transition.
+    // ///
+    // /// This method changes the underlying knot and element generator, by repeating some.
+    // pub fn loop(self) -> BSplineBuilder<K,E, Unknown, W>{
+    //
+    // }
+
     /// Set the workspace which the interpolation uses.
     ///
     /// Tells the builder to use a vector as workspace,
     /// such you don't need to know the degree of the bezier curve at compile-time,
     /// but every generation of a value an allocation of memory will be necessary.
-    pub fn dynamic(self) -> BSplineBuilder<K,E,DynSpace<E::Output>,W>{
+    pub fn dynamic(self) -> BSplineBuilder<K,E,DynSpace<E::Output>,W,M>{
         BSplineBuilder{
             space: DynSpace::new(self.knots.len() - self.elements.len()),
             knots: self.knots,
             elements: self.elements,
-            _phantom: self._phantom,
+            _phantoms: self._phantoms,
         }
     }
 
@@ -232,17 +405,18 @@ where
     /// when interpolating.
     ///
     /// The size needed is the degree of the interpolation + 1.
-    pub fn constant<const N: usize>(self) -> Result<BSplineBuilder<K,E,ConstSpace<E::Output,N>,W>,TooSmallWorkspace>
+    #[allow(clippy::type_complexity)]
+    pub fn constant<const N: usize>(self) -> Result<BSplineBuilder<K,E,ConstSpace<E::Output,N>,W,M>,TooSmallWorkspace>
     {
         //testing must be done at run-time until we can calulate with constants
         if self.knots.len() - self.elements.len() > N {
-            return Err(TooSmallWorkspace::new(N, self.knots.len() - self.elements.len()));
+            return Err(TooSmallWorkspace::new(N, self.knots.len() - self.elements.len()).into());
         }
         Ok(BSplineBuilder{
             knots: self.knots,
             space: ConstSpace::new(),
             elements: self.elements,
-            _phantom: self._phantom,
+            _phantoms: self._phantoms,
         })
     }
 
@@ -252,11 +426,11 @@ where
     ///
     /// If the degree of the bezier curve is known at compile-time, consider using `constant` instead.
     /// Otherwise without std support, one has to set a specific object implementing the `Space` trait.
-    pub fn workspace<S>(self, space: S) -> Result<BSplineBuilder<K,E,S,W>,TooSmallWorkspace>
+    pub fn workspace<S>(self, space: S) -> Result<BSplineBuilder<K,E,S,W,M>,TooSmallWorkspace>
     where S: Space<E::Output>
     {
         if space.len() < self.knots.len() - self.elements.len() {
-            return Err(TooSmallWorkspace::new(space.len(), self.knots.len() - self.elements.len()));
+            return Err(TooSmallWorkspace::new(space.len(), self.knots.len() - self.elements.len()).into());
         }
         assert!(space.len() >= self.elements.len());
 
@@ -264,12 +438,12 @@ where
             knots: self.knots,
             space,
             elements: self.elements,
-            _phantom: self._phantom,
+            _phantoms: self._phantoms,
         })
     }
 }
 
-impl<K,E,S> BSplineBuilder<K,E,S, WithoutWeight>
+impl<K,E,S,M> BSplineBuilder<K,E,S, WithoutWeight,M>
 where
     K: SortedGenerator,
     E: DiscreteGenerator,
@@ -282,7 +456,7 @@ where
     }
 }
 
-impl<K,G,S> BSplineBuilder<K,Weights<G>,S,WithWeight>
+impl<K,G,S,M> BSplineBuilder<K,Weights<G>,S,WithWeight,M>
 where
     G: DiscreteGenerator,
     G::Output: IntoWeight,
@@ -301,14 +475,11 @@ where
     }
 }
 
-// possible variations:
-// elements (1) or elements_with_weights (3)
-
 #[cfg(test)]
 mod test {
     use super::BSplineBuilder;
     // Homogeneous for creating Homogeneous, Generator for using .stack()
-    use crate::{Homogeneous, Generator};
+    use crate::{weights::Homogeneous, Generator};
     #[test]
     fn elements_with_weights() {
         BSplineBuilder::new()

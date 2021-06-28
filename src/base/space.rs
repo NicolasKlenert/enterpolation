@@ -15,6 +15,10 @@ pub trait Space<T> {
     type Output : AsMut<[T]>;
     /// Returns the length of the workspace given.
     fn len(&self) -> usize;
+    /// Returns true if the workspace is empty.
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
     /// The workspace itself.
     fn workspace(&self) -> Self::Output;
 }
@@ -43,6 +47,12 @@ impl<T, const N: usize> ConstSpace<T,N>{
         ConstSpace {
             _phantom: PhantomData
         }
+    }
+}
+
+impl<T,const N: usize> Default for ConstSpace<T,N>{
+    fn default() -> Self {
+        Self::new()
     }
 }
 

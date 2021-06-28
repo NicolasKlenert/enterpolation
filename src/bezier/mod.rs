@@ -106,7 +106,7 @@ impl Bezier<Unknown, Unknown, Unknown> {
     /// # fn main() -> Result<(), Box<dyn Error>> {
     /// let bez = Bezier::builder()
     ///     .elements([20.0,100.0,0.0,200.0])?
-    ///     .input::<f64>()
+    ///     .normalized::<f64>()
     ///     .constant()
     ///     .build();
     /// let mut iter = bez.take(5);
@@ -133,8 +133,8 @@ where
     fn workspace(&self) -> impl AsMut<[E::Output]>{
         let mut workspace = self.space.workspace();
         let mut_workspace = workspace.as_mut();
-        for i in 0..self.elements.len(){
-            mut_workspace[i] = self.elements.gen(i);
+        for (i,val) in mut_workspace.iter_mut().enumerate().take(self.elements.len()){
+            *val = self.elements.gen(i);
         }
         workspace
     }

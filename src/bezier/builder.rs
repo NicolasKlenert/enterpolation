@@ -8,8 +8,8 @@ use core::ops::{Add, Mul, Div};
 use core::marker::PhantomData;
 use num_traits::real::Real;
 use num_traits::identities::Zero;
-use crate::{Generator, DiscreteGenerator, ConstDiscreteGenerator, Weighted, Weights,
-    IntoWeight, Homogeneous, Space, TransformInput, DynSpace, ConstSpace};
+use crate::{Generator, DiscreteGenerator, ConstDiscreteGenerator, Space, TransformInput, DynSpace, ConstSpace};
+use crate::weights::{Weighted, Weights, IntoWeight, Homogeneous};
 use crate::builder::{WithWeight,WithoutWeight,Unknown, InputDomain, NormalizedInput};
 use super::Bezier;
 use super::error::{Empty, TooSmallWorkspace};
@@ -82,7 +82,7 @@ impl BezierBuilder<Unknown, Unknown, Unknown, Unknown> {
     /// use enterpolation::{bezier::Bezier, Generator, Curve};
     /// let bez = Bezier::builder()
     ///                 .elements_with_weights([(1.0,1.0),(2.0,4.0),(3.0,0.0)]).unwrap()
-    ///                 .input::<f64>()
+    ///                 .normalized::<f64>()
     ///                 .constant()
     ///                 .build();
     /// let results = [1.0,15.0/8.25,10.0/4.5,19.0/6.25,f64::INFINITY];
@@ -225,7 +225,7 @@ where
     <G::Output as IntoWeight>::Element: Div<<G::Output as IntoWeight>::Weight, Output = <G::Output as IntoWeight>::Element>,
 {
     /// Build a weighted bezier interpolation.
-    pub fn build(self) -> Weighted<Bezier<R,Weights<G>,S>>
+    pub fn build(self) -> WeightedBezier<R,G,S>
     {
         Weighted::new(Bezier::new_unchecked(self.elements, self.space))
     }
@@ -244,16 +244,19 @@ where
     <G::Output as IntoWeight>::Element: Div<<G::Output as IntoWeight>::Weight, Output = <G::Output as IntoWeight>::Element>,
 {
     /// Build a weighted bezier interpolation with given domain.
-    pub fn build(self) -> TransformInput<Weighted<Bezier<R,Weights<G>,S>>,R,R> {
+    pub fn build(self) -> TransformInput<WeightedBezier<R,G,S>,R,R> {
         TransformInput::normalized_to_domain(Weighted::new(Bezier::new_unchecked(self.elements, self.space)), self.input.start, self.input.end)
     }
 }
+
+/// Type alias for weighted beziers.
+type WeightedBezier<R,G,S> = Weighted<Bezier<R,Weights<G>,S>>;
 
 #[cfg(test)]
 mod test {
     use super::BezierBuilder;
     // Homogeneous for creating Homogeneous, Generator for using .stack()
-    use crate::{Homogeneous, Generator};
+    use crate::{weights::Homogeneous, Generator};
     #[test]
     fn elements_with_weights() {
         BezierBuilder::new()
