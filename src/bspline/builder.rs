@@ -205,7 +205,7 @@ impl<E,W> BSplineBuilder<Unknown, E, Unknown, W, Open>
     {
         // Test if degree is strict positive
         //TODO: ALSO test if degree is not bigger or equal then the number of elements!
-        if knots.len() <= self.elements.len() + 1
+        if knots.len() < self.elements.len()
         {
             return Err(NonValidDegree::new(knots.len() as isize - self.elements.len() as isize -1).into());
         }
@@ -260,12 +260,12 @@ where
     /// otherwise it will return an error.
     pub fn degree(self, degree: usize) -> Result<BSplineBuilder<UnknownDomain<R>,E,Unknown,W, Open>,NonValidDegree>{
 
-        if degree == 0 || degree > self.elements.len(){
+        if degree == 0 || degree >= self.elements.len(){
             return Err(NonValidDegree::new(degree as isize));
         }
 
         Ok(BSplineBuilder{
-            knots: UnknownDomain::new(self.elements.len() + degree + 1, degree),
+            knots: UnknownDomain::new(self.elements.len() + degree - 1, degree),
             elements: self.elements,
             space: self.space,
             _phantoms: self._phantoms,
@@ -278,11 +278,11 @@ where
     /// For closed curves, the number of knots has to be at most as big as the number of elements.
     pub fn quantity(self, quantity: usize) -> Result<BSplineBuilder<UnknownDomain<R>,E,Unknown,W, Open>, NonValidDegree>{
         // an equation is missing!
-        if quantity < self.elements.len() + 1 {
-            return Err(NonValidDegree::new(quantity as isize - self.elements.len() as isize -1))
+        if quantity < self.elements.len() {
+            return Err(NonValidDegree::new(quantity as isize - self.elements.len() as isize +1))
         }
         Ok(BSplineBuilder{
-            knots: UnknownDomain::new(quantity, quantity - self.elements.len() -1),
+            knots: UnknownDomain::new(quantity, quantity - self.elements.len() +1),
             elements: self.elements,
             space: self.space,
             _phantoms: self._phantoms,
@@ -318,7 +318,6 @@ where
     /// For closed curves, the number of knots has to be at most as big as the number of elements.
     pub fn quantity(self, quantity: usize) -> Result<BSplineBuilder<UnknownDomain<R>,E,Unknown,W, Clamped>,NonValidDegree>{
         if quantity > self.elements.len() {
-            // we would have to add something to quantity, as quantity is not the resulting knot amount...
             return Err(NonValidDegree::new(self.elements.len() as isize - quantity as isize + 1))
         }
         Ok(BSplineBuilder{
@@ -364,7 +363,7 @@ where
     /// Set the domain of the interpolation.
     pub fn domain(self, start: R, end: R) -> BSplineBuilder<BorderBuffer<Equidistant<R>>,E,Unknown,W,Clamped>{
         BSplineBuilder {
-            knots: BorderBuffer::new(Equidistant::new(self.knots.len(), start, end), self.knots.deg()),
+            knots: BorderBuffer::new(Equidistant::new(self.knots.len(), start, end), self.knots.deg()-1),
             elements: self.elements,
             space: self.space,
             _phantoms: self._phantoms,
@@ -374,7 +373,7 @@ where
     /// Set the domain of the interpolation to be [0.0,1.0].
     pub fn normalized(self) -> BSplineBuilder<BorderBuffer<Equidistant<R>>,E,Unknown,W,Clamped>{
         BSplineBuilder {
-            knots: BorderBuffer::new(Equidistant::normalized(self.knots.len()), self.knots.deg()),
+            knots: BorderBuffer::new(Equidistant::normalized(self.knots.len()), self.knots.deg()-1),
             elements: self.elements,
             space: self.space,
             _phantoms: self._phantoms,
@@ -394,7 +393,7 @@ where
     /// but every generation of a value an allocation of memory will be necessary.
     pub fn dynamic(self) -> BSplineBuilder<K,E,DynSpace<E::Output>,W,M>{
         BSplineBuilder{
-            space: DynSpace::new(self.knots.len() - self.elements.len()),
+            space: DynSpace::new(self.knots.len() - self.elements.len() + 2),
             knots: self.knots,
             elements: self.elements,
             _phantoms: self._phantoms,
@@ -416,8 +415,8 @@ where
     pub fn constant<const N: usize>(self) -> Result<BSplineBuilder<K,E,ConstSpace<E::Output,N>,W,M>,TooSmallWorkspace>
     {
         //testing must be done at run-time until we can calulate with constants
-        if self.knots.len() - self.elements.len() > N {
-            return Err(TooSmallWorkspace::new(N, self.knots.len() - self.elements.len()).into());
+        if N <= self.knots.len() - self.elements.len() + 1 {
+            return Err(TooSmallWorkspace::new(N, self.knots.len() - self.elements.len() + 2).into());
         }
         Ok(BSplineBuilder{
             knots: self.knots,
@@ -436,10 +435,9 @@ where
     pub fn workspace<S>(self, space: S) -> Result<BSplineBuilder<K,E,S,W,M>,TooSmallWorkspace>
     where S: Space<E::Output>
     {
-        if space.len() < self.knots.len() - self.elements.len() {
-            return Err(TooSmallWorkspace::new(space.len(), self.knots.len() - self.elements.len()).into());
+        if space.len() <= self.knots.len() - self.elements.len() + 1 {
+            return Err(TooSmallWorkspace::new(space.len(), self.knots.len() - self.elements.len()+2).into());
         }
-        assert!(space.len() >= self.elements.len());
 
         Ok(BSplineBuilder{
             knots: self.knots,
@@ -508,7 +506,7 @@ mod test {
                 Homogeneous::new(1.0),
                 Homogeneous::weighted_unchecked(2.0, 2.0),
                 Homogeneous::infinity(3.0)]).unwrap()
-            .knots([0.0,1.0,2.0,3.0,4.0]).unwrap()
+            .knots([1.0,2.0,3.0]).unwrap()
             .constant::<2>().unwrap()
             .build();
         BSplineBuilder::new()

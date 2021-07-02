@@ -48,7 +48,7 @@ where
         let mut workspace = self.space.workspace();
         let mut_workspace = workspace.as_mut();
         for (i,val) in mut_workspace.iter_mut().enumerate().take(self.degree + 1){
-            *val = self.elements.gen(index-self.degree-1+i);
+            *val = self.elements.gen(index-self.degree+i);
         }
         workspace
     }
@@ -66,8 +66,8 @@ where
     fn gen(&self, scalar: R) -> E::Output {
         // we do NOT calculaute a possible multiplicity of the scalar, as we assume
         // the chance of hitting a knot is almost zero.
-        let lower_cut = self.degree + 1;
-        let upper_cut = self.knots.len() - self.degree -1;
+        let lower_cut = self.degree;
+        let upper_cut = self.knots.len() - self.degree;
         // The strict_upper_bound is easier to calculate and behaves nicely on the edges of the array.
         // Such it is more ergonomic than using upper_border.
         let index = self.knots.strict_upper_bound_clamped(scalar, lower_cut, upper_cut);
@@ -105,7 +105,7 @@ where
     K: SortedGenerator<Output = R>
 {
     fn domain(&self) -> [R; 2] {
-        [self.knots.gen(self.degree), self.knots.gen(self.knots.len() - self.degree - 1)]
+        [self.knots.gen(self.degree-1), self.knots.gen(self.knots.len() - self.degree - 2)]
     }
 }
 
@@ -161,20 +161,20 @@ where
     S: Space<E::Output>,
 {
     /// Creates a bspline curve of elements and knots given.
-    /// The resulting degree of the curve is elements.len() - knots.len() -1
+    /// The resulting degree of the curve is elements.len() - knots.len() +1
     /// The degree has to be at least 1.
     /// The knots should be sorted.
-    /// The domain for the curve with degree p is knots[p] and knots[knots.len() - p -1].
+    /// The domain for the curve with degree p is knots[p-1] and knots[knots.len() - p -2].
     pub fn new(elements: E, knots: K, space: S) -> Result<Self, BSplineError>
     {
         if elements.is_empty() {
             return Err(Empty::new().into());
         }
-        if knots.len() <= elements.len() + 1 {
-            return Err(NonValidDegree::new(knots.len() as isize - elements.len() as isize -1).into());
+        if knots.len() < elements.len() {
+            return Err(NonValidDegree::new(knots.len() as isize - elements.len() as isize +1).into());
         }
-        let degree = knots.len() - elements.len() - 1;
-        if space.len() < degree {
+        let degree = knots.len() - elements.len() + 1;
+        if space.len() <= degree {
             return Err(TooSmallWorkspace::new(space.len(),degree).into());
         }
         Ok(BSpline {
@@ -193,13 +193,13 @@ where
     S: Space<E::Output>,
 {
     /// Creates a bspline curve of elements and knots given.
-    /// The resulting degree of the curve is elements.len() - knots.len() -1
+    /// The resulting degree of the curve is elements.len() - knots.len() + 1
     /// The degree has to be at least 1.
     /// The knots should be sorted.
-    /// The domain for the curve with degree p is knots[p] and knots[knots.len() - p -1].
+    /// The domain for the curve with degree p is knots[p-1] and knots[knots.len() - p -2].
     pub fn new_unchecked(elements: E, knots: K, space: S) -> Self
     {
-        let degree = knots.len() - elements.len() - 1;
+        let degree = knots.len() - elements.len() + 1;
         BSpline {
             elements,
             knots,
@@ -218,7 +218,7 @@ mod test {
         let expect: Vec<(f32, f32)> = vec![(-1.0,-1.0),(0.0, 0.0), (0.2, 0.2), (0.4, 0.4), (0.6, 0.6),
                           (0.8, 0.8), (1.0, 1.0),(2.0,2.0)];
         let points = [0.0f32, 1.0];
-        let knots = [0.0f32, 0.0, 1.0, 1.0];
+        let knots = [0.0f32, 1.0];
         let spline = BSpline::builder()
             .elements(points).unwrap()
             .knots(knots).unwrap()
@@ -233,7 +233,7 @@ mod test {
         let expect: Vec<(f32, f32)> = vec![(0.0, 0.0), (0.5, 0.125), (1.0, 0.5), (1.4, 0.74), (1.5, 0.75),
                           (1.6, 0.74), (2.0, 0.5), (2.5, 0.125), (3.0, 0.0)];
         let points = [0.0f32, 0.0, 1.0, 0.0, 0.0];
-        let knots = [0.0f32, 0.0, 0.0, 1.0, 2.0, 3.0, 3.0, 3.0];
+        let knots = [0.0f32, 0.0, 1.0, 2.0, 3.0, 3.0];
         let spline = BSpline::builder()
             .elements(points).unwrap()
             .knots(knots).unwrap()
@@ -248,7 +248,7 @@ mod test {
         let expect: Vec<(f32, f32)> = vec![(-2.0, 0.0), (-1.5, 0.125), (-1.0, 1.0), (-0.6, 2.488),
                            (0.0, 4.0), (0.5, 2.875), (1.5, 0.12500001), (2.0, 0.0)];
         let points = [0.0f32, 0.0, 0.0, 6.0, 0.0, 0.0, 0.0];
-        let knots = [-2.0f32, -2.0, -2.0, -2.0, -1.0, 0.0, 1.0, 2.0, 2.0, 2.0, 2.0];
+        let knots = [-2.0f32, -2.0, -2.0, -1.0, 0.0, 1.0, 2.0, 2.0, 2.0];
         let spline = BSpline::builder()
             .elements(points).unwrap()
             .knots(knots).unwrap()
@@ -265,7 +265,7 @@ mod test {
                           (3.0, 0.4583333), (3.2, 0.35206667), (4.1, 0.02733751),
                           (4.5, 0.002604167), (5.0, 0.0)];
         let points: Vec<f32> = vec![0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0];
-        let knots: Vec<f32> = vec![0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 5.0, 5.0, 5.0, 5.0];
+        let knots: Vec<f32> = vec![0.0, 0.0, 0.0, 0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 5.0, 5.0, 5.0];
         let spline = BSpline::builder()
             .elements(points).unwrap()
             .knots(knots).unwrap()
@@ -282,7 +282,7 @@ mod test {
                                            (3.0, 0.4583333333333333), (3.2, 0.3520666666666666), (4.1, 0.027337500000000046),
                                            (4.5, 0.002604166666666666), (5.0, 0.0)];
         let points: Vec<f64> = vec![0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0];
-        let knots: Vec<f64> = vec![0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 5.0, 5.0, 5.0, 5.0];
+        let knots: Vec<f64> = vec![0.0, 0.0, 0.0, 0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 5.0, 5.0, 5.0];
         let spline = BSpline::builder()
             .elements(points).unwrap()
             .knots(knots).unwrap()

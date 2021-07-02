@@ -85,7 +85,7 @@ fn main() {
         (Point::new(1.0,-1.0),weight),
         (Point::new(1.0,0.0),1.0),
     ];
-    let knots = [0.0,0.0,0.0,1.0,1.0,2.0,2.0,3.0,3.0,4.0,4.0,4.0];
+    let knots = [0.0,0.0,1.0,1.0,2.0,2.0,3.0,3.0,4.0,4.0];
     // expects are fine as we hardcoded the data.
     let nurbs = BSpline::builder()
         .elements_with_weights(points_with_weights).expect("no points were given for the unit circle")
