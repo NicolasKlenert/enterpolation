@@ -4,12 +4,12 @@
 
 //TODO: EXAMPLE
 
-use core::ops::{Add, Mul, Div};
+use core::ops::{Mul, Div};
 use core::marker::PhantomData;
 use num_traits::real::Real;
 use num_traits::FromPrimitive;
 use num_traits::identities::Zero;
-use crate::{Generator, DiscreteGenerator, Space, DynSpace, ConstSpace, Sorted, SortedGenerator, Equidistant, BorderBuffer};
+use crate::{Generator, DiscreteGenerator, Space, DynSpace, ConstSpace, Sorted, SortedGenerator, Equidistant, BorderBuffer, Merge};
 use crate::weights::{Weighted, Weights, IntoWeight, Homogeneous};
 use crate::builder::{WithWeight,WithoutWeight,Unknown, Type};
 use super::BSpline;
@@ -300,7 +300,7 @@ where
     /// otherwise it will return an error.
     pub fn degree(self, degree: usize) -> Result<BSplineBuilder<UnknownDomain<R>,E,Unknown,W, Clamped>,NonValidDegree>{
 
-        if degree == 0 || degree > self.elements.len() {
+        if degree == 0 || degree >= self.elements.len() {
             return Err(NonValidDegree::new(degree as isize));
         }
 
@@ -452,7 +452,7 @@ impl<K,E,S,M> BSplineBuilder<K,E,S, WithoutWeight,M>
 where
     K: SortedGenerator,
     E: DiscreteGenerator,
-    E::Output: Add<Output = E::Output> + Mul<K::Output, Output = E::Output> + Copy,
+    E::Output: Merge<K::Output> + Copy,
     S: Space<E::Output>,
 {
     /// Build a bezier interpolation.
@@ -467,10 +467,7 @@ where
     G::Output: IntoWeight,
     K: SortedGenerator,
     S: Space<Homogeneous<<G::Output as IntoWeight>::Element, <G::Output as IntoWeight>::Weight>>,
-    <Weights<G> as Generator<usize>>::Output:
-        Add<Output = <Weights<G> as Generator<usize>>::Output> +
-        Mul<K::Output, Output = <Weights<G> as Generator<usize>>::Output> +
-        Copy,
+    <Weights<G> as Generator<usize>>::Output: Merge<K::Output> + Copy,
     <G::Output as IntoWeight>::Element: Div<<G::Output as IntoWeight>::Weight, Output = <G::Output as IntoWeight>::Element>,
 {
     /// Build a weighted bezier interpolation.

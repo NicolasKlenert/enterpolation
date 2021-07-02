@@ -3,7 +3,7 @@ name = "enterpolation"
 authors = ["Nicolas Klenert <klenert.nicolas@gmail.com>"]
 exclude = ["examples/*", ".gitignore", "CHANGELOG.md", "CONTRIBUTING.md"]
 edition = "2018"
-description = "Makes all kinds of interpolation flexible and easy to understand."
+description = "Makes all kinds of interpolations flexible and easy to understand."
 license = "MIT OR Apache-2.0"
 #documentation = "https://docs.rs/palette/0.5.0/palette/"
 #repository = "https://github.com/Ogeon/palette"
@@ -43,6 +43,11 @@ version = "0.1.0"
 assert_float_eq = "1"
 thiserror = "1.0"
 num-traits = "0.2"
+
+[dev-dependencies]
+# we are using palette and image as dependency for our gradient example
+palette = "0.5"
+image = "0.23"
 
 [features]
 # possible features libm, std,

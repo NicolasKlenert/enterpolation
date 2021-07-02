@@ -4,12 +4,12 @@
 
 //TODO: EXAMPLE
 
-use core::ops::{Add, Mul};
+use core::ops::Mul;
 use core::marker::PhantomData;
 use num_traits::real::Real;
 use num_traits::FromPrimitive;
 use num_traits::identities::Zero;
-use crate::{Generator, DiscreteGenerator, SortedGenerator, Sorted, Equidistant};
+use crate::{Generator, DiscreteGenerator, SortedGenerator, Sorted, Equidistant, Merge};
 use crate::weights::{Weighted, Weights, IntoWeight};
 use crate::builder::{WithWeight, WithoutWeight, Type, Unknown};
 use super::Linear;
@@ -183,7 +183,7 @@ impl<K,E> LinearBuilder<K,E,WithoutWeight>
 where
     E: DiscreteGenerator,
     K: SortedGenerator,
-    E::Output: Add<Output = E::Output> + Mul<K::Output, Output = E::Output> + Copy,
+    E::Output: Merge<K::Output>,
     K::Output: Real
 {
     /// Build a linear interpolation.
@@ -199,10 +199,7 @@ where
     K::Output: Real + Copy,
     G: DiscreteGenerator,
     G::Output: IntoWeight,
-    <Weights<G> as Generator<usize>>::Output:
-        Add<Output = <Weights<G> as Generator<usize>>::Output> +
-        Mul<K::Output, Output = <Weights<G> as Generator<usize>>::Output> +
-        Copy
+    <Weights<G> as Generator<usize>>::Output: Merge<K::Output>,
 {
     /// Build a weighted linear interpolation.
     pub fn build(self) -> Weighted<Linear<K,Weights<G>>>

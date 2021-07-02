@@ -8,9 +8,8 @@
 //! the border elements to calculate the linear interpolation with can be found in O(1)
 //! instead of O(log n) with n being the number of elements in the interpolation structure.
 
-use core::ops::{Add, Mul};
 use crate::{Generator, Interpolation, Curve, SortedGenerator,
-    DiscreteGenerator, ConstEquidistant};
+    DiscreteGenerator, ConstEquidistant, Merge};
 use crate::builder::Unknown;
 use num_traits::real::Real;
 
@@ -31,14 +30,14 @@ fn linear<R,K,E>(elements: &E, knots: &K, scalar: R) -> E::Output
 where
     E: DiscreteGenerator,
     K: SortedGenerator<Output = R>,
-    E::Output: Add<Output = E::Output> + Mul<R, Output = E::Output> + Copy + Debug,
+    E::Output: Merge<R> + Debug,
     R: Real + Debug
 {
     //we use upper_border_with_factor as this allows us a performance improvement for equidistant knots
     let (min_index, max_index, factor) = knots.upper_border(scalar);
     let min_point = elements.gen(min_index);
     let max_point = elements.gen(max_index);
-    min_point * (R::one() - factor) + max_point * factor
+    min_point.merge(max_point,factor)
 }
 
 /// Linear Interpolation.
@@ -86,7 +85,7 @@ impl<R,K,E> Generator<R> for Linear<K,E>
 where
     E: DiscreteGenerator,
     K: SortedGenerator<Output = R>,
-    E::Output: Add<Output = E::Output> + Mul<R, Output = E::Output> + Copy + Debug,
+    E::Output: Merge<R> + Debug,
     R: Real + Debug
 {
     type Output = E::Output;
@@ -102,7 +101,7 @@ impl<R,K,E> Interpolation<R> for Linear<K,E>
 where
     E: DiscreteGenerator,
     K: SortedGenerator<Output = R>,
-    E::Output: Add<Output = E::Output> + Mul<R, Output = E::Output> + Copy + Debug,
+    E::Output: Merge<R> + Debug,
     R: Real + Debug
 {}
 
@@ -110,7 +109,7 @@ impl<R,K,E> Curve<R> for Linear<K,E>
 where
     E: DiscreteGenerator,
     K: SortedGenerator<Output = R>,
-    E::Output: Add<Output = E::Output> + Mul<R, Output = E::Output> + Copy + Debug,
+    E::Output: Merge<R> + Debug,
     R: Real + Debug
 {
     fn domain(&self) -> [R; 2] {
@@ -122,7 +121,7 @@ impl<K,E> Linear<K,E>
 where
     E: DiscreteGenerator,
     K: SortedGenerator,
-    E::Output: Add<Output = E::Output> + Mul<K::Output, Output = E::Output> + Copy,
+    E::Output: Merge<K::Output>,
     K::Output: Real
 {
     /// Create a linear interpolation with slice-like collections of elements and knots.
@@ -147,7 +146,7 @@ impl<K,E> Linear<K,E>
 where
     E: DiscreteGenerator,
     K: SortedGenerator,
-    E::Output: Add<Output = E::Output> + Mul<K::Output, Output = E::Output> + Copy,
+    E::Output: Merge<K::Output>,
     K::Output: Real
 {
     /// Create a linear interpolation with slice-like collections of elements and knots.

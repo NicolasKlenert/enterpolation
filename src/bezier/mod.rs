@@ -2,8 +2,8 @@
 
 // TODO: create LinearEquidistant Interpolation from Bezier, when a constant speed is wished for
 // TODO: -> see https://www.researchgate.net/post/How-can-I-assign-a-specific-velocity-to-a-point-moving-on-a-Bezier-curve
-use core::ops::{Add, Mul, Sub, IndexMut};
-use crate::{Generator, Interpolation, Curve, Stepper, Space, DiscreteGenerator};
+use core::ops::{Mul, Sub};
+use crate::{Generator, Interpolation, Curve, Space, DiscreteGenerator, Merge};
 use crate::utils::{triangle_folding_inline, lower_triangle_folding_inline};
 use crate::builder::Unknown;
 use num_traits::real::Real;
@@ -21,11 +21,11 @@ pub use error::{BezierError, Empty, TooSmallWorkspace};
 fn bezier<R,P,T>(mut elements: P, scalar: R) -> T
 where
     P: AsMut<[T]>,
-    T: Add<Output = T> + Mul<R, Output = T> + Copy,
+    T: Merge<R> + Copy,
     R: Real
 {
     let len = elements.as_mut().len();
-    triangle_folding_inline(elements.as_mut(), |first, second| first * (R::one()-scalar) + second * scalar , len - 1);
+    triangle_folding_inline(elements.as_mut(), |first, second| first.merge(second, scalar) , len - 1);
     elements.as_mut()[0]
 }
 
@@ -35,7 +35,7 @@ where
 fn bezier_with_tangent<R,P,T>(mut elements: P, scalar: R) -> [T;2]
 where
     P: AsMut<[T]>,
-    T: Add<Output = T> + Mul<R, Output = T> + Sub<Output = T> + Copy,
+    T: Merge<R> + Mul<R, Output = T> + Sub<Output = T> + Copy,
     R: Real + FromPrimitive
 {
     let len = elements.as_mut().len();
@@ -43,10 +43,10 @@ where
         // if we have less than two elements, we just return the one element and a zero out vector.
         return [elements.as_mut()[0], elements.as_mut()[0] * R::zero()];
     }
-    triangle_folding_inline(elements.as_mut(), |first, second| first * (R::one()-scalar) + second * scalar , len - 2);
+    triangle_folding_inline(elements.as_mut(), |first, second| first.merge(second, scalar) , len - 2);
     let elements = elements.as_mut();
     let tangent = (elements[1] - elements[0]) * R::from_usize(len-1).unwrap();
-    let result = elements[0]*(R::one()-scalar)+elements[1]*scalar;
+    let result = elements[0].merge(elements[1], scalar);
     [result, tangent]
 }
 
@@ -57,12 +57,12 @@ where
 fn bezier_with_deriatives<R,P,T,const K: usize>(mut elements: P, scalar: R) -> [T;K]
 where
     P: AsMut<[T]>,
-    T: Add<Output = T> + Mul<R, Output = T> + Sub<Output = T> + Copy,
+    T: Merge<R> + Mul<R, Output = T> + Sub<Output = T> + Copy,
     R: Real + FromPrimitive
 {
     let len = elements.as_mut().len();
     let deg = K.min(len-1);
-    triangle_folding_inline(elements.as_mut(), |first, second| first * (R::one()-scalar) + second * scalar, len - deg -1);
+    triangle_folding_inline(elements.as_mut(), |first, second| first.merge(second, scalar), len - deg -1);
     // take a zero out vector which can be copied to initialise the array (and have the right default)
     let mut grad = [elements.as_mut()[0] * R::zero();K];
     for k in (1..=deg).rev() {
@@ -72,7 +72,7 @@ where
         let prod = R::from_usize((len-k..len).product::<usize>()).unwrap();
         grad[k] = grad[k] * prod;
         // do one step of the normal folding
-        triangle_folding_inline(elements.as_mut(), |first, second| first * (R::one()-scalar) + second * scalar, 1);
+        triangle_folding_inline(elements.as_mut(), |first, second| first.merge(second, scalar), 1);
         // copy the necessary data over to grad
         grad[..k].clone_from_slice(&elements.as_mut()[..k]);
     }
@@ -140,10 +140,12 @@ where
     }
 }
 
+//TODO: change such that E::Output does not have to be copy
+
 impl<R,E,S> Generator<R> for Bezier<R,E,S>
 where
     E: DiscreteGenerator,
-    E::Output: Add<Output = E::Output> + Mul<R, Output = E::Output> + Copy,
+    E::Output: Merge<R> + Copy,
     S: Space<E::Output>,
     R: Real
 {
@@ -157,7 +159,7 @@ where
 impl<R,E,S> Interpolation<R> for Bezier<R,E,S>
 where
     E: DiscreteGenerator,
-    E::Output: Add<Output = E::Output> + Mul<R, Output = E::Output> + Copy,
+    E::Output: Merge<R> + Copy,
     S: Space<E::Output>,
     R: Real
 {}
@@ -165,7 +167,7 @@ where
 impl<R,E,S> Curve<R> for Bezier<R,E,S>
 where
     E: DiscreteGenerator,
-    E::Output: Add<Output = E::Output> + Mul<R, Output = E::Output> + Copy,
+    E::Output: Merge<R> + Copy,
     S: Space<E::Output>,
     R: Real
 {
@@ -178,7 +180,7 @@ where
 impl<R,E,S> Bezier<R,E,S>
 where
     E: DiscreteGenerator,
-    E::Output: Add<Output = E::Output> + Mul<R, Output = E::Output> + Sub<Output = E::Output> + Copy,
+    E::Output: Merge<R> + Mul<R, Output = E::Output> + Sub<Output = E::Output> + Copy,
     S: Space<E::Output>,
     R: Real + FromPrimitive
 {
@@ -234,31 +236,31 @@ where
     }
 }
 
-impl<R,E,S> Bezier<R,E,S>
-where
-    E: DiscreteGenerator + Extend<<E as Generator<usize>>::Output> + IndexMut<usize, Output = <E as Generator<usize>>::Output>,
-    <E as Generator<usize>>::Output: Add<Output = <E as Generator<usize>>::Output> + Mul<R, Output = <E as Generator<usize>>::Output> + Copy,
-    R: Real + FromPrimitive
-{
-    /// Elevates the curve such that it's degree increases by one.
-    pub fn elevate_inplace(&mut self){
-        //TODO: test if workspace is big enough, otherwise return error?!
-        //TODO: otherwise increase workspace -> DynSpace would by a trait, current DynSpace would be renamed to VecSpace
-        //TODO: this trait would have something like "set_len" which would set the length of the space created.
-        //TODO: this would allow our space to work with the newly grown elements.
-        //TODO: however we would like to be able to give a bigger workspace in the beginning (workspace) and elevating just fills in the space...
-        //TODO: so we only want to test? And one has to find out the space needed at creation?
-        let stepper = Stepper::normalized(self.elements.len() + 2);
-        self.elements.extend(core::iter::once(self.elements.last().unwrap()));
-        //TODO: instead of last and temp we could just reverse our order (go from n to 1)
-        let mut last = self.elements.gen(0);
-        for (i, factor) in stepper.enumerate().skip(1).take(self.elements.len()) {
-            let temp = self.elements.gen(i);
-            self.elements[i] = last * factor + self.elements.gen(i) * (R::one()-factor);
-            last = temp;
-        }
-    }
-}
+// impl<R,E,S> Bezier<R,E,S>
+// where
+//     E: DiscreteGenerator + Extend<<E as Generator<usize>>::Output> + IndexMut<usize, Output = <E as Generator<usize>>::Output>,
+//     <E as Generator<usize>>::Output: Add<Output = <E as Generator<usize>>::Output> + Mul<R, Output = <E as Generator<usize>>::Output> + Copy,
+//     R: Real + FromPrimitive
+// {
+//     /// Elevates the curve such that it's degree increases by one.
+//     pub fn elevate_inplace(&mut self){
+//         //TODO: test if workspace is big enough, otherwise return error?!
+//         //TODO: otherwise increase workspace -> DynSpace would by a trait, current DynSpace would be renamed to VecSpace
+//         //TODO: this trait would have something like "set_len" which would set the length of the space created.
+//         //TODO: this would allow our space to work with the newly grown elements.
+//         //TODO: however we would like to be able to give a bigger workspace in the beginning (workspace) and elevating just fills in the space...
+//         //TODO: so we only want to test? And one has to find out the space needed at creation?
+//         let stepper = Stepper::normalized(self.elements.len() + 2);
+//         self.elements.extend(core::iter::once(self.elements.last().unwrap()));
+//         //TODO: instead of last and temp we could just reverse our order (go from n to 1)
+//         let mut last = self.elements.gen(0);
+//         for (i, factor) in stepper.enumerate().skip(1).take(self.elements.len()) {
+//             let temp = self.elements.gen(i);
+//             self.elements[i] = last * factor + self.elements.gen(i) * (R::one()-factor);
+//             last = temp;
+//         }
+//     }
+// }
 
 #[cfg(test)]
 mod test {

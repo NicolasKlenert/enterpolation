@@ -4,10 +4,12 @@
 //! We use the data from the [wikipedia article](https://en.wikipedia.org/wiki/Non-uniform_rational_B-spline#Example:_a_circle) of NURBS,
 //! only the knot vector is scaled such that the domain is from 0.0 to 4.0 insteaf of 0.0 to 2π.
 
-use core::ops::{Add, Mul, Div};
-use enterpolation::{Curve,bspline::BSpline};
+use core::ops::{Add, Sub, Mul, Div};
+use core::f64::consts::PI;
+use enterpolation::{Generator,Curve,bspline::BSpline};
 // used to test equality of f64s
-use assert_float_eq::{afe_is_f64_near, afe_near_error_msg, assert_f64_near};
+use assert_float_eq::{afe_is_f64_near, afe_near_error_msg, assert_f64_near,
+        assert_float_absolute_eq, afe_is_absolute_eq, afe_abs, afe_absolute_error_msg};
 
 /// We create our own 2D Point
 #[derive(Debug, Copy, Clone)]
@@ -24,8 +26,12 @@ impl Point {
         }
     }
     /// The squared distance of the point to the origin.
-    pub fn dist(&self) -> f64 {
+    pub fn norm(self) -> f64 {
         self.x * self.x + self.y * self.y
+    }
+    /// The squared distance to the other point given.
+    pub fn dist(self, rhs: Point) -> f64{
+        (self - rhs).norm()
     }
 }
 
@@ -36,6 +42,17 @@ impl Add for Point {
         Point {
             x: self.x + rhs.x,
             y: self.y + rhs.y,
+        }
+    }
+}
+
+/// To calculate the distance of one point to another, we use substraction.
+impl Sub for Point {
+    type Output = Point;
+    fn sub(self, rhs: Point) -> Self::Output {
+        Point {
+            x: self.x - rhs.x,
+            y: self.y - rhs.y,
         }
     }
 }
@@ -95,10 +112,15 @@ fn main() {
         .build();
     // let us test if our curve is really a unit circle!
     for val in nurbs.take(32){
-        assert_f64_near!(val.dist(), 1.0);
+        assert_f64_near!(val.norm(), 1.0);
+    }
+    // the speed around the circle is not constant (which is impossible to do exactly)
+    // but at 0.0, 1.0, 2.0, 3.0 and 4.0 it coincides
+    for val in [0.0f64,1.0,2.0,3.0,4.0].iter().copied() {
+        // scale value to the corresponding circumference
+        let circle_point = Point::new((val * 0.5 * PI).cos(),(val * 0.5 * PI).sin());
+        assert_float_absolute_eq!(nurbs.gen(val).dist(circle_point),0.0);
     }
     println!("Successful creation of unit circle with a NURBS!");
-    // the speed around the circle is not constant (which is impossible)
     // but we can approximate it by linearizing.
-
 }

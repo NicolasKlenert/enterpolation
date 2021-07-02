@@ -1,6 +1,6 @@
 use num_traits::real::Real;
 use core::ops::{Add, Mul, RangeBounds, Bound};
-use crate::{Generator, Interpolation, Curve, DiscreteGenerator, ConstDiscreteGenerator};
+use crate::{Generator, Interpolation, Curve, DiscreteGenerator, ConstDiscreteGenerator, SortedGenerator};
 
 /// Acts like a slice of a curve
 ///
@@ -332,4 +332,11 @@ where
     fn len(&self) -> usize {
         self.inner.len() + 2*self.n
     }
+}
+
+impl<G> SortedGenerator for BorderBuffer<G>
+where
+    G: SortedGenerator,
+{
+    //TODO: make it more efficient
 }

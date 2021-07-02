@@ -4,11 +4,11 @@
 
 //TODO: EXAMPLE
 
-use core::ops::{Add, Mul, Div};
+use core::ops::{Mul, Div};
 use core::marker::PhantomData;
 use num_traits::real::Real;
 use num_traits::identities::Zero;
-use crate::{Generator, DiscreteGenerator, ConstDiscreteGenerator, Space, TransformInput, DynSpace, ConstSpace};
+use crate::{Generator, DiscreteGenerator, ConstDiscreteGenerator, Space, TransformInput, DynSpace, ConstSpace, Merge};
 use crate::weights::{Weighted, Weights, IntoWeight, Homogeneous};
 use crate::builder::{WithWeight,WithoutWeight,Unknown, InputDomain, NormalizedInput};
 use super::Bezier;
@@ -189,7 +189,7 @@ where E: DiscreteGenerator
 impl<R,E,S> BezierBuilder<NormalizedInput<R>,E,S, WithoutWeight>
 where
     E: DiscreteGenerator,
-    E::Output: Add<Output = E::Output> + Mul<R, Output = E::Output> + Copy,
+    E::Output: Merge<R>,
     S: Space<E::Output>,
     R: Real
 {
@@ -202,7 +202,7 @@ where
 impl<R,E,S> BezierBuilder<InputDomain<R>,E,S, WithoutWeight>
 where
     E: DiscreteGenerator,
-    E::Output: Add<Output = E::Output> + Mul<R, Output = E::Output> + Copy,
+    E::Output: Merge<R> + Copy,
     S: Space<E::Output>,
     R: Real
 {
@@ -218,10 +218,7 @@ where
     G: DiscreteGenerator,
     G::Output: IntoWeight,
     S: Space<Homogeneous<<G::Output as IntoWeight>::Element, <G::Output as IntoWeight>::Weight>>,
-    <Weights<G> as Generator<usize>>::Output:
-        Add<Output = <Weights<G> as Generator<usize>>::Output> +
-        Mul<R, Output = <Weights<G> as Generator<usize>>::Output> +
-        Copy,
+    <Weights<G> as Generator<usize>>::Output: Merge<R>,
     <G::Output as IntoWeight>::Element: Div<<G::Output as IntoWeight>::Weight, Output = <G::Output as IntoWeight>::Element>,
 {
     /// Build a weighted bezier interpolation.
@@ -237,10 +234,7 @@ where
     G: DiscreteGenerator,
     G::Output: IntoWeight,
     S: Space<Homogeneous<<G::Output as IntoWeight>::Element, <G::Output as IntoWeight>::Weight>>,
-    <Weights<G> as Generator<usize>>::Output:
-        Add<Output = <Weights<G> as Generator<usize>>::Output> +
-        Mul<R, Output = <Weights<G> as Generator<usize>>::Output> +
-        Copy,
+    <Weights<G> as Generator<usize>>::Output: Merge<R> + Copy,
     <G::Output as IntoWeight>::Element: Div<<G::Output as IntoWeight>::Weight, Output = <G::Output as IntoWeight>::Element>,
 {
     /// Build a weighted bezier interpolation with given domain.

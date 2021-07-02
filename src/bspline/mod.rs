@@ -12,8 +12,7 @@ mod builder;
 pub use error::{BSplineError, NonValidDegree, Empty, TooSmallWorkspace, NotSorted};
 pub use builder::BSplineBuilder;
 
-use core::ops::{Add, Mul};
-use crate::{Generator, SortedGenerator, DiscreteGenerator, Space, Interpolation, Curve, Sorted};
+use crate::{Generator, SortedGenerator, DiscreteGenerator, Space, Interpolation, Curve, Sorted, Merge};
 use crate::builder::Unknown;
 use builder::Open;
 use num_traits::real::Real;
@@ -58,7 +57,7 @@ impl<K,E,S,R> Generator<R> for BSpline<K,E,S>
 where
     E: DiscreteGenerator,
     S: Space<E::Output>,
-    E::Output: Add<Output = E::Output> + Mul<R, Output = E::Output> + Copy,
+    E::Output: Merge<R> + Copy,
     R: Real,
     K: SortedGenerator<Output = R>
 {
@@ -80,7 +79,7 @@ where
             for j in 0..=(self.degree-r){
                 let i = j+r+index-self.degree;
                 let factor = (scalar - self.knots.gen(i-1))/(self.knots.gen(i+self.degree-r) - self.knots.gen(i-1));
-                elements[j] = elements[j] * (R::one() - factor) + elements[j+1] * factor;
+                elements[j] = elements[j].merge(elements[j+1], factor);
             }
         }
         elements[0]
@@ -91,7 +90,7 @@ impl<K,E,S,R> Interpolation<R> for BSpline<K,E,S>
 where
     E: DiscreteGenerator,
     S: Space<E::Output>,
-    E::Output: Add<Output = E::Output> + Mul<R, Output = E::Output> + Copy,
+    E::Output: Merge<R> + Copy,
     R: Real,
     K: SortedGenerator<Output = R>
 {}
@@ -100,12 +99,12 @@ impl<K,E,S,R> Curve<R> for BSpline<K,E,S>
 where
     E: DiscreteGenerator,
     S: Space<E::Output>,
-    E::Output: Add<Output = E::Output> + Mul<R, Output = E::Output> + Copy,
+    E::Output: Merge<R> + Copy,
     R: Real,
     K: SortedGenerator<Output = R>
 {
     fn domain(&self) -> [R; 2] {
-        [self.knots.gen(self.degree-1), self.knots.gen(self.knots.len() - self.degree - 2)]
+        [self.knots.gen(self.degree-1), self.knots.gen(self.knots.len() - self.degree)]
     }
 }
 
