@@ -9,7 +9,7 @@
 //! instead of O(log n) with n being the number of elements in the interpolation structure.
 
 use crate::{Generator, Interpolation, Curve, SortedGenerator,
-    DiscreteGenerator, ConstEquidistant, Merge};
+    DiscreteGenerator, ConstEquidistant, Merge, Easing, Identity};
 use crate::builder::Unknown;
 use num_traits::real::Real;
 
@@ -22,33 +22,16 @@ pub use builder::LinearBuilder;
 pub mod error;
 pub use error::{LinearError, ToFewElements, KnotElementInequality, NotSorted};
 
-/// Linear interpolate/extrapolate with the elements and knots given.
-/// Knots should be in increasing order and there has to be at least 2 knots.
-/// Also there has to be the same amount of elements and knots.
-/// These constrains are not checked!
-fn linear<R,K,E>(elements: &E, knots: &K, scalar: R) -> E::Output
-where
-    E: DiscreteGenerator,
-    K: SortedGenerator<Output = R>,
-    E::Output: Merge<R> + Debug,
-    R: Real + Debug
-{
-    //we use upper_border_with_factor as this allows us a performance improvement for equidistant knots
-    let (min_index, max_index, factor) = knots.upper_border(scalar);
-    let min_point = elements.gen(min_index);
-    let max_point = elements.gen(max_index);
-    min_point.merge(max_point,factor)
-}
-
 /// Linear Interpolation.
 #[derive(Debug, Copy, Clone)]
-pub struct Linear<K,E>
+pub struct Linear<K,E,F>
 {
     elements: E,
     knots: K,
+    easing: F,
 }
 
-impl Linear<Unknown,Unknown> {
+impl Linear<Unknown,Unknown, Unknown> {
     /// Get the builder for a linear interpolation.
     ///
     /// The builder takes:
@@ -76,16 +59,17 @@ impl Linear<Unknown,Unknown> {
     /// #     Ok(())
     /// # }
     /// ```
-    pub fn builder() -> LinearBuilder<Unknown,Unknown,Unknown> {
+    pub fn builder() -> LinearBuilder<Unknown,Unknown, Identity, Unknown> {
         LinearBuilder::new()
     }
 }
 
-impl<R,K,E> Generator<R> for Linear<K,E>
+impl<R,K,E,F> Generator<R> for Linear<K,E,F>
 where
-    E: DiscreteGenerator,
     K: SortedGenerator<Output = R>,
+    E: DiscreteGenerator,
     E::Output: Merge<R> + Debug,
+    F: Easing<R, Output = R>,
     R: Real + Debug
 {
     type Output = E::Output;
@@ -93,23 +77,29 @@ where
     ///
     /// Panics if `scalar` is NaN or similar.
     fn gen(&self, scalar: K::Output) -> Self::Output {
-        linear(&self.elements, &self.knots, scalar)
+        //we use upper_border_with_factor as this allows us a performance improvement for equidistant knots
+        let (min_index, max_index, factor) = self.knots.upper_border(scalar);
+        let min_point = self.elements.gen(min_index);
+        let max_point = self.elements.gen(max_index);
+        min_point.merge(max_point,self.easing.gen(factor))
     }
 }
 
-impl<R,K,E> Interpolation<R> for Linear<K,E>
+impl<R,K,E,F> Interpolation<R> for Linear<K,E,F>
 where
-    E: DiscreteGenerator,
     K: SortedGenerator<Output = R>,
+    E: DiscreteGenerator,
     E::Output: Merge<R> + Debug,
+    F: Easing<R, Output = R>,
     R: Real + Debug
 {}
 
-impl<R,K,E> Curve<R> for Linear<K,E>
+impl<R,K,E,F> Curve<R> for Linear<K,E,F>
 where
-    E: DiscreteGenerator,
     K: SortedGenerator<Output = R>,
+    E: DiscreteGenerator,
     E::Output: Merge<R> + Debug,
+    F: Easing<R, Output = R>,
     R: Real + Debug
 {
     fn domain(&self) -> [R; 2] {
@@ -117,17 +107,17 @@ where
     }
 }
 
-impl<K,E> Linear<K,E>
+impl<K,E,F> Linear<K,E,F>
 where
-    E: DiscreteGenerator,
     K: SortedGenerator,
-    E::Output: Merge<K::Output>,
-    K::Output: Real
+    K::Output: Real + Debug,
+    E: DiscreteGenerator,
+    E::Output: Merge<K::Output> + Debug,
 {
     /// Create a linear interpolation with slice-like collections of elements and knots.
     /// Knots should be in increasing order (not checked), there should be as many knots as elements
     /// and there has to be at least 2 elements.
-    pub fn new(elements: E, knots: K) -> Result<Self, LinearError>
+    pub fn new(elements: E, knots: K, easing: F) -> Result<Self, LinearError>
     {
         if elements.len() < 2 {
             return Err(ToFewElements::new(elements.len()).into());
@@ -138,32 +128,34 @@ where
         Ok(Linear {
             elements,
             knots,
+            easing,
         })
     }
 }
 
-impl<K,E> Linear<K,E>
+impl<K,E,F> Linear<K,E,F>
 where
     E: DiscreteGenerator,
     K: SortedGenerator,
     E::Output: Merge<K::Output>,
-    K::Output: Real
+    K::Output: Real,
 {
     /// Create a linear interpolation with slice-like collections of elements and knots.
     /// Knots should be in increasing order, there should be as many knots as elements
     /// and there has to be at least 2 elements.
     ///
     /// All requirements are not checked.
-    pub fn new_unchecked(elements: E, knots: K) -> Self
+    pub fn new_unchecked(elements: E, knots: K, easing: F) -> Self
     {
         Linear {
             elements,
             knots,
+            easing,
         }
     }
 }
 
-impl<R,T,const N: usize> Linear<ConstEquidistant<R,N>,[T;N]>
+impl<R,T,const N: usize> Linear<ConstEquidistant<R,N>,[T;N], Identity>
 {
     /// Create a linear interpolation with an array of elements.
     ///
@@ -178,6 +170,7 @@ impl<R,T,const N: usize> Linear<ConstEquidistant<R,N>,[T;N]>
         Linear {
             elements,
             knots: ConstEquidistant::new(),
+            easing: Identity::new(),
         }
     }
 }
@@ -187,7 +180,7 @@ impl<R,T,const N: usize> Linear<ConstEquidistant<R,N>,[T;N]>
 /// This alias is used for convenience to help create constant curves.
 ///
 /// **Because this is an alias, not all its methods are listed here. See the [`Linear`](crate::linear::Linear) type too.**
-pub type ConstEquidistantLinear<R,T,const N: usize> = Linear<ConstEquidistant<R,N>,[T;N]>;
+pub type ConstEquidistantLinear<R,T,const N: usize> = Linear<ConstEquidistant<R,N>,[T;N], Identity>;
 
 
 #[cfg(test)]

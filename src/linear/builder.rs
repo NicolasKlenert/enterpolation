@@ -9,7 +9,7 @@ use core::marker::PhantomData;
 use num_traits::real::Real;
 use num_traits::FromPrimitive;
 use num_traits::identities::Zero;
-use crate::{Generator, DiscreteGenerator, SortedGenerator, Sorted, Equidistant, Merge};
+use crate::{Generator, DiscreteGenerator, SortedGenerator, Sorted, Equidistant, Merge, Identity};
 use crate::weights::{Weighted, Weights, IntoWeight};
 use crate::builder::{WithWeight, WithoutWeight, Type, Unknown};
 use super::Linear;
@@ -28,32 +28,34 @@ use super::error::{LinearError, ToFewElements, KnotElementInequality};
 /// - The knots the interpolation uses. Either by giving them directly with `knots` or by using
 /// equidistant knots with `equidistant`.
 #[derive(Debug, Clone)]
-pub struct LinearBuilder<K,E,W> {
+pub struct LinearBuilder<K,E,F,W> {
     knots: K,
     elements: E,
+    easing: F,
     _phantom: PhantomData<*const W>,
 }
 
-impl Default for LinearBuilder<Unknown, Unknown, Unknown> {
+impl Default for LinearBuilder<Unknown, Unknown, Identity, Unknown> {
     fn default() -> Self {
         LinearBuilder::new()
     }
 }
 
-impl LinearBuilder<Unknown, Unknown, Unknown> {
+impl LinearBuilder<Unknown, Unknown, Identity, Unknown> {
     /// Create a new linear interpolation builder.
     pub const fn new() -> Self {
         LinearBuilder {
             knots: Unknown,
             elements: Unknown,
+            easing: Identity::new(),
             _phantom: PhantomData,
         }
     }
 }
 
-impl LinearBuilder<Unknown, Unknown, Unknown> {
+impl<F> LinearBuilder<Unknown, Unknown, F, Unknown> {
     /// Set the elements of the linear interpolation.
-    pub fn elements<E>(self, elements: E) -> Result<LinearBuilder<Unknown, E, WithoutWeight>, ToFewElements>
+    pub fn elements<E>(self, elements: E) -> Result<LinearBuilder<Unknown, E, F, WithoutWeight>, ToFewElements>
     where E: DiscreteGenerator,
     {
         if elements.len() < 2 {
@@ -62,6 +64,7 @@ impl LinearBuilder<Unknown, Unknown, Unknown> {
         Ok(LinearBuilder {
             knots: self.knots,
             elements,
+            easing: self.easing,
             _phantom: PhantomData,
         })
     }
@@ -100,7 +103,7 @@ impl LinearBuilder<Unknown, Unknown, Unknown> {
     /// # }
     /// ```
     pub fn elements_with_weights<G>(self, gen: G)
-        -> Result<LinearBuilder<Unknown, Weights<G>, WithWeight>,ToFewElements>
+        -> Result<LinearBuilder<Unknown, Weights<G>, F, WithWeight>,ToFewElements>
     where
         G: DiscreteGenerator,
         G::Output: IntoWeight,
@@ -114,12 +117,13 @@ impl LinearBuilder<Unknown, Unknown, Unknown> {
         Ok(LinearBuilder {
             knots: self.knots,
             elements: Weights::new(gen),
+            easing: self.easing,
             _phantom: PhantomData,
         })
     }
 }
 
-impl<E,W> LinearBuilder<Unknown, E, W>
+impl<E,F,W> LinearBuilder<Unknown, E, F, W>
 {
     /// Set the knots of the interpolation.
     ///
@@ -129,7 +133,7 @@ impl<E,W> LinearBuilder<Unknown, E, W>
     ///
     /// If you have equidistant knots, near equidistant knots are you do not really care about
     /// knots, consider using `equidistant()` instead.
-    pub fn knots<K>(self, knots: K) -> Result<LinearBuilder<Sorted<K>,E, W>, LinearError>
+    pub fn knots<K>(self, knots: K) -> Result<LinearBuilder<Sorted<K>,E, F, W>, LinearError>
     where
         E: DiscreteGenerator,
         K: DiscreteGenerator,
@@ -141,45 +145,72 @@ impl<E,W> LinearBuilder<Unknown, E, W>
         Ok(LinearBuilder {
             knots: Sorted::new(knots)?,
             elements: self.elements,
+            easing: self.easing,
             _phantom: self._phantom,
         })
     }
 
     /// Build an interpolation with equidistant knots.
-    pub fn equidistant<R>(self) -> LinearBuilder<Type<R>,E,W>{
+    pub fn equidistant<R>(self) -> LinearBuilder<Type<R>,E,F,W>{
         LinearBuilder {
             knots: Type::new(),
             elements: self.elements,
+            easing: self.easing,
             _phantom: self._phantom,
         }
     }
 }
 
-impl<R,E,W> LinearBuilder<Type<R>,E,W>
+impl<R,E,F,W> LinearBuilder<Type<R>,E,F,W>
 where
     E: DiscreteGenerator,
     R: Real + FromPrimitive,
 {
     /// Set the domain of the interpolation.
-    pub fn domain(self, start: R, end: R) -> LinearBuilder<Equidistant<R>,E,W>{
+    pub fn domain(self, start: R, end: R) -> LinearBuilder<Equidistant<R>,E,F,W>{
         LinearBuilder {
             knots: Equidistant::new(self.elements.len(), start, end),
             elements: self.elements,
+            easing: self.easing,
             _phantom: self._phantom,
         }
     }
 
     /// Set the domain of the interpolation to be [0.0,1.0].
-    pub fn normalized(self) -> LinearBuilder<Equidistant<R>,E,W>{
+    pub fn normalized(self) -> LinearBuilder<Equidistant<R>,E,F,W>{
         LinearBuilder {
             knots: Equidistant::normalized(self.elements.len()),
             elements: self.elements,
+            easing: self.easing,
             _phantom: self._phantom,
         }
     }
 }
 
-impl<K,E> LinearBuilder<K,E,WithoutWeight>
+impl<K,E,F,W> LinearBuilder<K,E,F,W>
+where
+    K: SortedGenerator
+{
+    /// Set another easing function.
+    ///
+    /// This interpolation uses a factor to merge elements together.
+    /// The dynamic how to merge these two elements together can be changed by easing the factor itself
+    /// before merging.
+    ///
+    /// # Examples
+    ///
+    /// See the plateau example for more information.
+    pub fn easing<FF>(self, easing: FF) -> LinearBuilder<K,E,FF,W>{
+        LinearBuilder {
+            knots: self.knots,
+            elements: self.elements,
+            easing,
+            _phantom: self._phantom,
+        }
+    }
+}
+
+impl<K,E,F> LinearBuilder<K,E,F,WithoutWeight>
 where
     E: DiscreteGenerator,
     K: SortedGenerator,
@@ -187,13 +218,13 @@ where
     K::Output: Real
 {
     /// Build a linear interpolation.
-    pub fn build(self) -> Linear<K,E>{
+    pub fn build(self) -> Linear<K,E,F>{
         // safe as we check all requirements beforehand
-        Linear::new_unchecked(self.elements, self.knots)
+        Linear::new_unchecked(self.elements, self.knots, self.easing)
     }
 }
 
-impl<K,G> LinearBuilder<K,Weights<G>,WithWeight>
+impl<K,G,F> LinearBuilder<K,Weights<G>,F,WithWeight>
 where
     K: SortedGenerator,
     K::Output: Real + Copy,
@@ -202,10 +233,10 @@ where
     <Weights<G> as Generator<usize>>::Output: Merge<K::Output>,
 {
     /// Build a weighted linear interpolation.
-    pub fn build(self) -> Weighted<Linear<K,Weights<G>>>
+    pub fn build(self) -> Weighted<Linear<K,Weights<G>,F>>
     {
         // safe as we check all requirements beforehand
-        Weighted::new(Linear::new_unchecked(self.elements, self.knots))
+        Weighted::new(Linear::new_unchecked(self.elements, self.knots, self.easing))
     }
 }
 

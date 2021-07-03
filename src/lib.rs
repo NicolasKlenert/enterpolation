@@ -37,6 +37,7 @@ pub mod bezier;
 pub mod bspline;
 pub mod utils;
 pub mod weights;
+pub mod easing;
 
 // mod real;
 // mod never;
@@ -46,6 +47,7 @@ mod builder;
 pub use base::{Generator, Interpolation, Curve, Extract, Stepper, Space, ConstSpace, DynSpace,
     DiscreteGenerator, ConstDiscreteGenerator, Equidistant, ConstEquidistant,
     Sorted, SortedGenerator, NotSorted, TransformInput, Chain, Stack, Slice, Repeat, Wrap, BorderBuffer};
+pub use easing::{Easing, Identity};
 // pub use weights::{Homogeneous, Weighted, Weights, IntoWeight};
 
 use core::ops::{Add,Mul};
