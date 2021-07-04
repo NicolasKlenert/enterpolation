@@ -185,6 +185,15 @@ where
             _phantom: self._phantom,
         }
     }
+    /// Set the domain of the interpolation by defining the distance between the knots
+    pub fn distance(self, start: R, step: R) -> LinearBuilder<Equidistant<R>,E,F,W>{
+        LinearBuilder {
+            knots: Equidistant::step(self.elements.len(), start, step),
+            elements: self.elements,
+            easing: self.easing,
+            _phantom: self._phantom,
+        }
+    }
 }
 
 impl<K,E,F,W> LinearBuilder<K,E,F,W>

@@ -317,7 +317,7 @@ pub struct Equidistant<R = f64>{
 impl<R> Equidistant<R>
 where R: Real + FromPrimitive
 {
-    /// Create a generator for equidistant real numbers with `len` steps from 0.0 to 1.0.
+    /// Create a generator for equidistant real numbers with `len-1` steps from 0.0 to 1.0.
     ///
     /// #Panics
     ///
@@ -330,7 +330,7 @@ where R: Real + FromPrimitive
         }
     }
 
-    /// Create a generator for equidistant real numbers with `len` steps from `start` to `end`.
+    /// Create a generator for equidistant real numbers with `len-1` steps from `start` to `end`.
     ///
     /// #Panics
     ///
@@ -340,6 +340,15 @@ where R: Real + FromPrimitive
             len,
             step: (end - start) / R::from_usize(len - 1).unwrap(),
             offset: start
+        }
+    }
+
+    /// Create a generator for equidistant real number with `len-1` steps from `start` to `end`.
+    pub fn step(len: usize, start: R, step: R) -> Self {
+        Equidistant {
+            len,
+            step,
+            offset: start,
         }
     }
 }

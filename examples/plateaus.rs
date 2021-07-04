@@ -77,6 +77,7 @@ fn main(){
         }else {
             let graph = lin.gen(remap(x as f32, 0.0, width as f32, dmin, dmax));
             let graph = remap(graph, omin, omax, 0.0,1.0);
+            // test if pixel falls into the area of the graph
             if (graph - remap((y-upper_height) as f32, bottom_height as f32, 0.0, 0.0, 1.0)).abs() < 0.01 {
                 [0,0,0]
             }else {

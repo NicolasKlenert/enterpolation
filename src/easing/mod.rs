@@ -27,6 +27,17 @@ pub struct FuncEase<F> {
     func: F,
 }
 
+impl<F> FuncEase<F>{
+    /// Create a new struct which implements the `Easing` trait.
+    ///
+    /// The given function should hold the requirements of an easing function.
+    pub fn new(func: F) -> Self {
+        FuncEase {
+            func
+        }
+    }
+}
+
 impl<F,R> Generator<R> for FuncEase<F>
 where F: Fn(R) -> R,
 {

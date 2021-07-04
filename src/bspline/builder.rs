@@ -265,7 +265,7 @@ where
         }
 
         Ok(BSplineBuilder{
-            knots: UnknownDomain::new(self.elements.len() + degree - 1, degree),
+            knots: UnknownDomain::new(self.elements.len() - 1 + degree, degree),
             elements: self.elements,
             space: self.space,
             _phantoms: self._phantoms,
@@ -353,6 +353,15 @@ where
             _phantoms: self._phantoms,
         }
     }
+    /// Set the domain of the interpolation by defining the distance between the knots
+    pub fn distance(self, start: R, step: R) -> BSplineBuilder<Equidistant<R>,E,Unknown,W,Open>{
+        BSplineBuilder {
+            knots: Equidistant::step(self.knots.len(), start, step),
+            elements: self.elements,
+            space: self.space,
+            _phantoms: self._phantoms,
+        }
+    }
 }
 
 impl<R,E,W> BSplineBuilder<UnknownDomain<R>, E, Unknown, W, Clamped>
@@ -374,6 +383,15 @@ where
     pub fn normalized(self) -> BSplineBuilder<BorderBuffer<Equidistant<R>>,E,Unknown,W,Clamped>{
         BSplineBuilder {
             knots: BorderBuffer::new(Equidistant::normalized(self.knots.len()), self.knots.deg()-1),
+            elements: self.elements,
+            space: self.space,
+            _phantoms: self._phantoms,
+        }
+    }
+    /// Set the domain of the interpolation by defining the distance between the knots
+    pub fn distance(self, start: R, step: R) -> BSplineBuilder<BorderBuffer<Equidistant<R>>,E,Unknown,W,Clamped>{
+        BSplineBuilder {
+            knots: BorderBuffer::new(Equidistant::step(self.knots.len(), start, step), self.knots.deg()-1),
             elements: self.elements,
             space: self.space,
             _phantoms: self._phantoms,
