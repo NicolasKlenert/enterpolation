@@ -11,9 +11,9 @@ use num_traits::FromPrimitive;
 use num_traits::identities::Zero;
 use crate::{Generator, DiscreteGenerator, SortedGenerator, Sorted, Equidistant, Merge, Identity};
 use crate::weights::{Weighted, Weights, IntoWeight};
-use crate::builder::{WithWeight, WithoutWeight, Type, Unknown};
+use crate::builder::{WithWeight,WithoutWeight, Type, Unknown};
 use super::Linear;
-use super::error::{LinearError, ToFewElements, KnotElementInequality};
+use super::error::{LinearError, TooFewElements, KnotElementInequality};
 
 //TODO: add unchecked versions
 
@@ -55,11 +55,11 @@ impl LinearBuilder<Unknown, Unknown, Identity, Unknown> {
 
 impl<F> LinearBuilder<Unknown, Unknown, F, Unknown> {
     /// Set the elements of the linear interpolation.
-    pub fn elements<E>(self, elements: E) -> Result<LinearBuilder<Unknown, E, F, WithoutWeight>, ToFewElements>
+    pub fn elements<E>(self, elements: E) -> Result<LinearBuilder<Unknown, E, F, WithoutWeight>, TooFewElements>
     where E: DiscreteGenerator,
     {
         if elements.len() < 2 {
-            return Err(ToFewElements::new(elements.len()));
+            return Err(TooFewElements::new(elements.len()));
         }
         Ok(LinearBuilder {
             knots: self.knots,
@@ -84,11 +84,10 @@ impl<F> LinearBuilder<Unknown, Unknown, F, Unknown> {
     /// # Examples
     ///
     /// ```rust
-    /// # use std::error::Error;
-    /// # use enterpolation::{linear::Linear, Generator, Curve};
+    /// # use enterpolation::{linear::{Linear, LinearError}, Generator, Curve};
     /// # use assert_float_eq::{afe_is_f64_near, afe_near_error_msg, assert_f64_near};
     /// #
-    /// # fn main() -> Result<(), Box<dyn Error>> {
+    /// # fn main() -> Result<(), LinearError> {
     /// let linear = Linear::builder()
     ///                 .elements_with_weights([(1.0,1.0),(2.0,4.0),(3.0,0.0)])?
     ///                 .equidistant::<f64>()
@@ -103,7 +102,7 @@ impl<F> LinearBuilder<Unknown, Unknown, F, Unknown> {
     /// # }
     /// ```
     pub fn elements_with_weights<G>(self, gen: G)
-        -> Result<LinearBuilder<Unknown, Weights<G>, F, WithWeight>,ToFewElements>
+        -> Result<LinearBuilder<Unknown, Weights<G>, F, WithWeight>,TooFewElements>
     where
         G: DiscreteGenerator,
         G::Output: IntoWeight,
@@ -112,7 +111,7 @@ impl<F> LinearBuilder<Unknown, Unknown, F, Unknown> {
         <G::Output as IntoWeight>::Weight: Zero + Copy,
     {
         if gen.len() < 2 {
-            return Err(ToFewElements::new(gen.len()));
+            return Err(TooFewElements::new(gen.len()));
         }
         Ok(LinearBuilder {
             knots: self.knots,
@@ -252,10 +251,10 @@ where
 #[cfg(test)]
 mod test {
     use super::LinearBuilder;
-    // Homogeneous for creating Homogeneous, Generator for using .stack()
+    // Homogeneous for creating Homogeneous, Generator for using .stack(
     use crate::{weights::Homogeneous, Generator};
     #[test]
-    fn building() {
+    fn building_weights() {
         LinearBuilder::new()
             .elements_with_weights([(1.0,1.0),(2.0,2.0),(3.0,0.0)]).unwrap()
             .equidistant::<f64>()
@@ -274,7 +273,7 @@ mod test {
             .knots([1.0,2.0,3.0]).unwrap()
             .build();
         LinearBuilder::new()
-            .elements(vec![0.1,0.2,0.3]).unwrap()
+            .elements([0.1,0.2,0.3]).unwrap()
             .equidistant::<f64>()
             .normalized()
             .build();

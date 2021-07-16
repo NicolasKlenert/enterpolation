@@ -20,7 +20,7 @@ mod builder;
 pub use builder::LinearBuilder;
 
 pub mod error;
-pub use error::{LinearError, ToFewElements, KnotElementInequality, NotSorted};
+pub use error::{LinearError, TooFewElements, KnotElementInequality, NotSorted};
 
 /// Linear Interpolation.
 #[derive(Debug, Copy, Clone)]
@@ -42,10 +42,10 @@ impl Linear<Unknown,Unknown, Unknown> {
     ///
     /// ```rust
     /// # use std::error::Error;
-    /// # use enterpolation::{linear::Linear, Generator, Curve};
+    /// # use enterpolation::{linear::{Linear, LinearError}, Generator, Curve};
     /// # use assert_float_eq::{afe_is_f64_near, afe_near_error_msg, assert_f64_near};
     /// #
-    /// # fn main() -> Result<(), Box<dyn Error>> {
+    /// # fn main() -> Result<(), LinearError> {
     /// let linear = Linear::builder()
     ///                 .elements([0.0,5.0,3.0])?
     ///                 .equidistant::<f64>()
@@ -120,7 +120,7 @@ where
     pub fn new(elements: E, knots: K, easing: F) -> Result<Self, LinearError>
     {
         if elements.len() < 2 {
-            return Err(ToFewElements::new(elements.len()).into());
+            return Err(TooFewElements::new(elements.len()).into());
         }
         if knots.len() != elements.len() {
             return Err(KnotElementInequality::new(elements.len(), knots.len()).into());
@@ -190,9 +190,8 @@ mod test {
 
     #[test]
     fn linear_equidistant() {
-        //DynamicEquidistantLinear
         let lin = Linear::builder()
-            .elements(vec![20.0,100.0,0.0,200.0]).unwrap()
+            .elements([20.0,100.0,0.0,200.0]).unwrap()
             .equidistant::<f64>()
             .normalized()
             .build();
@@ -208,8 +207,8 @@ mod test {
     fn linear() {
         //DynamicLinear
         let lin = Linear::builder()
-            .elements(vec![20.0,100.0,0.0,200.0]).unwrap()
-            .knots(vec![0.0,1.0/3.0,2.0/3.0,1.0]).unwrap()
+            .elements([20.0,100.0,0.0,200.0]).unwrap()
+            .knots([0.0,1.0/3.0,2.0/3.0,1.0]).unwrap()
             .build();
         let expected = [20.0,60.0,100.0,50.0,0.0,100.0,200.0];
         let mut iter = lin.take(expected.len());
@@ -234,7 +233,7 @@ mod test {
     #[test]
     fn weights(){
         let lin = Linear::builder()
-            .elements_with_weights(vec![(0.0,9.0),(1.0,1.0)]).unwrap()
+            .elements_with_weights([(0.0,9.0),(1.0,1.0)]).unwrap()
             .equidistant::<f64>()
             .normalized()
             .build();

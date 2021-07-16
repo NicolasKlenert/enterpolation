@@ -14,15 +14,19 @@ pub use adaptors::{Chain, Stack, TransformInput, Slice, Repeat, Wrap, BorderBuff
 #[allow(unreachable_pub)]
 pub use list::{Equidistant, ConstEquidistant, SortedGenerator, Sorted, NotSorted};
 #[allow(unreachable_pub)]
-pub use space::{Space, DynSpace, ConstSpace};
+pub use space::{Space, ConstSpace};
+#[allow(unreachable_pub)]
+#[cfg(feature = "std")]
+pub use space::DynSpace;
 
+#[cfg(feature = "std")]
 impl<T: Copy> Generator<usize> for Vec<T> {
     type Output = T;
     fn gen(&self, input: usize) -> Self::Output {
         self[input]
     }
 }
-
+#[cfg(feature = "std")]
 impl<T: Copy> DiscreteGenerator for Vec<T> {
     fn len(&self) -> usize {
         self.len()
@@ -30,6 +34,7 @@ impl<T: Copy> DiscreteGenerator for Vec<T> {
 }
 
 /// A stack of values or generators
+#[cfg(feature = "std")]
 impl<G,I> Generator<(usize, I)> for Vec<G>
 where G: Generator<I>
 {

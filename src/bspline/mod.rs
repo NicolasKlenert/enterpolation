@@ -9,13 +9,15 @@
 mod error;
 mod builder;
 
-pub use error::{BSplineError, NonValidDegree, Empty, TooSmallWorkspace, NotSorted};
+pub use error::{BSplineError, NonValidDegree, TooSmallWorkspace, NotSorted, TooFewElements};
 pub use builder::BSplineBuilder;
 
 use crate::{Generator, SortedGenerator, DiscreteGenerator, Space, Interpolation, Curve, Sorted, Merge};
 use crate::builder::Unknown;
 use builder::Open;
 use num_traits::real::Real;
+
+use core::fmt::Debug;
 
 /// BSplines are generalisations of Bezier Curves.
 /// They allow you to define curves with a lot of control points without increasing the degree of the curve.
@@ -58,7 +60,7 @@ where
     E: DiscreteGenerator,
     S: Space<E::Output>,
     E::Output: Merge<R> + Copy,
-    R: Real,
+    R: Real + Debug,
     K: SortedGenerator<Output = R>
 {
     type Output = E::Output;
@@ -91,7 +93,7 @@ where
     E: DiscreteGenerator,
     S: Space<E::Output>,
     E::Output: Merge<R> + Copy,
-    R: Real,
+    R: Real + Debug,
     K: SortedGenerator<Output = R>
 {}
 
@@ -100,7 +102,7 @@ where
     E: DiscreteGenerator,
     S: Space<E::Output>,
     E::Output: Merge<R> + Copy,
-    R: Real,
+    R: Real + Debug,
     K: SortedGenerator<Output = R>
 {
     fn domain(&self) -> [R; 2] {
@@ -166,11 +168,11 @@ where
     /// The domain for the curve with degree p is knots[p-1] and knots[knots.len() - p -2].
     pub fn new(elements: E, knots: K, space: S) -> Result<Self, BSplineError>
     {
-        if elements.is_empty() {
-            return Err(Empty::new().into());
-        }
         if knots.len() < elements.len() {
             return Err(NonValidDegree::new(knots.len() as isize - elements.len() as isize +1).into());
+        }
+        if elements.len() < knots.len() - elements.len() {
+            return Err(TooFewElements::new(elements.len()).into());
         }
         let degree = knots.len() - elements.len() + 1;
         if space.len() <= degree {
@@ -214,14 +216,14 @@ mod test {
 
     #[test]
     fn linear_bspline() {
-        let expect: Vec<(f32, f32)> = vec![(-1.0,-1.0),(0.0, 0.0), (0.2, 0.2), (0.4, 0.4), (0.6, 0.6),
+        let expect = [(-1.0,-1.0),(0.0, 0.0), (0.2, 0.2), (0.4, 0.4), (0.6, 0.6),
                           (0.8, 0.8), (1.0, 1.0),(2.0,2.0)];
         let points = [0.0f32, 1.0];
         let knots = [0.0f32, 1.0];
         let spline = BSpline::builder()
-            .elements(points).unwrap()
+            .elements(points)
             .knots(knots).unwrap()
-            .dynamic()
+            .constant::<2>().unwrap()
             .build();
         for i in 0..expect.len(){
             assert_f32_near!(spline.gen(expect[i].0),expect[i].1);
@@ -229,14 +231,14 @@ mod test {
     }
     #[test]
     fn quadratic_bspline() {
-        let expect: Vec<(f32, f32)> = vec![(0.0, 0.0), (0.5, 0.125), (1.0, 0.5), (1.4, 0.74), (1.5, 0.75),
+        let expect = [(0.0, 0.0), (0.5, 0.125), (1.0, 0.5), (1.4, 0.74), (1.5, 0.75),
                           (1.6, 0.74), (2.0, 0.5), (2.5, 0.125), (3.0, 0.0)];
         let points = [0.0f32, 0.0, 1.0, 0.0, 0.0];
         let knots = [0.0f32, 0.0, 1.0, 2.0, 3.0, 3.0];
         let spline = BSpline::builder()
-            .elements(points).unwrap()
+            .elements(points)
             .knots(knots).unwrap()
-            .dynamic()
+            .constant::<3>().unwrap()
             .build();
         for i in 0..expect.len(){
             assert_f32_near!(spline.gen(expect[i].0),expect[i].1);
@@ -244,14 +246,14 @@ mod test {
     }
     #[test]
     fn cubic_bspline() {
-        let expect: Vec<(f32, f32)> = vec![(-2.0, 0.0), (-1.5, 0.125), (-1.0, 1.0), (-0.6, 2.488),
+        let expect = [(-2.0, 0.0), (-1.5, 0.125), (-1.0, 1.0), (-0.6, 2.488),
                            (0.0, 4.0), (0.5, 2.875), (1.5, 0.12500001), (2.0, 0.0)];
         let points = [0.0f32, 0.0, 0.0, 6.0, 0.0, 0.0, 0.0];
         let knots = [-2.0f32, -2.0, -2.0, -1.0, 0.0, 1.0, 2.0, 2.0, 2.0];
         let spline = BSpline::builder()
-            .elements(points).unwrap()
+            .elements(points)
             .knots(knots).unwrap()
-            .dynamic()
+            .constant::<4>().unwrap()
             .build();
         for i in 0..expect.len(){
             assert_f32_near!(spline.gen(expect[i].0),expect[i].1);
@@ -259,16 +261,16 @@ mod test {
     }
     #[test]
     fn quartic_bspline() {
-        let expect: Vec<(f32, f32)> = vec![(0.0, 0.0), (0.4, 0.0010666668), (1.0, 0.041666668),
+        let expect = [(0.0, 0.0), (0.4, 0.0010666668), (1.0, 0.041666668),
                           (1.5, 0.19791667), (2.0, 0.4583333), (2.5, 0.5989583),
                           (3.0, 0.4583333), (3.2, 0.35206667), (4.1, 0.02733751),
                           (4.5, 0.002604167), (5.0, 0.0)];
-        let points: Vec<f32> = vec![0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0];
-        let knots: Vec<f32> = vec![0.0, 0.0, 0.0, 0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 5.0, 5.0, 5.0];
+        let points = [0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0];
+        let knots = [0.0, 0.0, 0.0, 0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 5.0, 5.0, 5.0];
         let spline = BSpline::builder()
-            .elements(points).unwrap()
+            .elements(points)
             .knots(knots).unwrap()
-            .dynamic()
+            .constant::<5>().unwrap()
             .build();
         for i in 0..expect.len(){
             assert_f32_near!(spline.gen(expect[i].0),expect[i].1);
@@ -276,16 +278,16 @@ mod test {
     }
     #[test]
     fn quartic_bspline_f64() {
-        let expect: Vec<(f64, f64)> = vec![(0.0, 0.0), (0.4, 0.001066666666666667), (1.0, 0.041666666666666664),
+        let expect = [(0.0, 0.0), (0.4, 0.001066666666666667), (1.0, 0.041666666666666664),
                                            (1.5, 0.19791666666666666), (2.0, 0.45833333333333337), (2.5, 0.5989583333333334),
                                            (3.0, 0.4583333333333333), (3.2, 0.3520666666666666), (4.1, 0.027337500000000046),
                                            (4.5, 0.002604166666666666), (5.0, 0.0)];
-        let points: Vec<f64> = vec![0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0];
-        let knots: Vec<f64> = vec![0.0, 0.0, 0.0, 0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 5.0, 5.0, 5.0];
+        let points = [0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0];
+        let knots = [0.0, 0.0, 0.0, 0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 5.0, 5.0, 5.0];
         let spline = BSpline::builder()
-            .elements(points).unwrap()
+            .elements(points)
             .knots(knots).unwrap()
-            .dynamic()
+            .constant::<5>().unwrap()
             .build();
         for i in 0..expect.len(){
             assert_f64_near!(spline.gen(expect[i].0),expect[i].1);

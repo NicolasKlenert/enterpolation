@@ -10,6 +10,13 @@ license = "MIT OR Apache-2.0"
 readme = "README.md"
 keywords = ["interpolation", "curve", "spline", "lerp"]
 categories = ["graphics", "mathematics", "no-std"]
+# necessary for now to run cargo test with specific features, see https://github.com/rust-lang/cargo/issues/4663
+autoexamples = false
+
+# cargo test --no-default-features --features "linear"
+# cargo run --examples
+
+# TODO: run all examples before releasing!
 
 # When releasing to crates.io:
 #
@@ -41,7 +48,6 @@ version = "0.1.0"
 
 [dependencies]
 assert_float_eq = "1"
-thiserror = "1.0"
 num-traits = "0.2"
 
 [dev-dependencies]
@@ -50,7 +56,25 @@ palette = "0.5"
 image = "0.23"
 
 [features]
-# possible features libm, std,
-default = ["std"]
+default = ["std","linear","bezier","bspline"]
 std = ["num-traits/std"]
 libm = ["num-traits/libm"]
+linear = []
+bezier = []
+bspline = []
+
+[[example]]
+name = "gradient"
+required-features = ["bspline"]
+
+[[example]]
+name = "noise"
+required-features = ["bspline"]
+
+[[example]]
+name = "nurbs"
+required-features = ["bspline"]
+
+[[example]]
+name = "plateaus"
+required-features = ["linear"]

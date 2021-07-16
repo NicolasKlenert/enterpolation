@@ -100,10 +100,10 @@ impl Bezier<Unknown, Unknown, Unknown> {
     ///
     /// ```rust
     /// # use std::error::Error;
-    /// # use enterpolation::{bezier::Bezier, Generator, Curve};
+    /// # use enterpolation::{bezier::{Bezier, BezierError}, Generator, Curve};
     /// # use assert_float_eq::{afe_is_f64_near, afe_near_error_msg, assert_f64_near};
     /// #
-    /// # fn main() -> Result<(), Box<dyn Error>> {
+    /// # fn main() -> Result<(), BezierError> {
     /// let bez = Bezier::builder()
     ///     .elements([20.0,100.0,0.0,200.0])?
     ///     .normalized::<f64>()

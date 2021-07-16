@@ -33,7 +33,7 @@ fn main(){
     // we want to use a bspline with degree 3
     let spline = BSpline::builder()
         .clamped()
-        .elements([navy,magenta,pink,red,sandy]).expect("No colors were given for the gradient")
+        .elements([navy,magenta,pink,red,sandy])
         .equidistant::<f32>()
         .degree(3).expect("Degree of gradient is not valid")
         .normalized()

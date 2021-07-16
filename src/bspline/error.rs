@@ -1,32 +1,66 @@
-//! All error types for linear interpolation.
-
-use thiserror::Error;
+//! All error types for bspline interpolation.
 #[allow(unreachable_pub)]
 pub use crate::NotSorted;
 #[allow(unreachable_pub)]
-pub use crate::builder::{Empty, TooSmallWorkspace};
+pub use crate::builder::{TooFewElements, TooSmallWorkspace};
+
+use core::{fmt, convert::From};
+#[cfg(feature = "std")]
+use std::error::Error;
 
 /// Errors which could occur when using or creating a linear interpolation.
-#[derive(Error, Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub enum BSplineError {
-    /// Error returned if no elements are in the generator.
-    #[error(transparent)]
-    Empty(#[from] Empty),
+    /// Error returned if there are too few elements to generate a curve with the necessary degree.
+    TooFewElements(TooFewElements),
     /// Error returned if the workspace is not big enough.
-    #[error(transparent)]
-    TooSmallWorkspace(#[from] TooSmallWorkspace),
+    TooSmallWorkspace(TooSmallWorkspace),
     /// Error returned if the number of knots and elements would need a degree which is 0 or smaller.
-    #[error(transparent)]
-    NonValidDegree(#[from] NonValidDegree),
+    NonValidDegree(NonValidDegree),
     /// Error returned if knots are not sorted.
-    #[error(transparent)]
-    NotSorted(#[from] NotSorted),
+    NotSorted(NotSorted),
 }
 
+impl fmt::Display for BSplineError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            BSplineError::TooFewElements(inner) => inner.fmt(f),
+            BSplineError::NotSorted(inner) => inner.fmt(f),
+            BSplineError::NonValidDegree(inner) => inner.fmt(f),
+            BSplineError::TooSmallWorkspace(inner) => inner.fmt(f),
+        }
+    }
+}
+
+impl From<TooFewElements> for BSplineError {
+    fn from(from: TooFewElements) -> Self {
+        BSplineError::TooFewElements(from)
+    }
+}
+
+impl From<NonValidDegree> for BSplineError {
+    fn from(from: NonValidDegree) -> Self {
+        BSplineError::NonValidDegree(from)
+    }
+}
+
+impl From<NotSorted> for BSplineError {
+    fn from(from: NotSorted) -> Self {
+        BSplineError::NotSorted(from)
+    }
+}
+
+impl From<TooSmallWorkspace> for BSplineError {
+    fn from(from: TooSmallWorkspace) -> Self {
+        BSplineError::TooSmallWorkspace(from)
+    }
+}
+
+#[cfg(feature = "std")]
+impl Error for BSplineError {}
+
 /// Error returned if the number of elements and the number of knots are not matching.
-#[derive(Error, Debug, Copy, Clone)]
-#[error("The degree of the resulting curve is {degree} and such not valid.
-    Only striclty positive degrees less than the number of elements are allowed.")]
+#[derive(Debug, Copy, Clone)]
 pub struct NonValidDegree {
     /// The calculated degree
     degree: isize,
@@ -40,3 +74,13 @@ impl NonValidDegree {
         }
     }
 }
+
+impl fmt::Display for NonValidDegree {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "The degree of the resulting curve is {} and such not valid.
+            Only striclty positive degrees less than the number of elements are allowed.", self.degree)
+    }
+}
+
+#[cfg(feature = "std")]
+impl Error for NonValidDegree {}

@@ -66,9 +66,12 @@ where
     R: Real,
 {}
 
+/// Easing struct returning its input without modifying it.
+#[derive(Debug, Copy, Clone)]
 pub struct Identity{}
 
 impl Identity {
+    /// Create a new Identity Easing struct.
     pub const fn new() -> Self {
         Identity {}
     }

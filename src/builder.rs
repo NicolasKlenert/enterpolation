@@ -1,8 +1,10 @@
 //! Module with structures, utilities and errors used in many builders
 
 use core::marker::PhantomData;
-use thiserror::Error;
+use core::fmt;
 
+#[cfg(feature = "std")]
+use std::error::Error;
 // pub trait WeightMarker{}
 
 /// Struct indicator to mark that we don't use weights
@@ -18,9 +20,11 @@ pub struct WithWeight;
 pub struct Unknown;
 
 /// Struct to indicate to use normalized Input
+#[cfg(feature = "bezier")]
 #[derive(Debug, Copy, Clone)]
 pub struct NormalizedInput<R = f64>(PhantomData<*const R>);
 
+#[cfg(feature = "bezier")]
 impl<R> NormalizedInput<R> {
     pub const fn new() -> Self {
         NormalizedInput(PhantomData)
@@ -28,12 +32,14 @@ impl<R> NormalizedInput<R> {
 }
 
 /// Struct to indicate which input domain to use
+#[cfg(feature = "bezier")]
 #[derive(Debug, Copy, Clone)]
 pub struct InputDomain<R = f64>{
     pub start: R,
     pub end: R,
 }
 
+#[cfg(feature = "bezier")]
 impl<R> InputDomain<R>{
     pub fn new(start: R, end: R) -> Self {
         InputDomain{
@@ -44,9 +50,11 @@ impl<R> InputDomain<R>{
 }
 
 /// Struct indicator to mark which type to use
+#[cfg(any(feature = "linear",feature = "bspline"))]
 #[derive(Debug, Copy, Clone)]
 pub struct Type<R = f64>(PhantomData<*const R>);
 
+#[cfg(any(feature = "linear",feature = "bspline"))]
 impl<R> Type<R> {
     pub const fn new() -> Self {
         Type(PhantomData)
@@ -54,10 +62,11 @@ impl<R> Type<R> {
 }
 
 /// Error returned if if there are no elements.
-#[derive(Error, Debug, Copy, Clone)]
-#[error("No elements given, an empty generator is not allowed.")]
+#[cfg(feature = "bezier")]
+#[derive(Debug, Copy, Clone)]
 pub struct Empty {}
 
+#[cfg(feature = "bezier")]
 impl Empty {
     /// Create a new error.
     pub const fn new() -> Self {
@@ -65,14 +74,63 @@ impl Empty {
     }
 }
 
+#[cfg(feature = "bezier")]
+impl fmt::Display for Empty {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "No elements given, an empty generator is not allowed.")
+    }
+}
+
+#[cfg(all(feature = "std", feature = "bezier"))]
+impl Error for Empty {}
+
+/// Error returned if the elements are to few for the specific interpolation.
+#[cfg(any(feature = "linear", feature = "bspline"))]
+#[derive(Debug, Copy, Clone)]
+pub struct TooFewElements {
+    /// The number of elements found.
+    found: usize,
+}
+
+#[cfg(any(feature = "linear", feature = "bspline"))]
+impl fmt::Display for TooFewElements {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "To few elements given for a linear interpolation. {} elements were given, but at least 2 are necessary.", self.found)
+    }
+}
+
+#[cfg(all(feature = "std",any(feature = "linear", feature = "bspline")))]
+impl Error for TooFewElements {}
+
+#[cfg(any(feature = "linear", feature = "bspline"))]
+impl TooFewElements {
+    /// Create a new error and document the number of elements found.
+    pub fn new(found: usize) -> Self {
+        TooFewElements{
+            found
+        }
+    }
+}
+
 /// Error returned if if there are no elements.
-#[derive(Error, Debug, Copy, Clone)]
-#[error("The given workspace is too small with space for {found} elements, at least {necessary} have to fit.")]
+#[cfg(any(feature = "bezier", feature = "bspline"))]
+#[derive(Debug, Copy, Clone)]
 pub struct TooSmallWorkspace {
     found: usize,
     necessary: usize,
 }
 
+#[cfg(any(feature = "bezier", feature = "bspline"))]
+impl fmt::Display for TooSmallWorkspace {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "The given workspace is too small with space for {} elements, at least {} have to fit.", self.found, self.necessary)
+    }
+}
+
+#[cfg(all(feature = "std",any(feature = "bezier", feature = "bspline")))]
+impl Error for TooSmallWorkspace {}
+
+#[cfg(any(feature = "bezier", feature = "bspline"))]
 impl TooSmallWorkspace {
     /// Create a new error.
     pub fn new(found: usize, necessary: usize) -> Self {
@@ -82,5 +140,3 @@ impl TooSmallWorkspace {
         }
     }
 }
-
-//TOOD: add error WrongCallingOrder and implement it for all methods of the builder where a function is called too early!

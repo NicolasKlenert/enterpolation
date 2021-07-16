@@ -4,8 +4,12 @@ use core::cmp::Ordering;
 use num_traits::identities::Zero;
 use num_traits::real::Real;
 use num_traits::FromPrimitive;
-use thiserror::Error;
+use core::fmt;
 
+#[cfg(feature = "std")]
+use std::error::Error;
+
+//temp
 use core::fmt::Debug;
 
 use super::{Generator, DiscreteGenerator};
@@ -47,7 +51,7 @@ pub trait SortedGenerator : DiscreteGenerator
 {
     /// Returns the smallest index between `min` and `max`
     /// for which the corresponding element is bigger then the input.
-    /// If all elements are bigger, this function will return the given maximum.
+    /// If all elements are smaller, this function will return the given maximum.
     ///
     /// #Panic
     ///
@@ -278,9 +282,7 @@ impl<C,Idx> Index<Idx> for Sorted<C> where C: Index<Idx> {
 }
 
 /// Error returned if the number of elements and the number of knots are not matching.
-#[derive(Error, Debug, Copy, Clone)]
-#[error("Given knots are not sorted.
-From index {} to {} we found decreasing values.", index, index+1)]
+#[derive(Debug, Copy, Clone)]
 pub struct NotSorted {
     index: usize,
 }
@@ -293,6 +295,16 @@ impl NotSorted {
         }
     }
 }
+
+impl fmt::Display for NotSorted {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Given knots are not sorted. From index {} to {} we found decreasing values.",
+        self.index, self.index+1)
+    }
+}
+
+#[cfg(feature = "std")]
+impl Error for NotSorted {}
 
 /// Struct used as a generator for equidistant elements.
 /// Acts like an array of knots.

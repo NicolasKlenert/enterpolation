@@ -105,7 +105,7 @@ fn main() {
     let knots = [0.0,0.0,1.0,1.0,2.0,2.0,3.0,3.0,4.0,4.0];
     // expects are fine as we hardcoded the data.
     let nurbs = BSpline::builder()
-        .elements_with_weights(points_with_weights).expect("no points were given for the unit circle")
+        .elements_with_weights(points_with_weights)
         .knots(knots).expect("knots for the unit circle are incorrect")
         // we know the degree of the curve at compile time, so we use constant (knots.len() - points.len())
         .constant::<3>().expect("not enough space to do calculations for the unit circle")

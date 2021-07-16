@@ -13,6 +13,8 @@
 //TODO: Afterwards delete the implementation of SortedList for array and vec
 //TODO: and add NonEmpty as super trait for SortedList!
 
+#![ cfg_attr( not(feature = "std"), no_std ) ]
+
 #![warn(
     anonymous_parameters,
     missing_copy_implementations,
@@ -32,11 +34,14 @@
 #[macro_use]
 extern crate assert_float_eq;
 
+#[cfg(feature = "linear")]
 pub mod linear;
+#[cfg(feature = "bezier")]
 pub mod bezier;
+#[cfg(feature = "bspline")]
 pub mod bspline;
-pub mod utils;
 pub mod weights;
+pub mod utils;
 pub mod easing;
 
 // mod real;
@@ -44,7 +49,10 @@ pub mod easing;
 mod base;
 mod builder;
 
-pub use base::{Generator, Interpolation, Curve, Extract, Stepper, Space, ConstSpace, DynSpace,
+
+#[cfg(feature = "std")]
+pub use base::DynSpace;
+pub use base::{Generator, Interpolation, Curve, Extract, Stepper, Space, ConstSpace,
     DiscreteGenerator, ConstDiscreteGenerator, Equidistant, ConstEquidistant,
     Sorted, SortedGenerator, NotSorted, TransformInput, Chain, Stack, Slice, Repeat, Wrap, BorderBuffer};
 pub use easing::{Easing, Identity};

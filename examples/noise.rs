@@ -31,7 +31,7 @@ fn main(){
         // .easing(FuncEase::new(|val| {println!("factor: {:?}",val); return val}))
     let spline = BSpline::builder()
         .clamped()
-        .elements(ValueGenerator{}).expect("len of generator should be max usize")
+        .elements(ValueGenerator{})
         // we use equidistant as we don't want to save that many knots in a collection
         // as alternative one could also define a KnotGenerator
         .equidistant()

@@ -1,6 +1,5 @@
 //! First we show why the easing functin `plateau` is called that way. Afterwards we use it
 //! to generate a color gradient to categorise values neatly.
-
 use enterpolation::{Merge, Generator, Curve, linear::Linear, easing::Plateau};
 use palette::{Hsl, Mix, Pixel, IntoColor};
 use image::{ImageBuffer, Rgba};

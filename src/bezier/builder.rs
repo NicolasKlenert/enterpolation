@@ -8,7 +8,9 @@ use core::ops::{Mul, Div};
 use core::marker::PhantomData;
 use num_traits::real::Real;
 use num_traits::identities::Zero;
-use crate::{Generator, DiscreteGenerator, ConstDiscreteGenerator, Space, TransformInput, DynSpace, ConstSpace, Merge};
+#[cfg(feature = "std")]
+use crate::DynSpace;
+use crate::{Generator, DiscreteGenerator, ConstDiscreteGenerator, Space, TransformInput, ConstSpace, Merge};
 use crate::weights::{Weighted, Weights, IntoWeight, Homogeneous};
 use crate::builder::{WithWeight,WithoutWeight,Unknown, InputDomain, NormalizedInput};
 use super::Bezier;
@@ -141,6 +143,7 @@ where E: DiscreteGenerator
     /// Tells the builder to use a vector as workspace,
     /// such you don't need to know the degree of the bezier curve at compile-time,
     /// but every generation of a value an allocation of memory will be necessary.
+    #[cfg(feature = "std")]
     pub fn dynamic(self) -> BezierBuilder<I,E,DynSpace<E::Output>,W>{
         BezierBuilder{
             input: self.input,
@@ -272,9 +275,9 @@ mod test {
             .constant()
             .build();
         BezierBuilder::new()
-            .elements(vec![0.1,0.2,0.3]).unwrap()
+            .elements([0.1,0.2,0.3]).unwrap()
             .normalized::<f64>()
-            .dynamic()
+            .constant()
             .build();
         assert!(BezierBuilder::new().elements::<[f64;0]>([]).is_err());
     }
