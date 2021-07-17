@@ -12,7 +12,7 @@ mod builder;
 pub use error::{BSplineError, NonValidDegree, TooSmallWorkspace, NotSorted, TooFewElements};
 pub use builder::BSplineBuilder;
 
-use crate::{Generator, SortedGenerator, DiscreteGenerator, Space, Interpolation, Curve, Sorted, Merge};
+use crate::{Generator, SortedGenerator, DiscreteGenerator, Space, Interpolation, Curve, Merge};
 use crate::builder::Unknown;
 use builder::Open;
 use num_traits::real::Real;
@@ -154,11 +154,10 @@ where
 //     }
 // }
 
-impl<K,E,S> BSpline<Sorted<K>,E,S>
+impl<K,E,S> BSpline<K,E,S>
 where
     E: DiscreteGenerator,
-    K: DiscreteGenerator,
-    K::Output: PartialOrd,
+    K: SortedGenerator,
     S: Space<E::Output>,
 {
     /// Creates a bspline curve of elements and knots given.
@@ -168,9 +167,15 @@ where
     /// The domain for the curve with degree p is knots[p-1] and knots[knots.len() - p -2].
     pub fn new(elements: E, knots: K, space: S) -> Result<Self, BSplineError>
     {
+        //Test if we have at least two elements
+        if elements.len() < 2{
+            return Err(TooFewElements::new(elements.len()).into());
+        }
+        // Test if degree is strict positive
         if knots.len() < elements.len() {
             return Err(NonValidDegree::new(knots.len() as isize - elements.len() as isize +1).into());
         }
+        // Test if we have enough elements for the degree
         if elements.len() < knots.len() - elements.len() {
             return Err(TooFewElements::new(elements.len()).into());
         }
@@ -180,7 +185,7 @@ where
         }
         Ok(BSpline {
             elements,
-            knots: Sorted::new(knots)?,
+            knots,
             degree,
             space,
         })
@@ -222,9 +227,9 @@ mod test {
         let knots = [0.0f32, 1.0];
         let spline = BSpline::builder()
             .elements(points)
-            .knots(knots).unwrap()
-            .constant::<2>().unwrap()
-            .build();
+            .knots(knots)
+            .constant::<2>()
+            .build().unwrap();
         for i in 0..expect.len(){
             assert_f32_near!(spline.gen(expect[i].0),expect[i].1);
         }
@@ -237,9 +242,9 @@ mod test {
         let knots = [0.0f32, 0.0, 1.0, 2.0, 3.0, 3.0];
         let spline = BSpline::builder()
             .elements(points)
-            .knots(knots).unwrap()
-            .constant::<3>().unwrap()
-            .build();
+            .knots(knots)
+            .constant::<3>()
+            .build().unwrap();
         for i in 0..expect.len(){
             assert_f32_near!(spline.gen(expect[i].0),expect[i].1);
         }
@@ -252,9 +257,9 @@ mod test {
         let knots = [-2.0f32, -2.0, -2.0, -1.0, 0.0, 1.0, 2.0, 2.0, 2.0];
         let spline = BSpline::builder()
             .elements(points)
-            .knots(knots).unwrap()
-            .constant::<4>().unwrap()
-            .build();
+            .knots(knots)
+            .constant::<4>()
+            .build().unwrap();
         for i in 0..expect.len(){
             assert_f32_near!(spline.gen(expect[i].0),expect[i].1);
         }
@@ -269,9 +274,9 @@ mod test {
         let knots = [0.0, 0.0, 0.0, 0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 5.0, 5.0, 5.0];
         let spline = BSpline::builder()
             .elements(points)
-            .knots(knots).unwrap()
-            .constant::<5>().unwrap()
-            .build();
+            .knots(knots)
+            .constant::<5>()
+            .build().unwrap();
         for i in 0..expect.len(){
             assert_f32_near!(spline.gen(expect[i].0),expect[i].1);
         }
@@ -286,9 +291,9 @@ mod test {
         let knots = [0.0, 0.0, 0.0, 0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 5.0, 5.0, 5.0];
         let spline = BSpline::builder()
             .elements(points)
-            .knots(knots).unwrap()
-            .constant::<5>().unwrap()
-            .build();
+            .knots(knots)
+            .constant::<5>()
+            .build().unwrap();
         for i in 0..expect.len(){
             assert_f64_near!(spline.gen(expect[i].0),expect[i].1);
         }

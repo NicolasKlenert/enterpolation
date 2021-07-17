@@ -106,10 +106,10 @@ fn main() {
     // expects are fine as we hardcoded the data.
     let nurbs = BSpline::builder()
         .elements_with_weights(points_with_weights)
-        .knots(knots).expect("knots for the unit circle are incorrect")
+        .knots(knots)
         // we know the degree of the curve at compile time, so we use constant (knots.len() - points.len())
-        .constant::<3>().expect("not enough space to do calculations for the unit circle")
-        .build();
+        .constant::<3>()
+        .build().expect("As the curve is hardcoded, this should always work");
     // let us test if our curve is really a unit circle!
     for val in nurbs.take(32){
         assert_f64_near!(val.norm(), 1.0);

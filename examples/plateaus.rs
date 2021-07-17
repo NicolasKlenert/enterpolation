@@ -33,11 +33,11 @@ impl Merge<f32> for CustomHsl {
 fn main(){
     //lin represents the namesake
     let lin = Linear::builder()
-        .elements([0.0,2.0,4.0,1.0,0.0]).expect("No points were given")
+        .elements([0.0,2.0,4.0,1.0,0.0])
         .equidistant::<f32>()
         .domain(-1.0, 1.0)
         .easing(Plateau::new(0.7))
-        .build();
+        .build().expect("As the curve is hardcoded, it should work every time.");
     //generate #16b81e
     let green : CustomHsl = Hsl::new(123.0, 0.78, 0.40).into();
     // generate #9acd32
@@ -50,17 +50,17 @@ fn main(){
     let red : CustomHsl = Hsl::new(0.0, 1.0, 0.35).into();
     // first create the gradient
     let gradient = Linear::builder()
-        .elements([green, limegreen, yellow, orange ,red]).expect("No colors were given for the gradient")
+        .elements([green, limegreen, yellow, orange ,red])
         .equidistant::<f32>()
         .domain(-1.0,1.0)
-        .build();
+        .build().expect("As the curve is hardcoded, it should work every time.");
     // then do the same but use as easing `Platue`
     let plateaus = Linear::builder()
-        .elements([green, limegreen, yellow, orange ,red]).expect("No colors were given for the gradient")
+        .elements([green, limegreen, yellow, orange ,red])
         .equidistant::<f32>()
         .domain(-1.0,1.0)
         .easing(Plateau::new(0.7))
-        .build();
+        .build().expect("As the curve is hardcoded, it should work every time.");
     // make an image
     let width = 1300;
     let upper_height = 60;

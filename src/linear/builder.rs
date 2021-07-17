@@ -11,11 +11,9 @@ use num_traits::FromPrimitive;
 use num_traits::identities::Zero;
 use crate::{Generator, DiscreteGenerator, SortedGenerator, Sorted, Equidistant, Merge, Identity};
 use crate::weights::{Weighted, Weights, IntoWeight};
-use crate::builder::{WithWeight,WithoutWeight, Type, Unknown};
+use crate::builder::{WithWeight,WithoutWeight, Type, Unknown, Unsorted};
 use super::Linear;
-use super::error::{LinearError, TooFewElements, KnotElementInequality};
-
-//TODO: add unchecked versions
+use super::error::LinearError;
 
 /// Builder for linear interpolation.
 ///
@@ -55,21 +53,16 @@ impl LinearBuilder<Unknown, Unknown, Identity, Unknown> {
 
 impl<F> LinearBuilder<Unknown, Unknown, F, Unknown> {
     /// Set the elements of the linear interpolation.
-    pub fn elements<E>(self, elements: E) -> Result<LinearBuilder<Unknown, E, F, WithoutWeight>, TooFewElements>
+    pub fn elements<E>(self, elements: E) -> LinearBuilder<Unknown, E, F, WithoutWeight>
     where E: DiscreteGenerator,
     {
-        if elements.len() < 2 {
-            return Err(TooFewElements::new(elements.len()));
-        }
-        Ok(LinearBuilder {
+        LinearBuilder {
             knots: self.knots,
             elements,
             easing: self.easing,
             _phantom: PhantomData,
-        })
+        }
     }
-
-    //TODO: change example such that is does not use unwrap but ?
 
     /// Set the elements and their weights for this interpolation.
     ///
@@ -89,10 +82,10 @@ impl<F> LinearBuilder<Unknown, Unknown, F, Unknown> {
     /// #
     /// # fn main() -> Result<(), LinearError> {
     /// let linear = Linear::builder()
-    ///                 .elements_with_weights([(1.0,1.0),(2.0,4.0),(3.0,0.0)])?
+    ///                 .elements_with_weights([(1.0,1.0),(2.0,4.0),(3.0,0.0)])
     ///                 .equidistant::<f64>()
     ///                 .normalized()
-    ///                 .build();
+    ///                 .build()?;
     /// let results = [1.0,1.8,2.0,2.75,f64::INFINITY];
     /// for (value,result) in linear.take(5).zip(results.iter().copied()){
     ///     assert_f64_near!(value, result);
@@ -101,8 +94,7 @@ impl<F> LinearBuilder<Unknown, Unknown, F, Unknown> {
     /// #     Ok(())
     /// # }
     /// ```
-    pub fn elements_with_weights<G>(self, gen: G)
-        -> Result<LinearBuilder<Unknown, Weights<G>, F, WithWeight>,TooFewElements>
+    pub fn elements_with_weights<G>(self, gen: G) -> LinearBuilder<Unknown, Weights<G>, F, WithWeight>
     where
         G: DiscreteGenerator,
         G::Output: IntoWeight,
@@ -110,15 +102,12 @@ impl<F> LinearBuilder<Unknown, Unknown, F, Unknown> {
             Mul<<G::Output as IntoWeight>::Weight, Output = <G::Output as IntoWeight>::Element>,
         <G::Output as IntoWeight>::Weight: Zero + Copy,
     {
-        if gen.len() < 2 {
-            return Err(TooFewElements::new(gen.len()));
-        }
-        Ok(LinearBuilder {
+        LinearBuilder {
             knots: self.knots,
             elements: Weights::new(gen),
             easing: self.easing,
             _phantom: PhantomData,
-        })
+        }
     }
 }
 
@@ -132,21 +121,18 @@ impl<E,F,W> LinearBuilder<Unknown, E, F, W>
     ///
     /// If you have equidistant knots, near equidistant knots are you do not really care about
     /// knots, consider using `equidistant()` instead.
-    pub fn knots<K>(self, knots: K) -> Result<LinearBuilder<Sorted<K>,E, F, W>, LinearError>
+    pub fn knots<K>(self, knots: K) -> LinearBuilder<Unsorted<K>,E, F, W>
     where
         E: DiscreteGenerator,
         K: DiscreteGenerator,
         K::Output: PartialOrd
     {
-        if self.elements.len() != knots.len() {
-            return Err(KnotElementInequality::new(self.elements.len(), knots.len()).into());
-        }
-        Ok(LinearBuilder {
-            knots: Sorted::new(knots)?,
+        LinearBuilder {
+            knots: Unsorted::new(knots),
             elements: self.elements,
             easing: self.easing,
             _phantom: self._phantom,
-        })
+        }
     }
 
     /// Build an interpolation with equidistant knots.
@@ -226,9 +212,9 @@ where
     K::Output: Real
 {
     /// Build a linear interpolation.
-    pub fn build(self) -> Linear<K,E,F>{
-        // safe as we check all requirements beforehand
-        Linear::new_unchecked(self.elements, self.knots, self.easing)
+    pub fn build(self) -> Result<Linear<K,E,F>,LinearError>{
+        // knots are sorted
+        Linear::new(self.elements, self.knots, self.easing)
     }
 }
 
@@ -241,10 +227,38 @@ where
     <Weights<G> as Generator<usize>>::Output: Merge<K::Output>,
 {
     /// Build a weighted linear interpolation.
-    pub fn build(self) -> Weighted<Linear<K,Weights<G>,F>>
+    pub fn build(self) -> Result<Weighted<Linear<K,Weights<G>,F>>, LinearError>
     {
-        // safe as we check all requirements beforehand
-        Weighted::new(Linear::new_unchecked(self.elements, self.knots, self.easing))
+        // knots are sorted
+        Ok(Weighted::new(Linear::new(self.elements, self.knots, self.easing)?))
+    }
+}
+
+impl<K,E,F> LinearBuilder<Unsorted<K>,E,F,WithoutWeight>
+where
+    E: DiscreteGenerator,
+    K: DiscreteGenerator,
+    E::Output: Merge<K::Output>,
+    K::Output: Real
+{
+    /// Build a linear interpolation.
+    pub fn build(self) -> Result<Linear<Sorted<K>,E,F>,LinearError>{
+        Linear::new(self.elements, Sorted::new(self.knots.0)?, self.easing)
+    }
+}
+
+impl<K,G,F> LinearBuilder<Unsorted<K>,Weights<G>,F,WithWeight>
+where
+    K: DiscreteGenerator,
+    K::Output: Real + Copy,
+    G: DiscreteGenerator,
+    G::Output: IntoWeight,
+    <Weights<G> as Generator<usize>>::Output: Merge<K::Output>,
+{
+    /// Build a weighted linear interpolation.
+    pub fn build(self) -> Result<Weighted<Linear<Sorted<K>,Weights<G>,F>>, LinearError>
+    {
+        Ok(Weighted::new(Linear::new(self.elements, Sorted::new(self.knots.0)?, self.easing)?))
     }
 }
 
@@ -256,29 +270,29 @@ mod test {
     #[test]
     fn building_weights() {
         LinearBuilder::new()
-            .elements_with_weights([(1.0,1.0),(2.0,2.0),(3.0,0.0)]).unwrap()
+            .elements_with_weights([(1.0,1.0),(2.0,2.0),(3.0,0.0)])
             .equidistant::<f64>()
             .normalized()
-            .build();
+            .build().unwrap();
         LinearBuilder::new()
-            .elements_with_weights([1.0,2.0,3.0].stack([1.0,2.0,0.0])).unwrap()
+            .elements_with_weights([1.0,2.0,3.0].stack([1.0,2.0,0.0]))
             .equidistant::<f64>()
             .normalized()
-            .build();
+            .build().unwrap();
         LinearBuilder::new()
             .elements_with_weights([
                 Homogeneous::new(1.0),
                 Homogeneous::weighted_unchecked(2.0, 2.0),
-                Homogeneous::infinity(3.0)]).unwrap()
-            .knots([1.0,2.0,3.0]).unwrap()
-            .build();
+                Homogeneous::infinity(3.0)])
+            .knots([1.0,2.0,3.0])
+            .build().unwrap();
         LinearBuilder::new()
-            .elements([0.1,0.2,0.3]).unwrap()
+            .elements([0.1,0.2,0.3])
             .equidistant::<f64>()
             .normalized()
-            .build();
-        assert!(LinearBuilder::new().elements::<[f64;0]>([]).is_err());
-        assert!(LinearBuilder::new().elements([1.0]).is_err());
-        assert!(LinearBuilder::new().elements([1.0,2.0]).unwrap().knots([1.0,2.0,3.0]).is_err());
+            .build().unwrap();
+        assert!(LinearBuilder::new().elements::<[f64;0]>([]).knots::<[f64;0]>([]).build().is_err());
+        assert!(LinearBuilder::new().elements([1.0]).knots([1.0]).build().is_err());
+        assert!(LinearBuilder::new().elements([1.0,2.0]).knots([1.0,2.0,3.0]).build().is_err());
     }
 }

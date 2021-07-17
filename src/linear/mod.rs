@@ -47,10 +47,10 @@ impl Linear<Unknown,Unknown, Unknown> {
     /// #
     /// # fn main() -> Result<(), LinearError> {
     /// let linear = Linear::builder()
-    ///                 .elements([0.0,5.0,3.0])?
+    ///                 .elements([0.0,5.0,3.0])
     ///                 .equidistant::<f64>()
     ///                 .normalized()
-    ///                 .build();
+    ///                 .build()?;
     /// let results = [0.0,2.5,5.0,4.0,3.0];
     /// for (value,result) in linear.take(5).zip(results.iter().copied()){
     ///     assert_f64_near!(value, result);
@@ -110,9 +110,9 @@ where
 impl<K,E,F> Linear<K,E,F>
 where
     K: SortedGenerator,
-    K::Output: Real + Debug,
+    K::Output: Real,
     E: DiscreteGenerator,
-    E::Output: Merge<K::Output> + Debug,
+    E::Output: Merge<K::Output>,
 {
     /// Create a linear interpolation with slice-like collections of elements and knots.
     /// Knots should be in increasing order (not checked), there should be as many knots as elements
@@ -191,10 +191,10 @@ mod test {
     #[test]
     fn linear_equidistant() {
         let lin = Linear::builder()
-            .elements([20.0,100.0,0.0,200.0]).unwrap()
+            .elements([20.0,100.0,0.0,200.0])
             .equidistant::<f64>()
             .normalized()
-            .build();
+            .build().unwrap();
         let expected = [20.0,60.0,100.0,50.0,0.0,100.0,200.0];
         let mut iter = lin.take(expected.len());
         for i in 0..expected.len() {
@@ -207,9 +207,9 @@ mod test {
     fn linear() {
         //DynamicLinear
         let lin = Linear::builder()
-            .elements([20.0,100.0,0.0,200.0]).unwrap()
-            .knots([0.0,1.0/3.0,2.0/3.0,1.0]).unwrap()
-            .build();
+            .elements([20.0,100.0,0.0,200.0])
+            .knots([0.0,1.0/3.0,2.0/3.0,1.0])
+            .build().unwrap();
         let expected = [20.0,60.0,100.0,50.0,0.0,100.0,200.0];
         let mut iter = lin.take(expected.len());
         for i in 0..expected.len() {
@@ -221,9 +221,9 @@ mod test {
     #[test]
     fn extrapolation() {
         let lin = Linear::builder()
-            .elements([20.0,100.0,0.0,200.0]).unwrap()
-            .knots([1.0,2.0,3.0,4.0]).unwrap()
-            .build();
+            .elements([20.0,100.0,0.0,200.0])
+            .knots([1.0,2.0,3.0,4.0])
+            .build().unwrap();
         assert_f64_near!(lin.gen(1.5), 60.0);
         assert_f64_near!(lin.gen(2.5), 50.0);
         assert_f64_near!(lin.gen(-1.0), -140.0);
@@ -233,10 +233,10 @@ mod test {
     #[test]
     fn weights(){
         let lin = Linear::builder()
-            .elements_with_weights([(0.0,9.0),(1.0,1.0)]).unwrap()
+            .elements_with_weights([(0.0,9.0),(1.0,1.0)])
             .equidistant::<f64>()
             .normalized()
-            .build();
+            .build().unwrap();
         assert_f64_near!(lin.gen(0.5), 0.1);
         // const LIN : Linear<f64,f64,ConstEquidistant<f64>,CollectionWrapper<[f64;4],f64>> = Linear::new_equidistant_unchecked([20.0,100.0,0.0,200.0]);
     }

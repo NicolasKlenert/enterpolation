@@ -105,10 +105,10 @@ impl Bezier<Unknown, Unknown, Unknown> {
     /// #
     /// # fn main() -> Result<(), BezierError> {
     /// let bez = Bezier::builder()
-    ///     .elements([20.0,100.0,0.0,200.0])?
+    ///     .elements([20.0,100.0,0.0,200.0])
     ///     .normalized::<f64>()
     ///     .constant()
-    ///     .build();
+    ///     .build()?;
     /// let mut iter = bez.take(5);
     /// let expected = [20.0,53.75,65.0,98.75,200.0];
     /// for i in 0..=4 {
@@ -236,32 +236,6 @@ where
     }
 }
 
-// impl<R,E,S> Bezier<R,E,S>
-// where
-//     E: DiscreteGenerator + Extend<<E as Generator<usize>>::Output> + IndexMut<usize, Output = <E as Generator<usize>>::Output>,
-//     <E as Generator<usize>>::Output: Add<Output = <E as Generator<usize>>::Output> + Mul<R, Output = <E as Generator<usize>>::Output> + Copy,
-//     R: Real + FromPrimitive
-// {
-//     /// Elevates the curve such that it's degree increases by one.
-//     pub fn elevate_inplace(&mut self){
-//         //TODO: test if workspace is big enough, otherwise return error?!
-//         //TODO: otherwise increase workspace -> DynSpace would by a trait, current DynSpace would be renamed to VecSpace
-//         //TODO: this trait would have something like "set_len" which would set the length of the space created.
-//         //TODO: this would allow our space to work with the newly grown elements.
-//         //TODO: however we would like to be able to give a bigger workspace in the beginning (workspace) and elevating just fills in the space...
-//         //TODO: so we only want to test? And one has to find out the space needed at creation?
-//         let stepper = Stepper::normalized(self.elements.len() + 2);
-//         self.elements.extend(core::iter::once(self.elements.last().unwrap()));
-//         //TODO: instead of last and temp we could just reverse our order (go from n to 1)
-//         let mut last = self.elements.gen(0);
-//         for (i, factor) in stepper.enumerate().skip(1).take(self.elements.len()) {
-//             let temp = self.elements.gen(i);
-//             self.elements[i] = last * factor + self.elements.gen(i) * (R::one()-factor);
-//             last = temp;
-//         }
-//     }
-// }
-
 #[cfg(test)]
 mod test {
     use super::*;
@@ -270,10 +244,10 @@ mod test {
     #[test]
     fn extrapolation() {
         let bez = Bezier::builder()
-            .elements([20.0,0.0,200.0]).unwrap()
+            .elements([20.0,0.0,200.0])
             .normalized::<f64>()
             .constant()
-            .build();
+            .build().unwrap();
         assert_f64_near!(bez.gen(2.0), 820.0);
         assert_f64_near!(bez.gen(-1.0), 280.0);
     }
@@ -289,10 +263,10 @@ mod test {
     #[test]
     fn constant() {
         let bez = Bezier::builder()
-            .elements([5.0]).unwrap()
+            .elements([5.0])
             .normalized::<f64>()
             .constant()
-            .build();
+            .build().unwrap();
         let res = bez.gen_with_tangent(0.25);
         assert_f64_near!(res[0], 5.0);
         assert_f64_near!(res[1], 0.0);
@@ -304,10 +278,10 @@ mod test {
     #[test]
     fn deriatives(){
         let bez = Bezier::builder()
-            .elements([1.0,2.0,3.0]).unwrap()
+            .elements([1.0,2.0,3.0])
             .normalized::<f64>()
             .constant()
-            .build();
+            .build().unwrap();
         let res = bez.gen_with_tangent(0.5);
         assert_f64_near!(res[0], 2.0);
         assert_f64_near!(res[1], 2.0);

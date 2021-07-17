@@ -11,9 +11,9 @@ use num_traits::identities::Zero;
 use crate::DynSpace;
 use crate::{Generator, DiscreteGenerator, Space, ConstSpace, Sorted, SortedGenerator, Equidistant, BorderBuffer, Merge};
 use crate::weights::{Weighted, Weights, IntoWeight, Homogeneous};
-use crate::builder::{WithWeight,WithoutWeight,Unknown, Type};
+use crate::builder::{WithWeight,WithoutWeight,Unknown, Type, Unsorted};
 use super::BSpline;
-use super::error::{BSplineError, NonValidDegree, TooSmallWorkspace, TooFewElements};
+use super::error::BSplineError;
 // use super::error::{LinearError, ToFewElements, KnotElementInequality};
 
 /// Marker struct to signify the building of a closed curve.
@@ -176,7 +176,7 @@ impl<E,W,M> BSplineBuilder<Unknown, E, Unknown, W, M>
     }
 }
 
-impl<E,W> BSplineBuilder<Unknown, E, Unknown, W, Open>
+impl<E,W,M> BSplineBuilder<Unknown, E, Unknown, W, M>
 {
     /// Set the knots of the interpolation.
     ///
@@ -191,75 +191,18 @@ impl<E,W> BSplineBuilder<Unknown, E, Unknown, W, Open>
     ///
     /// If you have equidistant knots, near equidistant knots are you do not really care about
     /// knots, consider using `equidistant()` instead.
-    pub fn knots<K>(self, knots: K) -> Result<BSplineBuilder<Sorted<K>,E, Unknown, W, Open>, BSplineError>
+    pub fn knots<K>(self, knots: K) -> BSplineBuilder<Unsorted<K>,E, Unknown, W, M>
     where
         E: DiscreteGenerator,
         K: DiscreteGenerator,
         K::Output: PartialOrd
     {
-        //Test if we have at least two elements
-        if self.elements.len() < 2{
-            return Err(TooFewElements::new(self.elements.len()).into());
-        }
-        // Test if degree is strict positive
-        if knots.len() < self.elements.len()
-        {
-            return Err(NonValidDegree::new(knots.len() as isize - self.elements.len() as isize +1).into());
-        }
-        // Test if we have enough elements for the degree
-        if self.elements.len() < knots.len()-self.elements.len()
-        {
-            return Err(TooFewElements::new(self.elements.len()).into());
-        }
-        Ok(BSplineBuilder {
-            knots: Sorted::new(knots)?,
+        BSplineBuilder {
+            knots: Unsorted::new(knots),
             elements: self.elements,
             space: self.space,
             _phantoms: self._phantoms,
-        })
-    }
-}
-
-impl<E,W> BSplineBuilder<Unknown, E, Unknown, W, Clamped>
-{
-    /// Set the knots of the interpolation.
-    ///
-    /// The degree of this bspline interplation is given by knots.len() - elements.len() - 1.
-    ///
-    /// # Errors
-    ///
-    /// Returns NotSorted if a knot is not greater or equal then the knot before him.
-    ///
-    /// # Performance
-    ///
-    /// If you have equidistant knots, near equidistant knots are you do not really care about
-    /// knots, consider using `equidistant()` instead.
-    pub fn knots<K>(self, knots: K) -> Result<BSplineBuilder<Sorted<K>,E, Unknown, W, Clamped>, BSplineError>
-    where
-        E: DiscreteGenerator,
-        K: DiscreteGenerator,
-        K::Output: PartialOrd
-    {
-        //Test if we have at least two elements
-        if self.elements.len() < 2{
-            return Err(TooFewElements::new(self.elements.len()).into());
         }
-        // Test if degree is strict positive
-        if knots.len() > self.elements.len()
-        {
-            return Err(NonValidDegree::new(self.elements.len() as isize - knots.len() as isize +1).into());
-        }
-        // Test if we have enough elements for the degree
-        if knots.len() <= 1
-        {
-            return Err(TooFewElements::new(self.elements.len()).into());
-        }
-        Ok(BSplineBuilder {
-            knots: Sorted::new(knots)?,
-            elements: self.elements,
-            space: self.space,
-            _phantoms: self._phantoms,
-        })
     }
 }
 
@@ -269,43 +212,35 @@ where
 {
     /// Set the degree of the curve. The degree has to be bigger than 0 and less than the number of elements,
     /// otherwise it will return an error.
-    pub fn degree(self, degree: usize) -> Result<BSplineBuilder<UnknownDomain<R>,E,Unknown,W, Open>,BSplineError>{
-
-        if degree == 0 {
-            return Err(NonValidDegree::new(degree as isize).into());
-        }
-        if degree >= self.elements.len() {
-            return Err(TooFewElements::new(self.elements.len()).into());
-        }
-
-        Ok(BSplineBuilder{
+    ///
+    /// # Panics
+    ///
+    /// Panics if the number of elements is zero.
+    pub fn degree(self, degree: usize) -> BSplineBuilder<UnknownDomain<R>,E,Unknown,W, Open>{
+        BSplineBuilder{
             knots: UnknownDomain::new(self.elements.len() - 1 + degree, degree),
             elements: self.elements,
             space: self.space,
             _phantoms: self._phantoms,
-        })
+        }
     }
 
     /// Set the number of knots.
     ///
     /// For open curves, the number of knots has to be bigger then the number of elements.
     /// For closed curves, the number of knots has to be at most as big as the number of elements.
-    pub fn quantity(self, quantity: usize) -> Result<BSplineBuilder<UnknownDomain<R>,E,Unknown,W, Open>, BSplineError>{
-        // Test if the degree is strict positive
-        if quantity < self.elements.len() {
-            return Err(NonValidDegree::new(quantity as isize - self.elements.len() as isize +1).into());
-        }
-        // Test if we have enough elements for the degree
-        if self.elements.len() < quantity-self.elements.len()
-        {
-            return Err(TooFewElements::new(self.elements.len()).into());
-        }
-        Ok(BSplineBuilder{
+    ///
+    /// # Panic
+    ///
+    /// Panics if given quantity is less than the number of elements.
+    /// May also panic if the number of elements is zero.
+    pub fn quantity(self, quantity: usize) -> BSplineBuilder<UnknownDomain<R>,E,Unknown,W, Open>{
+        BSplineBuilder{
             knots: UnknownDomain::new(quantity, quantity - self.elements.len() +1),
             elements: self.elements,
             space: self.space,
             _phantoms: self._phantoms,
-        })
+        }
     }
 }
 
@@ -315,43 +250,36 @@ where
 {
     /// Set the degree of the curve. The degree has to be bigger than 0 and less than the number of elements,
     /// otherwise it will return an error.
-    pub fn degree(self, degree: usize) -> Result<BSplineBuilder<UnknownDomain<R>,E,Unknown,W, Clamped>,BSplineError>{
-
-        if degree == 0 {
-            return Err(NonValidDegree::new(degree as isize).into());
-        }
-        if degree >= self.elements.len() {
-            return Err(TooFewElements::new(self.elements.len()).into());
-        }
-
-        Ok(BSplineBuilder{
+    ///
+    /// # Panics
+    ///
+    /// Panics if the given degree is bigger than the number of elements.
+    /// May also panic if the given degree is zero.
+    pub fn degree(self, degree: usize) -> BSplineBuilder<UnknownDomain<R>,E,Unknown,W, Clamped>{
+        BSplineBuilder{
             knots: UnknownDomain::new(self.elements.len() - degree + 1, degree),
             elements: self.elements,
             space: self.space,
             _phantoms: self._phantoms,
-        })
+        }
     }
 
     /// Set the number of knots.
     ///
     /// For open curves, the number of knots has to be bigger then the number of elements.
     /// For closed curves, the number of knots has to be at most as big as the number of elements.
-    pub fn quantity(self, quantity: usize) -> Result<BSplineBuilder<UnknownDomain<R>,E,Unknown,W, Clamped>,BSplineError>{
-        // Test if the degree is strict positive
-        if quantity > self.elements.len() {
-            return Err(NonValidDegree::new(self.elements.len() as isize - quantity as isize + 1).into());
-        }
-        // Test if we have enough elements for the degree
-        if quantity <= 1
-        {
-            return Err(TooFewElements::new(self.elements.len()).into());
-        }
-        Ok(BSplineBuilder{
+    ///
+    /// # Panics
+    ///
+    /// Panics if the given quantity is bigger than the number of elements.
+    /// May also panic if the given quantity is zero.
+    pub fn quantity(self, quantity: usize) -> BSplineBuilder<UnknownDomain<R>,E,Unknown,W, Clamped>{
+        BSplineBuilder{
             knots: UnknownDomain::new(quantity, self.elements.len() - quantity + 1),
             elements: self.elements,
             space: self.space,
             _phantoms: self._phantoms,
-        })
+        }
     }
 }
 
@@ -428,7 +356,7 @@ where
 impl<K,E,W,M> BSplineBuilder<K,E, Unknown, W,M>
 where
     E: DiscreteGenerator,
-    K: SortedGenerator,
+    K: DiscreteGenerator,
 {
     /// Set the workspace which the interpolation uses.
     ///
@@ -457,18 +385,14 @@ where
     /// Returns TooSmallWorkspace if the size of the workspace is not at least the degree + 1 of the curve.
     /// To calculate the space needed, one may use the equation: `knots.len() - elements.len()`.
     #[allow(clippy::type_complexity)]
-    pub fn constant<const N: usize>(self) -> Result<BSplineBuilder<K,E,ConstSpace<E::Output,N>,W,M>,TooSmallWorkspace>
+    pub fn constant<const N: usize>(self) -> BSplineBuilder<K,E,ConstSpace<E::Output,N>,W,M>
     {
-        //testing must be done at run-time until we can calulate with constants
-        if N <= self.knots.len() - self.elements.len() + 1 {
-            return Err(TooSmallWorkspace::new(N, self.knots.len() - self.elements.len() + 2).into());
-        }
-        Ok(BSplineBuilder{
+        BSplineBuilder{
             knots: self.knots,
             space: ConstSpace::new(),
             elements: self.elements,
             _phantoms: self._phantoms,
-        })
+        }
     }
 
     /// Set the workspace whcih the interpolation uses.
@@ -477,19 +401,15 @@ where
     ///
     /// If the degree of the bezier curve is known at compile-time, consider using `constant` instead.
     /// Otherwise without std support, one has to set a specific object implementing the `Space` trait.
-    pub fn workspace<S>(self, space: S) -> Result<BSplineBuilder<K,E,S,W,M>,TooSmallWorkspace>
+    pub fn workspace<S>(self, space: S) -> BSplineBuilder<K,E,S,W,M>
     where S: Space<E::Output>
     {
-        if space.len() <= self.knots.len() - self.elements.len() + 1 {
-            return Err(TooSmallWorkspace::new(space.len(), self.knots.len() - self.elements.len()+2).into());
-        }
-
-        Ok(BSplineBuilder{
+        BSplineBuilder{
             knots: self.knots,
             space,
             elements: self.elements,
             _phantoms: self._phantoms,
-        })
+        }
     }
 }
 
@@ -501,8 +421,8 @@ where
     S: Space<E::Output>,
 {
     /// Build a bezier interpolation.
-    pub fn build(self) -> BSpline<K,E,S>{
-        BSpline::new_unchecked(self.elements, self.knots, self.space)
+    pub fn build(self) -> Result<BSpline<K,E,S>, BSplineError>{
+        BSpline::new(self.elements, self.knots, self.space)
     }
 }
 
@@ -516,9 +436,40 @@ where
     <G::Output as IntoWeight>::Element: Div<<G::Output as IntoWeight>::Weight, Output = <G::Output as IntoWeight>::Element>,
 {
     /// Build a weighted bezier interpolation.
-    pub fn build(self) -> Weighted<BSpline<K,Weights<G>,S>>
+    pub fn build(self) -> Result<Weighted<BSpline<K,Weights<G>,S>>, BSplineError>
     {
-        Weighted::new(BSpline::new_unchecked(self.elements, self.knots, self.space))
+        Ok(Weighted::new(BSpline::new(self.elements, self.knots, self.space)?))
+    }
+}
+
+impl<K,E,S,M> BSplineBuilder<Unsorted<K>,E,S, WithoutWeight,M>
+where
+    K: DiscreteGenerator,
+    K::Output: PartialOrd,
+    E: DiscreteGenerator,
+    E::Output: Merge<K::Output> + Copy,
+    S: Space<E::Output>,
+{
+    /// Build a bezier interpolation.
+    pub fn build(self) -> Result<BSpline<Sorted<K>,E,S>, BSplineError>{
+        BSpline::new(self.elements, Sorted::new(self.knots.0)?, self.space)
+    }
+}
+
+impl<K,G,S,M> BSplineBuilder<Unsorted<K>,Weights<G>,S,WithWeight,M>
+where
+    G: DiscreteGenerator,
+    G::Output: IntoWeight,
+    K: DiscreteGenerator,
+    K::Output: PartialOrd,
+    S: Space<Homogeneous<<G::Output as IntoWeight>::Element, <G::Output as IntoWeight>::Weight>>,
+    <Weights<G> as Generator<usize>>::Output: Merge<K::Output> + Copy,
+    <G::Output as IntoWeight>::Element: Div<<G::Output as IntoWeight>::Weight, Output = <G::Output as IntoWeight>::Element>,
+{
+    /// Build a weighted bezier interpolation.
+    pub fn build(self) -> Result<Weighted<BSpline<Sorted<K>,Weights<G>,S>>, BSplineError>
+    {
+        Ok(Weighted::new(BSpline::new(self.elements, Sorted::new(self.knots.0)?, self.space)?))
     }
 }
 
@@ -531,8 +482,8 @@ mod test {
     #[test]
     fn degenerate_creations() {
         let empty : [f64;0] = [];
-        assert!(BSplineBuilder::new().elements(empty).knots(empty).is_err());
-        assert!(BSplineBuilder::new().elements([1.0]).knots([1.0]).is_err());
+        assert!(BSplineBuilder::new().elements(empty).knots(empty).constant::<0>().build().is_err());
+        assert!(BSplineBuilder::new().elements([1.0]).knots([1.0]).constant::<1>().build().is_err());
     }
 
     #[test]
@@ -540,31 +491,31 @@ mod test {
         BSplineBuilder::new()
             .elements_with_weights([(1.0,1.0),(2.0,2.0),(3.0,0.0)])
             .equidistant::<f64>()
-            .degree(2).unwrap()
+            .degree(2)
             .domain(0.0,5.0)
-            .constant::<3>().unwrap()
-            .build();
+            .constant::<3>()
+            .build().unwrap();
         BSplineBuilder::new()
             .elements_with_weights([1.0,2.0,3.0].stack([1.0,2.0,0.0]))
             .equidistant::<f64>()
-            .degree(1).unwrap()
+            .degree(1)
             .normalized()
-            .constant::<2>().unwrap()
-            .build();
+            .constant::<2>()
+            .build().unwrap();
         BSplineBuilder::new()
             .elements_with_weights([
                 Homogeneous::new(1.0),
                 Homogeneous::weighted_unchecked(2.0, 2.0),
                 Homogeneous::infinity(3.0)])
-            .knots([1.0,2.0,3.0]).unwrap()
-            .constant::<2>().unwrap()
-            .build();
+            .knots([1.0,2.0,3.0])
+            .constant::<2>()
+            .build().unwrap();
         BSplineBuilder::new()
             .elements([0.1,0.2,0.3])
             .equidistant::<f64>()
-            .degree(1).unwrap()
+            .degree(1)
             .normalized()
-            .constant::<2>().unwrap()
-            .build();
+            .constant::<2>()
+            .build().unwrap();
     }
 }

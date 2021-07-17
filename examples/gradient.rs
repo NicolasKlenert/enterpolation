@@ -35,10 +35,10 @@ fn main(){
         .clamped()
         .elements([navy,magenta,pink,red,sandy])
         .equidistant::<f32>()
-        .degree(3).expect("Degree of gradient is not valid")
+        .degree(3)
         .normalized()
-        .constant::<4>().expect("Space is not enough for the gradient to do calculations on")
-        .build();
+        .constant::<4>()
+        .build().expect("As the curve is hardcoded, this should always work");
     // make an image from the gradient
     let width = 1300;
     let height = 60;

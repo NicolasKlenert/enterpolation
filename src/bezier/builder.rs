@@ -14,7 +14,7 @@ use crate::{Generator, DiscreteGenerator, ConstDiscreteGenerator, Space, Transfo
 use crate::weights::{Weighted, Weights, IntoWeight, Homogeneous};
 use crate::builder::{WithWeight,WithoutWeight,Unknown, InputDomain, NormalizedInput};
 use super::Bezier;
-use super::error::{Empty, TooSmallWorkspace};
+use super::error::BezierError;
 
 /// Builder for linear interpolation.
 ///
@@ -54,18 +54,15 @@ impl BezierBuilder<Unknown, Unknown, Unknown, Unknown> {
 
 impl BezierBuilder<Unknown, Unknown, Unknown, Unknown> {
     /// Set the elements of the linear interpolation.
-    pub fn elements<E>(self, elements: E) -> Result<BezierBuilder<Unknown, E, Unknown, WithoutWeight>, Empty>
+    pub fn elements<E>(self, elements: E) -> BezierBuilder<Unknown, E, Unknown, WithoutWeight>
     where E: DiscreteGenerator,
     {
-        if elements.is_empty() {
-            return Err(Empty::new());
-        }
-        Ok(BezierBuilder {
+        BezierBuilder {
             input: self.input,
             space: self.space,
             elements,
             _phantom: PhantomData,
-        })
+        }
     }
 
     /// Set the elements and their weights for this interpolation.
@@ -81,19 +78,22 @@ impl BezierBuilder<Unknown, Unknown, Unknown, Unknown> {
     /// # Examples
     ///
     /// ```
-    /// use enterpolation::{bezier::Bezier, Generator, Curve};
+    /// # use enterpolation::{bezier::{Bezier, BezierError}, Generator, Curve};
+    /// # fn main() -> Result<(), BezierError> {
     /// let bez = Bezier::builder()
-    ///                 .elements_with_weights([(1.0,1.0),(2.0,4.0),(3.0,0.0)]).unwrap()
+    ///                 .elements_with_weights([(1.0,1.0),(2.0,4.0),(3.0,0.0)])
     ///                 .normalized::<f64>()
     ///                 .constant()
-    ///                 .build();
+    ///                 .build()?;
     /// let results = [1.0,15.0/8.25,10.0/4.5,19.0/6.25,f64::INFINITY];
     /// for (value,result) in bez.take(5).zip(results.iter().copied()){
     ///     assert_eq!(value, result);
     /// }
+    /// #
+    /// #     Ok(())
+    /// # }
     /// ```
-    pub fn elements_with_weights<G>(self, gen: G)
-        -> Result<BezierBuilder<Unknown, Weights<G>,Unknown, WithWeight>,Empty>
+    pub fn elements_with_weights<G>(self, gen: G) -> BezierBuilder<Unknown, Weights<G>,Unknown, WithWeight>
     where
         G: DiscreteGenerator,
         G::Output: IntoWeight,
@@ -101,15 +101,12 @@ impl BezierBuilder<Unknown, Unknown, Unknown, Unknown> {
             Mul<<G::Output as IntoWeight>::Weight, Output = <G::Output as IntoWeight>::Element>,
         <G::Output as IntoWeight>::Weight: Zero + Copy,
     {
-        if gen.is_empty() {
-            return Err(Empty::new());
-        }
-        Ok(BezierBuilder {
+        BezierBuilder {
             input: self.input,
             space: self.space,
             elements: Weights::new(gen),
             _phantom: PhantomData,
-        })
+        }
     }
 }
 
@@ -174,18 +171,15 @@ where E: DiscreteGenerator
     ///
     /// If the degree of the bezier curve is known at compile-time, consider using `constant` instead.
     /// Otherwise without std support, one has to set a specific object implementing the `Space` trait.
-    pub fn workspace<S>(self, space: S) -> Result<BezierBuilder<I,E,S,W>,TooSmallWorkspace>
+    pub fn workspace<S>(self, space: S) -> BezierBuilder<I,E,S,W>
     where S: Space<E::Output>
     {
-        if space.len() < self.elements.len() {
-            return Err(TooSmallWorkspace::new(space.len(), self.elements.len()));
-        }
-        Ok(BezierBuilder{
+        BezierBuilder{
             input: self.input,
             space,
             elements: self.elements,
             _phantom: self._phantom,
-        })
+        }
     }
 }
 
@@ -197,8 +191,8 @@ where
     R: Real
 {
     /// Build a bezier interpolation.
-    pub fn build(self) -> Bezier<R,E,S>{
-        Bezier::new_unchecked(self.elements, self.space)
+    pub fn build(self) -> Result<Bezier<R,E,S>,BezierError>{
+        Bezier::new(self.elements, self.space)
     }
 }
 
@@ -210,8 +204,10 @@ where
     R: Real
 {
     /// Build a bezier interpolation with the given domain
-    pub fn build(self) -> TransformInput<Bezier<R,E,S>,R,R> {
-        TransformInput::normalized_to_domain(Bezier::new_unchecked(self.elements, self.space), self.input.start, self.input.end)
+    pub fn build(self) -> Result<TransformInput<Bezier<R,E,S>,R,R>, BezierError> {
+        Ok(TransformInput::normalized_to_domain(
+            Bezier::new(self.elements, self.space)?
+            , self.input.start, self.input.end))
     }
 }
 
@@ -225,9 +221,9 @@ where
     <G::Output as IntoWeight>::Element: Div<<G::Output as IntoWeight>::Weight, Output = <G::Output as IntoWeight>::Element>,
 {
     /// Build a weighted bezier interpolation.
-    pub fn build(self) -> WeightedBezier<R,G,S>
+    pub fn build(self) -> Result<WeightedBezier<R,G,S>, BezierError>
     {
-        Weighted::new(Bezier::new_unchecked(self.elements, self.space))
+        Ok(Weighted::new(Bezier::new(self.elements, self.space)?))
     }
 }
 
@@ -241,8 +237,10 @@ where
     <G::Output as IntoWeight>::Element: Div<<G::Output as IntoWeight>::Weight, Output = <G::Output as IntoWeight>::Element>,
 {
     /// Build a weighted bezier interpolation with given domain.
-    pub fn build(self) -> TransformInput<WeightedBezier<R,G,S>,R,R> {
-        TransformInput::normalized_to_domain(Weighted::new(Bezier::new_unchecked(self.elements, self.space)), self.input.start, self.input.end)
+    pub fn build(self) -> Result<TransformInput<WeightedBezier<R,G,S>,R,R>, BezierError> {
+        Ok(TransformInput::normalized_to_domain(
+            Weighted::new(Bezier::new(self.elements, self.space)?)
+            , self.input.start, self.input.end))
     }
 }
 
@@ -257,28 +255,28 @@ mod test {
     #[test]
     fn elements_with_weights() {
         BezierBuilder::new()
-            .elements_with_weights([(1.0,1.0),(2.0,2.0),(3.0,0.0)]).unwrap()
+            .elements_with_weights([(1.0,1.0),(2.0,2.0),(3.0,0.0)])
             .normalized::<f64>()
             .constant()
-            .build();
+            .build().unwrap();
         BezierBuilder::new()
-            .elements_with_weights([1.0,2.0,3.0].stack([1.0,2.0,0.0])).unwrap()
+            .elements_with_weights([1.0,2.0,3.0].stack([1.0,2.0,0.0]))
             .normalized::<f64>()
             .constant()
-            .build();
+            .build().unwrap();
         BezierBuilder::new()
             .elements_with_weights([
                 Homogeneous::new(1.0),
                 Homogeneous::weighted_unchecked(2.0, 2.0),
-                Homogeneous::infinity(3.0)]).unwrap()
+                Homogeneous::infinity(3.0)])
             .normalized::<f64>()
             .constant()
-            .build();
+            .build().unwrap();
         BezierBuilder::new()
-            .elements([0.1,0.2,0.3]).unwrap()
+            .elements([0.1,0.2,0.3])
             .normalized::<f64>()
             .constant()
-            .build();
-        assert!(BezierBuilder::new().elements::<[f64;0]>([]).is_err());
+            .build().unwrap();
+        assert!(BezierBuilder::new().elements::<[f64;0]>([]).normalized::<f64>().constant().build().is_err());
     }
 }
