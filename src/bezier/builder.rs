@@ -204,6 +204,7 @@ where
     R: Real
 {
     /// Build a bezier interpolation with the given domain
+    #[allow(clippy::type_complexity)]
     pub fn build(self) -> Result<TransformInput<Bezier<R,E,S>,R,R>, BezierError> {
         Ok(TransformInput::normalized_to_domain(
             Bezier::new(self.elements, self.space)?
@@ -237,6 +238,7 @@ where
     <G::Output as IntoWeight>::Element: Div<<G::Output as IntoWeight>::Weight, Output = <G::Output as IntoWeight>::Element>,
 {
     /// Build a weighted bezier interpolation with given domain.
+    #[allow(clippy::type_complexity)]
     pub fn build(self) -> Result<TransformInput<WeightedBezier<R,G,S>,R,R>, BezierError> {
         Ok(TransformInput::normalized_to_domain(
             Weighted::new(Bezier::new(self.elements, self.space)?)

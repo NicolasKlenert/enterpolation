@@ -2,8 +2,6 @@
 
 use core::marker::PhantomData;
 use core::fmt;
-#[cfg(any(feature = "linear", feature = "bspline"))]
-use crate::{Generator, DiscreteGenerator};
 
 #[cfg(feature = "std")]
 use std::error::Error;
@@ -15,37 +13,6 @@ pub struct WithoutWeight;
 /// Struct indicator to mark that we use weights.
 #[derive(Debug, Copy, Clone)]
 pub struct WithWeight;
-
-/// Struct indicator that knots are not guaranteed to be sorted.
-#[cfg(any(feature = "linear", feature = "bspline"))]
-#[derive(Debug, Copy, Clone)]
-pub struct Unsorted<K>(pub K);
-
-#[cfg(any(feature = "linear", feature = "bspline"))]
-impl<K> Unsorted<K> {
-    pub const fn new(knots: K) -> Self {
-        Unsorted(knots)
-    }
-}
-
-#[cfg(any(feature = "linear", feature = "bspline"))]
-impl<K> Generator<usize> for Unsorted<K>
-where K: Generator<usize>
-{
-    type Output = K::Output;
-    fn gen(&self, value: usize) -> Self::Output {
-        self.0.gen(value)
-    }
-}
-
-#[cfg(any(feature = "linear", feature = "bspline"))]
-impl<K> DiscreteGenerator for Unsorted<K>
-where K: DiscreteGenerator
-{
-    fn len(&self) -> usize {
-        self.0.len()
-    }
-}
 
 /// Struct indicator to mark information not yet given.
 #[derive(Debug, Copy, Clone)]

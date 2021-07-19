@@ -54,7 +54,7 @@ mod builder;
 pub use base::DynSpace;
 pub use base::{Generator, Interpolation, Curve, Extract, Stepper, Space, ConstSpace,
     DiscreteGenerator, ConstDiscreteGenerator, Equidistant, ConstEquidistant,
-    Sorted, SortedGenerator, NotSorted, TransformInput, Chain, Stack, Slice, Repeat, Wrap, BorderBuffer};
+    Sorted, SortedGenerator, NotSorted, TransformInput, Chain, Stack, Slice, Repeat, Wrap};
 pub use easing::{Easing, Identity};
 // pub use weights::{Homogeneous, Weighted, Weights, IntoWeight};
 

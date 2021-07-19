@@ -17,7 +17,7 @@ use core::fmt::Debug;
 
 // mod hyper;
 mod builder;
-pub use builder::LinearBuilder;
+pub use builder::{LinearBuilder, LinearDirector};
 
 pub mod error;
 pub use error::{LinearError, TooFewElements, KnotElementInequality, NotSorted};

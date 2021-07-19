@@ -1,6 +1,6 @@
 use num_traits::real::Real;
 use core::ops::{Add, Mul, RangeBounds, Bound};
-use crate::{Generator, Interpolation, Curve, DiscreteGenerator, ConstDiscreteGenerator, SortedGenerator};
+use crate::{Generator, Interpolation, Curve, DiscreteGenerator, ConstDiscreteGenerator};
 
 /// Acts like a slice of a curve
 ///
@@ -295,48 +295,4 @@ where
     fn len(&self) -> usize {
         self.inner.len() + self.n
     }
-}
-
-/// DiscreteGenerator Adaptor which repeats its first and last element `n` more times.
-#[derive(Debug, Copy, Clone)]
-pub struct BorderBuffer<G>{
-    inner: G,
-    n: usize,
-}
-
-impl<G> BorderBuffer<G>{
-    /// Creates a generator which repeats the first and last element of the given generator `n` more times.
-    pub fn new(inner: G, n: usize) -> Self {
-        BorderBuffer{
-            inner,
-            n,
-        }
-    }
-}
-
-impl<G> Generator<usize> for BorderBuffer<G>
-where
-    G: DiscreteGenerator,
-{
-    type Output = G::Output;
-    fn gen(&self, input: usize) -> Self::Output {
-        let clamped = input.max(self.n).min(self.inner.len() + self.n - 1);
-        self.inner.gen(clamped - self.n)
-    }
-}
-
-impl<G> DiscreteGenerator for BorderBuffer<G>
-where
-    G: DiscreteGenerator,
-{
-    fn len(&self) -> usize {
-        self.inner.len() + 2*self.n
-    }
-}
-
-impl<G> SortedGenerator for BorderBuffer<G>
-where
-    G: SortedGenerator,
-{
-    //TODO: make it more efficient
 }

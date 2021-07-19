@@ -8,9 +8,11 @@
 
 mod error;
 mod builder;
+mod adaptors;
 
-pub use error::{BSplineError, NonValidDegree, TooSmallWorkspace, NotSorted, TooFewElements};
-pub use builder::BSplineBuilder;
+pub use error::{BSplineError, InvalidDegree, TooSmallWorkspace, NotSorted, TooFewElements};
+pub use adaptors::{BorderBuffer, BorderDeletion};
+pub use builder::{BSplineBuilder, BSplineDirector};
 
 use crate::{Generator, SortedGenerator, DiscreteGenerator, Space, Interpolation, Curve, Merge};
 use crate::builder::Unknown;
@@ -173,7 +175,7 @@ where
         }
         // Test if degree is strict positive
         if knots.len() < elements.len() {
-            return Err(NonValidDegree::new(knots.len() as isize - elements.len() as isize +1).into());
+            return Err(InvalidDegree::new(knots.len() as isize - elements.len() as isize +1).into());
         }
         // Test if we have enough elements for the degree
         if elements.len() < knots.len() - elements.len() {
@@ -186,8 +188,8 @@ where
         Ok(BSpline {
             elements,
             knots,
-            degree,
             space,
+            degree,
         })
     }
 }

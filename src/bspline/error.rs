@@ -16,7 +16,7 @@ pub enum BSplineError {
     /// Error returned if the workspace is not big enough.
     TooSmallWorkspace(TooSmallWorkspace),
     /// Error returned if the number of knots and elements would need a degree which is 0 or smaller.
-    NonValidDegree(NonValidDegree),
+    InvalidDegree(InvalidDegree),
     /// Error returned if knots are not sorted.
     NotSorted(NotSorted),
 }
@@ -26,7 +26,7 @@ impl fmt::Display for BSplineError {
         match self {
             BSplineError::TooFewElements(inner) => inner.fmt(f),
             BSplineError::NotSorted(inner) => inner.fmt(f),
-            BSplineError::NonValidDegree(inner) => inner.fmt(f),
+            BSplineError::InvalidDegree(inner) => inner.fmt(f),
             BSplineError::TooSmallWorkspace(inner) => inner.fmt(f),
         }
     }
@@ -38,9 +38,9 @@ impl From<TooFewElements> for BSplineError {
     }
 }
 
-impl From<NonValidDegree> for BSplineError {
-    fn from(from: NonValidDegree) -> Self {
-        BSplineError::NonValidDegree(from)
+impl From<InvalidDegree> for BSplineError {
+    fn from(from: InvalidDegree) -> Self {
+        BSplineError::InvalidDegree(from)
     }
 }
 
@@ -61,21 +61,21 @@ impl Error for BSplineError {}
 
 /// Error returned if the number of elements and the number of knots are not matching.
 #[derive(Debug, Copy, Clone)]
-pub struct NonValidDegree {
+pub struct InvalidDegree {
     /// The calculated degree
     degree: isize,
 }
 
-impl NonValidDegree {
+impl InvalidDegree {
     /// Create a new error with the number of elements and knots found.
     pub fn new(degree: isize) -> Self {
-        NonValidDegree{
+        InvalidDegree{
             degree,
         }
     }
 }
 
-impl fmt::Display for NonValidDegree {
+impl fmt::Display for InvalidDegree {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "The degree of the resulting curve is {} and such not valid.
             Only striclty positive degrees less than the number of elements are allowed.", self.degree)
@@ -83,4 +83,4 @@ impl fmt::Display for NonValidDegree {
 }
 
 #[cfg(feature = "std")]
-impl Error for NonValidDegree {}
+impl Error for InvalidDegree {}
