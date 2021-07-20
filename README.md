@@ -1,24 +1,161 @@
-## Enterpolation is the most expressive and easy to use interpolation library out there.
+# Enterpolation
 
-# Language:
-- Knots are points. These live in Euclidian Space, such having a distance between them (there should be nor reason to make it even more generalised)
-- Elements are the elements to be interpolated. How to interpolate will be defined by the interpolation method. However (for know) these elements should work like Vectorspaces, that is, act linear and having addition as well as scalar multiplication. Scalars in our case are (single) components of knots.
-- bezier and bspline surfaces NEED a grid to work! (but not a rigid grid) -> such knots can't be used without any constraints. However, building the interpolation from the bottom up, there is not a problem!
-- bezier and bspline (and NURBS) are more curve fitting problems and not strictly interpolation problems, because the don't go through the points given (but still populate an area (inside of the convex hull of the points given))
+<!--- This should be the same as the short description in cargo.toml --->
+A library for creating and computing interpolation, extrapolation and smoothing of generic data points.
 
-# Thoughts:
-- InterScalar does not have to be a scalar -> usually we just want to say: hey, we have n points and how much to they factor in in all that?
-- 4 points to factor in can be because of: we have a simplex in 3-dim space OR we have a rectangle in 2-dim space OR we have 4 points in a line in 1-dim and they factor all in
-- If we look at noise, it is more or less the same, it interpolates. However it tries to generate everything on the fly, including the elements. Such Interpolation does: look at specific knots (the algo often decides which one) -> generate elements there -> interpolate
-- bezier and bspline do more like: look at specific knots (given beforehand) -> get elements there (given) -> interpolate
+Enterpolation is a library to generate and use different interpolation and extrapolation methods. This includes linear interpolation, bezier curves, B-spline and their weighted and non-uniform counterparts like NURBS. This library aims to be as generic as possible to allow interpolating elements of any vector space. Also building and using different interpolations should create as less friction as possible such that one may experiment with different methods to find the interpolation which best fits their needs. To achieve this, Enterpolation heavily uses consistent builder options to allow customization and minimise the need to change code while experimenting.
 
-# Interpolation:
-- consists of: Knots and the sampled/generated/given elements there -> interpolate with weights (usually...is there any other form? I do not think so)
-- such knots are identified with elements. The knots give us information (most of the time distance) and are used to determine the weights.
-- It IS reasonable to assume that we want f64 (or f32) as knot-components as we want to work with R^n (almost) ever and ALSO that we just use points as knots (we should think about how to make a nice API)
+## Table of Contents
 
+- [Usage](#usage)
+- [Crate Features](#crate-features)
+- [Details](#details)
+- [Contributing](#contributing)
+- [License](#license)
 
-# Points:
-- This is given for the get methods. I would like that all of these are possible: get(x,y), get([x,y]), get(Point).
-- Because rust does not have function overloading, we would need a trait for get(x,y) just to have it.. This feels like an anti-pattern
-- Such we could see [x,y] as a Point and just allow Points OR just allow [f64;N] and every Point should use .to_array() -> [f64;N]
+## Usage
+
+Add this to your `Cargo.toml`:
+```toml
+[dependencies]
+enterpolation = "0.1"
+```
+
+Here is a simple example creating a linear interpolation of `f64` and extracting 21 values from start to end. This library supports all elements which can be added together and multiplied with a scalar (in our case also `f64`). Instead of interpolating floats, one could interpolate coordinates, rotations, transformations, velocities, geometries, sound, colors and so on.
+```rust
+use enterpolation::{linear::{Linear, LinearError}, Curve};
+
+fn main() -> Result<(), LinearError> {
+  let lin = lin.builder()
+    .elements([0.0,5.0,-5.0,0.0])
+    .knots([0.0,0.2,0.8,1.0])
+    .build()?;
+  // generate and print 21 values with equal distances
+  // that is: 0.0, 0.05, 0.10, ..., 0.95, 1.00
+  for value in lin.take(21){
+    println!("{:?}",value);
+  }
+  Ok(())
+}
+```
+
+Another example shows how to create the 1D cardinal cubic B-spline example shown on [Wikipedia's B-splines page](https://en.wikipedia.org/wiki/B-spline) in several different ways.
+
+```rust
+use enterpolation::{bspline::{BSpline, BSplineError}, Curve};
+use assert_float_eq::{afe_is_f64_near, afe_near_error_msg, assert_f64_near};
+
+fn main() -> Result<(), BSplineError> {
+  let bspline = BSpline::builder()
+        .clamped()             // the curve should be clamped (variation)
+        .elements([0.0,0.0,0.0,6.0,0.0,0.0,0.0])
+        .equidistant::<f64>() // knots should be evenly distributed
+        .degree(3)            // cubic curve
+        .domain(-2.0,2.0)     // input domain
+        .constant::<4>()      // we need degree+1 space to interpolate
+        .build()?;
+  let same_but_different = BSpline::builder()
+        .elements([0.0,0.0,0.0,6.0,0.0,0.0,0.0])
+        // we repeat the end and start knot 3 times, as
+        // we have a degree of 3 and we want a clamped curve
+        .knots([-2.0,-2.0,-2.0,-1.0,0.0,1.0,2.0,2.0,2.0])?
+        .constant::<4>()     // we need knots.len() - elements.len() + 2
+        .build()?;
+  let run_time_spline = BSpline::builder()
+        .elements(vec![0.0,0.0,0.0,6.0,0.0,0.0,0.0])
+        .knots(vec![-2.0,-2.0,-2.0,-1.0,0.0,1.0,2.0,2.0,2.0])
+        .dynamic()
+        .build()?;
+  // all three construction define the same curve
+  for (a,b,c) in bspline.take(10)
+  .zip(same_but_different.take(10))
+  .zip(run_time_spline.take(10))
+  .map(|((a,b),c)| (a,b,c)) {
+    assert_f64_near!(a,b);
+    assert_f64_near!(b,c);
+  }
+  Ok(())
+}
+```
+
+### Further Examples
+
+Examples showcasing use cases (like defining a smooth color gradient or using NURBS) can be found in the [examples] directory.
+
+[examples]: https://github.com/NicolasKlenert/enterpolation/tree/main/examples
+
+## Crate Features
+
+This crate comes with a feature for every different interpolation method, such allowing to only include the necessary modules. All features are enabled by default.
+
+If one wants to only enable specific crate features, they have to use the following `Cargo.toml` dependency configuration:
+```toml
+[dependencies.enterpolation]
+version = "0.1"
+default-features = false
+# re-enable all wanted features
+features = ["linear"]
+```
+
+- **std** - When enabled, run-time allocations may be done with std::vec. For the most part one can disable this feature and implement the necessary traits for their custom run-time allocation or only use arrays.
+- **linear** - Enables all relevant methods and the construction of linear interpolation.
+- **bezier** - Enables all relevant methods and the construction of bezier curves.
+- **bspline** - Enables all relevant methods and the construction of B-Spline.
+
+## Details
+
+#### Requirements for Elements
+
+If the elements you want to interpolate already implement [addition] with themselves and [multiplication] with a scalar, you should already be fine. If that is not the case, you may want to consider implementing these, as most interpolations will only work properly if the elements are living in a vector-space (and such addition and multiplication is defined for them).
+
+Otherwise this crate defines a trait [Merge], which represents the capability of an element to be merged with another one. This trait is necessary for all interpolations. Furthermore the core [Default] trait is also necessary for bezier curves and B-splines.
+
+Elements can be given to the curve with an array, a vector or by implementing the [DiscreteGenerator] trait. Basically every collection with an indexing operation can implement this trait. However generators can also implement it. Such one may generate the elements which should be interpolated on-the-fly. This can reduce the memory footprint if elements can be generically generated and one wants to interpolate many elements.
+
+[addition]: Add
+[multiplication]: Mul
+[Merge]: Merge
+[Default]: Default
+[DiscreteGenerator]: DiscreteGenerator
+
+#### Requirements for Knots
+
+Knots represent the location of the elements in the input space. Such knots are usually of the same type as your input for the interpolation itself. As all interpolations (yet) are curves, usually knots are f32 or f64. Elements must be multipliable with knots and knots have to be sorted with the smallest knot at index zero.
+
+Knots also can be given via an array or a vector, or some other type which implements the [DiscreteGenerator] trait. One may also implement the [SortedGenerator] trait if the type is always guaranteed to represent sorted knots.
+
+[DiscreteGenerator]: DiscreteGenerator
+[SortedGenerator]: SortedGenerator
+
+#### B-spline Peculiarity
+
+Except for the *Legacy* mode of B-splines, the construction in this crate works different than in most other libraries. Normally the first and last knots of each B-spline definition are useless, as the don't effect the generation of points inside the allowed domain of a B-spline. Without these two knots it's more clear how B-spline operate and in which way they are similar to the other interpolation curves. Such the decision was made to forego the usual definition. As we acknowledge that they may be a need of accepting the old format of knots, `BSpline` implements a legacy mode which can be used to define a B-spline in an old fashioned way.
+
+The example [bspline-reasoning] illustrates the elegance of forgetting these two end knots and contains code which makes use of the legacy mode.
+
+[bspline-reasoning]: ./bla
+
+#### B-spline Variations
+
+As B-splines are rather complex curves, their [builder] allows different modes to make it possible to define the curves how the user would like to.
+
+- **open** - This can be seen as the default mode of the builder. No guarantees are made regarding the shape of the curve. With a correct configuration, this mode is able to achieve the same curve as any other mode.
+- **clamped** - This mode clamps the curve such that its start- and endpoint are guaranteed to be the first and last element given. This is done by repeating the first and last knots.
+- **legacy** - This mode may be used to configure a B-spline the same way most other sources do. This mode is useful if one only gets the values for the configuration of a B-spline and is not creating them themselves.
+
+[builder]: bspline::builder::BSplineBuilder
+
+## Contributing
+
+All sorts of contributions are welcome, no matter how huge or tiny, so take a look at [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines, if you are interested.
+
+## License
+
+Licensed under either of
+
+* Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or <http://www.apache.org/licenses/LICENSE-2.0>)
+* MIT license ([LICENSE-MIT](LICENSE-MIT) or <http://opensource.org/licenses/MIT>)
+
+at your option.
+
+Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in the work by you, as defined in the Apache-2.0 license, shall be dual licensed as above, without any additional terms or conditions.
