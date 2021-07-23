@@ -367,7 +367,7 @@ impl<E,W> BSplineDirector<Unknown, E, Unknown, W, Clamped>
         K: DiscreteGenerator,
         K::Output: PartialOrd
     {
-        if self.elements.len() > knots.len() {
+        if self.elements.len() < knots.len() {
             return Err(InvalidDegree::new(self.elements.len() as isize - knots.len() as isize +1).into());
         }
         let duplicate = self.elements.len() - knots.len();  //deg-1
@@ -749,6 +749,8 @@ where
     }
 }
 
+//TODO: dynamic may return error if elements > knots -> We may want to test this before!
+
 impl<K,E,W,M> BSplineDirector<K,E, Unknown, W,M>
 where
     E: DiscreteGenerator,
@@ -929,13 +931,42 @@ type WeightedBSpline<K,G,S> = Weighted<BSpline<K,Weights<G>,S>>;
 mod test {
     use super::BSplineBuilder;
     // Homogeneous for creating Homogeneous, Generator for using .stack()
-    use crate::{weights::Homogeneous, Generator};
+    use crate::{weights::Homogeneous, Generator, Curve};
 
     #[test]
     fn degenerate_creations() {
         let empty : [f64;0] = [];
-        assert!(BSplineBuilder::new().elements(empty).knots(empty).constant::<0>().build().is_err());
-        assert!(BSplineBuilder::new().elements([1.0]).knots([1.0]).constant::<1>().build().is_err());
+        assert!(BSplineBuilder::new().elements(empty).knots(empty).constant::<1>().build().is_err());
+        assert!(BSplineBuilder::new().elements([1.0]).knots([1.0]).constant::<2>().build().is_err());
+    }
+
+    #[test]
+    fn mode_equality() {
+        let elements = [1.0,3.0,7.0];
+        let open = BSplineBuilder::new()
+            .elements(elements)
+            .knots([0.0,0.0,1.0,1.0])
+            .constant::<3>()
+            .build().unwrap();
+        let clamped = BSplineBuilder::new()
+            .clamped()
+            .elements(elements)
+            .knots([0.0,1.0])
+            .constant::<3>()
+            .build().unwrap();
+        let legacy = BSplineBuilder::new()
+            .legacy()
+            .elements(elements)
+            .knots([0.0,0.0,0.0,1.0,1.0,1.0])
+            .constant::<3>()
+            .build().unwrap();
+            for (a,b,c) in open.take(10)
+            .zip(clamped.take(10))
+            .zip(legacy.take(10))
+            .map(|((a,b),c)| (a,b,c)) {
+              assert_f64_near!(a,b);
+              assert_f64_near!(b,c);
+            }
     }
 
     #[test]

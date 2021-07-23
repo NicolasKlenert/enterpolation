@@ -112,50 +112,6 @@ where
     }
 }
 
-// impl<R,T> BSpline<R,Vec<T>,T,Vec<R>>
-// {
-//     /// Create a closed curve bspline which resembles a loop.
-//     /// The number of elements and the number of knots have to be equal.
-//     /// The domain is is the first and last knot given.
-//     pub fn with_wrapping_knots<C>(collection: C, degree: usize) {
-//         //TODO: clone the first control point and push it to the end
-//         //TODO: clone the first degree+2 knots and push them also to the end
-//     }
-// }
-
-// impl<R,E,T> BSpline<R,E,T,Vec<R>>
-// where
-//     E: AsRef<[T]>,
-//     R: Real
-// {
-//     /// Create a bspline which touches its first and last control point
-//     /// and has a domain of [0.0,1.0].
-//     /// The degree of the curve is given by elements.len() - knots.len() - 1
-//     pub fn with_clamped_ends<K>(elements: E, knots: K) -> Self
-//     where
-//         K: AsRef<[R]>
-//     {
-//         let elem_len = elements.as_ref().len();
-//         let knots_len = knots.as_ref().len();
-//         assert!(elem_len > knots_len +1);
-//         let degree = elem_len - knots_len - 1;
-//         let mut vec = Vec::with_capacity(knots_len + 2*degree + 2);
-//         for _ in 0..degree+1{
-//             vec.push(R::zero());
-//         }
-//         vec.extend(knots.as_ref());
-//         for _ in 0..degree+1{
-//             vec.push(R::one());
-//         }
-//         BSpline {
-//             elements,
-//             knots: vec,
-//             degree,
-//             _phantoms: (PhantomData, PhantomData)
-//         }
-//     }
-// }
-
 impl<K,E,S> BSpline<K,E,S>
 where
     E: DiscreteGenerator,

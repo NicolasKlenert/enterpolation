@@ -9,5 +9,5 @@ pub use num_traits::real::Real;
 
 #[cfg(not(any(feature = "std", feature = "libm")))]
 compile_error!(
-    "The palette crate needs a real library. Please enable the \"std\" or \"libm\" feature."
+    "The enterpolation crate needs a library for floats. Please enable the \"std\" or \"libm\" feature."
 );

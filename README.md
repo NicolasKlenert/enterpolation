@@ -98,6 +98,7 @@ features = ["linear"]
 ```
 
 - **std** - When enabled, run-time allocations may be done with std::vec. For the most part one can disable this feature and implement the necessary traits for their custom run-time allocation or only use arrays.
+- **libm** - This feature has to be enabled fpor the crate to work properly if the **std** feature is disabled.
 - **linear** - Enables all relevant methods and the construction of linear interpolation.
 - **bezier** - Enables all relevant methods and the construction of bezier curves.
 - **bspline** - Enables all relevant methods and the construction of B-Spline.
