@@ -2,7 +2,8 @@ extern crate proc_macro;
 
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{Token, ItemImpl, ImplItem, PathArguments, ImplItemMethod, Signature, Type, Path, ReturnType,
+use syn::{Token, ItemImpl, ImplItem, PathArguments, Block, ImplItemMethod, Type, Path, ReturnType,
+    FnArg, Pat,
     parse_macro_input, parse_quote};
 use syn::punctuated::Punctuated;
 use syn::parse::{Parse, ParseStream, Result, Error};
@@ -10,8 +11,8 @@ use syn::spanned::Spanned;
 // use syn::fold::Fold;
 
 enum OutputType {
-    Result(Path),
-    Source(Path),
+    Result,
+    Source,
 }
 
 struct Args {
@@ -39,56 +40,61 @@ impl Args {
         }
         Ok(quote!(#input).into())
     }
-    //TODO: we have more assumptions! Return is either a result with inner type source or source itself!
-    //TODO: otherwise our whole construct won't work!
     fn function_handler(&self, input: &mut ImplItemMethod) -> Result<()>{
         let target = &self.target;
         let method_name = &input.sig.ident;
-        let method_input = &input.sig.inputs;
-        //we want to change signature and block
-        match self.returns_result(&mut input.sig.output)?{
+        let method_input = &mut input.sig.inputs;
+        let (args, mutable) = map_input(method_input);
+        let closure_arg : Pat = match mutable {
+            true => parse_quote!(mut director),
+            false => parse_quote!(director),
+        };
+        //change method_input to be always self instead of &mut self
+        match method_input.first_mut()
+                        .expect("There should always be a self in the method to chain results") {
+                FnArg::Receiver(ref mut rec) => {rec.mutability = None; rec.reference = None;},
+                FnArg::Typed(_) => {return Err(Error::new(method_input.span(),"we are only able to chain results if it is a method!"))},
+        }
+
+
+        // find source and if we return a result
+        let (output_type, source) = self.returns_result(&mut input.sig.output)?;
+        let mut constructed = target.clone();
+        // copy generics of source to our target
+        match constructed.segments.last_mut() {
+            Some(segment) => segment.arguments = source.segments.last().unwrap().arguments.clone(),
+            None => {},//TODO: return error?
+        }
+        // change output to target (with the same generics)
+        input.sig.output = parse_quote!(
+            -> #constructed
+        );
+        // change block depending on what we return
+        match output_type{
             // we do not use the original output but the inner output of the result
-            OutputType::Result(result_inner) => {
-                let mut constructed = target.clone();
-                // use generics of the return type
-                match constructed.segments.last_mut() {
-                    //todo: move (and not clone) should be fine here
-                    Some(segment) => segment.arguments = result_inner.segments.last().unwrap().arguments.clone(),
-                    None => {},//todo: return error?
-                };
-                input.sig.output = parse_quote!(
-                    -> #constructed
-                );
-                input.block = parse_quote!(
+            // todo: one may check if result had the correct error such that we don't need to use into()
+            OutputType::Result => {
+                input.block = parse_quote!({
                     #target {
-                        inner: self.inner.and_then(|director| director.#method_name(#method_input)
+                        inner: self.inner.and_then(|#closure_arg| #source::#method_name(#args)
                             .err_map(|err| err.into()))
                     }
-                );
-                Ok(())
+                });
             },
+
             // we do use the original output (changed to target) and wrap our body with an Ok()
-            OutputType::Source(source) => {
-                let mut constructed = target.clone();
-                //use generics of return type
-                match constructed.segments.last_mut() {
-                    Some(segment) => segment.arguments = source.segments.last().unwrap().arguments.clone(),
-                    None => {},//TODO: return error?
-                }
-                input.sig.output = parse_quote!(
-                    -> #constructed
-                );
-                input.block = parse_quote!(
+            OutputType::Source => {
+                input.block = parse_quote!({
                     #target {
-                        inner: self.inner.and_then(|director| Ok(director.#method_name(#method_input)))
+                        inner: self.inner.and_then(|#closure_arg| Ok(#source::#method_name(#args)))
                     }
-                );
-                Ok(())
+                });
             },
         }
+        Ok(())
     }
     /// Functions which checks if we have a return with result and if so returns the inner Ok type
-    fn returns_result(&self, input: &mut ReturnType) -> Result<OutputType> {
+    fn returns_result(&self, input: &mut ReturnType) -> Result<(OutputType, Path)> {
         match *input {
             ReturnType::Default => Err(Error::new(input.span(), "Return Type must exist")),
             ReturnType::Type(_,ref mut boxed_type) => {
@@ -100,20 +106,20 @@ impl Args {
                             Some(ref path) => {
                                 if type_path.path == *path {
                                     match type_path.path.segments.last() {
-                                        Some(segment) => Ok(OutputType::Result(self.get_first_generic(&segment.arguments)?)),
+                                        Some(segment) => Ok((OutputType::Result,self.get_first_generic(&segment.arguments)?)),
                                         None => Err(Error::new(input.span(), "Return Type must exist")),   // this should be an error
                                     }
                                 } else {
-                                    Ok(OutputType::Source(type_path.path.clone()))
+                                    Ok((OutputType::Source,type_path.path.clone()))
                                 }
                             },
                             // we use default result, that is, just Result
                             None => match type_path.path.segments.last() {
                                 Some(segment) => {
                                     if segment.ident == "Result" {
-                                        Ok(OutputType::Result(self.get_first_generic(&segment.arguments)?))
+                                        Ok((OutputType::Result,self.get_first_generic(&segment.arguments)?))
                                     } else {
-                                        Ok(OutputType::Source(type_path.path.clone()))
+                                        Ok((OutputType::Source,type_path.path.clone()))
                                     }
                                 },
                                 None => Err(Error::new(input.span(), "Return Type must exist")),
@@ -128,6 +134,31 @@ impl Args {
     fn get_first_generic(&self, input: &PathArguments) -> Result<Path> {
         Err(Error::new(input.span(),"Not yet implemented"))
     }
+}
+
+fn map_input(input: &Punctuated<FnArg,Token![,]>) -> (Punctuated<Pat, Token![,]>, bool) {
+    let mut mutable = true;
+    let map = input.iter().map(|arg| {
+        match arg {
+            //todo: director may be & or &mut such check this and add this to the parser!
+            FnArg::Receiver(rec) => {
+                //TODO: there should always be self in the first slot and it should always be mutable
+                let pat : Pat = match rec.reference {
+                    Some(ref and) => match and.1 {
+                        Some(ref lifetime) => parse_quote!(&#lifetime mut director),
+                        None => parse_quote!(&mut director),
+                    },
+                    None => {
+                        mutable = false;
+                        return parse_quote!(director);
+                    },
+                };
+                pat
+            },
+            FnArg::Typed(pat_type) => (*pat_type.pat).clone(),
+        }
+    }).collect();
+    (map, mutable)
 }
 
 impl Parse for Args {
@@ -165,6 +196,8 @@ pub fn chain_result(attr: TokenStream, original: TokenStream) -> TokenStream {
     let args = parse_macro_input!(attr as Args);
     // This ist not alway the case, at some point we would have to parse it as Item instead of ItemImpl
     let item = parse_macro_input!(original as ItemImpl);
-    input.extend(args.implication_handler(item));
+    let item = args.implication_handler(item).unwrap();
+    println!("changed block: {}",item);
+    input.extend(item);
     input
 }
