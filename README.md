@@ -148,14 +148,14 @@ As B-splines are rather complex curves, their [builder] allows different modes t
 
 ## Contributing
 
-All sorts of contributions are welcome, no matter how huge or tiny, so take a look at [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines, if you are interested.
+All contributions are welcome, no matter how huge or tiny. If you are interested, take a look at [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## License
 
 Licensed under either of
 
-* Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or <http://www.apache.org/licenses/LICENSE-2.0>)
-* MIT license ([LICENSE-MIT](LICENSE-MIT) or <http://opensource.org/licenses/MIT>)
+* [Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0)
+* [MIT license](http://opensource.org/licenses/MIT)
 
 at your option.
 

@@ -7,10 +7,11 @@ use core::marker::PhantomData;
 use num_traits::real::Real;
 use num_traits::FromPrimitive;
 use num_traits::identities::Zero;
+use topology_traits::Merge;
 #[cfg(feature = "std")]
 use crate::DynSpace;
 use crate::{Generator, DiscreteGenerator, Space, ConstSpace, Sorted, NotSorted, SortedGenerator,
-    Equidistant, Merge};
+    Equidistant};
 use crate::weights::{Weighted, Weights, IntoWeight, Homogeneous};
 use crate::builder::{WithWeight,WithoutWeight,Unknown, Type};
 use super::BSpline;

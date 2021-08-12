@@ -27,8 +27,6 @@ impl DiscreteGenerator for ValueGenerator {
 }
 
 fn main(){
-        //TODO: add documentation for this "trick"
-        // .easing(FuncEase::new(|val| {println!("factor: {:?}",val); return val}))
     let spline = BSpline::builder()
         .clamped()
         .elements(ValueGenerator{})

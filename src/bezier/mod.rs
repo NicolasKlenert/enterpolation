@@ -3,11 +3,12 @@
 // TODO: create LinearEquidistant Interpolation from Bezier, when a constant speed is wished for
 // TODO: -> see https://www.researchgate.net/post/How-can-I-assign-a-specific-velocity-to-a-point-moving-on-a-Bezier-curve
 use core::ops::{Mul, Sub};
-use crate::{Generator, Interpolation, Curve, Space, DiscreteGenerator, Merge};
+use crate::{Generator, Interpolation, Curve, Space, DiscreteGenerator};
 use crate::utils::{triangle_folding_inline, lower_triangle_folding_inline};
 use crate::builder::Unknown;
 use num_traits::real::Real;
 use num_traits::cast::FromPrimitive;
+use topology_traits::Merge;
 use core::marker::PhantomData;
 
 mod builder;

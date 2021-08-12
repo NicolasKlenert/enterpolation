@@ -47,6 +47,8 @@ version = "0.1.0"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+# enterpolation_attribute = {version = "0.1", path = "./enterpolation_attribute"}
+topology-traits = "0.1"
 assert_float_eq = "1"
 num-traits = "0.2"
 

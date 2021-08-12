@@ -2,7 +2,8 @@ use enterpolation::{Merge, Generator, Curve, bspline::BSpline};
 use palette::{Hsl, Mix, Pixel, IntoColor};
 use image::{ImageBuffer, Rgba};
 
-// As HSL does not implement multiplication with a scalar, we need to use a newtype pattern
+// As HSL does neither implement multiplication with a scalar nor the merge trait in `topology-traits` crate,
+// we need to use a newtype pattern
 #[derive(Debug, Copy, Clone, Default)]
 struct CustomHsl(Hsl);
 
@@ -12,7 +13,7 @@ impl From<Hsl> for CustomHsl {
     }
 }
 
-// As HSL does not implement multiplication, we have to implement the Merge trait to use enterpolation.
+// As HSL does not implement multiplication, we have to implement the Merge trait ourself to use enterpolation.
 impl Merge<f32> for CustomHsl {
     fn merge(self, other: Self, factor: f32) -> Self {
         self.0.mix(&other.0,factor).into()

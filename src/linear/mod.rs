@@ -9,9 +9,10 @@
 //! instead of O(log n) with n being the number of elements in the interpolation structure.
 
 use crate::{Generator, Interpolation, Curve, SortedGenerator,
-    DiscreteGenerator, ConstEquidistant, Merge, Easing, Identity};
+    DiscreteGenerator, ConstEquidistant, Easing, Identity};
 use crate::builder::Unknown;
 use num_traits::real::Real;
+use topology_traits::Merge;
 
 use core::fmt::Debug;
 

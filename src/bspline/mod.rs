@@ -14,10 +14,11 @@ pub use error::{BSplineError, InvalidDegree, TooSmallWorkspace, NotSorted, TooFe
 pub use adaptors::{BorderBuffer, BorderDeletion};
 pub use builder::{BSplineBuilder, BSplineDirector};
 
-use crate::{Generator, SortedGenerator, DiscreteGenerator, Space, Interpolation, Curve, Merge};
+use crate::{Generator, SortedGenerator, DiscreteGenerator, Space, Interpolation, Curve};
 use crate::builder::Unknown;
 use builder::Open;
 use num_traits::real::Real;
+use topology_traits::Merge;
 
 use core::fmt::Debug;
 
