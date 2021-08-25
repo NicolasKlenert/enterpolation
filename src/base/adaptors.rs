@@ -129,44 +129,50 @@ where
     }
 }
 
-/// Struct which chains two Interpolation together to one Interpolation.
+/// Struct which composite two generator together to act as one generator.
 ///
-/// This `struct` is created by [`Interpolation::chain`]. See its documentation for more.
-#[derive(Clone, Debug)]
-pub struct Chain<A,B>{
-    first: A,
-    second: B
+/// This `struct` is created by [`Generator::composite`]. See its documentation for more.
+#[derive(Clone, Copy, Debug)]
+pub struct Composition<A,B>(A,B);
+
+impl<A,B> Composition<A,B>{
+    /// Creates a stacked generator, working similar like the `zip` method of iterators.
+    pub fn new(first: A, second: B) -> Self {
+        Composition(first, second)
+    }
 }
 
-impl<A,B,T> Generator<T> for Chain<A,B>
+impl<A,B,T> Generator<T> for Composition<A,B>
 where
     A: Interpolation<T>,
     B: Interpolation<A::Output>
 {
     type Output = B::Output;
     fn gen(&self, scalar: T) -> Self::Output {
-        self.second.gen(self.first.gen(scalar))
+        self.1.gen(self.0.gen(scalar))
     }
 }
 
-impl<A,B,T> Interpolation<T> for Chain<A,B>
+impl<A,B,T> Interpolation<T> for Composition<A,B>
 where
     A: Interpolation<T>,
     B: Interpolation<A::Output>
 {}
 
-impl<A,B,R> Curve<R> for Chain<A,B>
+impl<A,B,R> Curve<R> for Composition<A,B>
 where
     A: Curve<R>,
     B: Interpolation<A::Output>,
     R: Real,
 {
     fn domain(&self) -> [R; 2] {
-        self.first.domain()
+        self.0.domain()
     }
 }
 
-/// DiscreteGenerator Adaptor which takes two generators with Output S and T and stacks them, such that the output is (T,R).
+/// DiscreteGenerator Adaptor which takes two generators with output S and T and stacks them, such that the output is (T,R).
+///
+/// This `struct` is created by [`Generator::stack]. See its documentation for more.
 #[derive(Debug, Copy, Clone)]
 pub struct Stack<G,H>(G,H);
 

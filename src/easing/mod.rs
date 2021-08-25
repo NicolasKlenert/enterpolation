@@ -131,7 +131,7 @@ where R: Real
     flip(smoothstart::<R,N>(flip(x)))
 }
 
-/// Smoothstep function, see https://en.wikipedia.org/wiki/Smoothstep
+/// Smoothstep function, see <https://en.wikipedia.org/wiki/Smoothstep>
 pub fn smoothstep<R>(x: R) -> R
 where R: Real + FromPrimitive,
 {
@@ -140,7 +140,7 @@ where R: Real + FromPrimitive,
     x * x * (three - two * x)
 }
 
-/// A smoother variant of the smoothstep function, see https://en.wikipedia.org/wiki/Smoothstep
+/// A smoother variant of the smoothstep function, see <https://en.wikipedia.org/wiki/Smoothstep>
 pub fn smootherstep<R>(x: R) -> R
 where R: Real + FromPrimitive,
 {

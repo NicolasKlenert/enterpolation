@@ -11,7 +11,7 @@ pub trait Space<T> {
     // However for this to work, we would have to be able to say something like
     // "we will output an array of (any) T", which is not yet easily possible.
 
-    /// The workspace given, this should be an array or a vector (AsMut<[T]>)
+    /// The workspace given, this should be an array or a vector (`AsMut<[T]>`)
     type Output : AsMut<[T]>;
     /// Returns the length of the workspace given.
     fn len(&self) -> usize;

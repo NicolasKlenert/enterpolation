@@ -5,7 +5,7 @@ use core::ops::RangeBounds;
 use core::iter::FusedIterator;
 
 use super::Equidistant;
-use super::{Stack, Slice, Repeat};
+use super::{Stack, Composition, Slice, Repeat};
 
 /// Trait which symbolises the generation or copying of an element.
 ///
@@ -36,6 +36,17 @@ pub trait Generator<Input> {
     where Self: Sized
     {
         Stack::new(self,gen)
+    }
+    /// Takes two generators and creates a new generator pipelining both generators.
+    ///
+    /// composite() will return a new generator which will first generate values from the original input
+    /// and then use these values as input for the second generator.
+    ///
+    /// In other words, it is the composite of two functions.
+    fn composite<G>(self, gen: G) -> Composition<Self,G>
+    where Self: Sized
+    {
+        Composition::new(self,gen)
     }
     /// Get a reference of the generator.
     /// This is useful if one wants to add an adapter without consuming the original.

@@ -10,7 +10,7 @@ mod space;
 #[allow(unreachable_pub)]
 pub use generator::{Generator, Interpolation, Curve, DiscreteGenerator, ConstDiscreteGenerator, Extract, Stepper, Take};
 #[allow(unreachable_pub)]
-pub use adaptors::{Chain, Stack, TransformInput, Slice, Repeat, Wrap};
+pub use adaptors::{Composition, Stack, TransformInput, Slice, Repeat, Wrap};
 #[allow(unreachable_pub)]
 pub use list::{Equidistant, ConstEquidistant, SortedGenerator, Sorted, NotSorted};
 #[allow(unreachable_pub)]

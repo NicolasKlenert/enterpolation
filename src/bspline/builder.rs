@@ -158,7 +158,7 @@ impl<M> BSplineDirector<Unknown, Unknown, Unknown, Unknown, M> {
     /// This allows the builder to take in the "usual" definition of knots for B-splines.
     /// For more information, see the *Peculariaty of B-splines* section of the [main documentation].
     ///
-    /// [main documentation]: enterpolation
+    /// [main documentation]: crate
     pub fn legacy(self) -> BSplineDirector<Unknown, Unknown, Unknown, Unknown, Legacy> {
         BSplineDirector {
             knots: self.knots,
@@ -239,7 +239,7 @@ impl<M> BSplineBuilder<Unknown, Unknown, Unknown, Unknown, M> {
     /// This allows the builder to take in the "usual" definition of knots for B-splines.
     /// For more information, see the *Peculariaty of B-splines* section of the [main documentation].
     ///
-    /// [main documentation]: enterpolation
+    /// [main documentation]: crate
     pub fn legacy(self) -> BSplineBuilder<Unknown, Unknown, Unknown, Unknown, Legacy> {
         BSplineBuilder {
             inner: self.inner.and_then(|director| Ok(director.legacy()))

@@ -26,7 +26,7 @@ Here is a simple example creating a linear interpolation of `f64` and extracting
 use enterpolation::{linear::{Linear, LinearError}, Curve};
 
 fn main() -> Result<(), LinearError> {
-  let lin = lin.builder()
+  let lin = Linear::builder()
     .elements([0.0,5.0,-5.0,0.0])
     .knots([0.0,0.2,0.8,1.0])
     .build()?;
@@ -58,7 +58,7 @@ fn main() -> Result<(), BSplineError> {
         .elements([0.0,0.0,0.0,6.0,0.0,0.0,0.0])
         // we repeat the end and start knot 3 times, as
         // we have a degree of 3 and we want a clamped curve
-        .knots([-2.0,-2.0,-2.0,-1.0,0.0,1.0,2.0,2.0,2.0])?
+        .knots([-2.0,-2.0,-2.0,-1.0,0.0,1.0,2.0,2.0,2.0])
         .constant::<4>()     // we need knots.len() - elements.len() + 2
         .build()?;
   let run_time_spline = BSpline::builder()
@@ -113,11 +113,11 @@ Otherwise this crate defines a trait [Merge], which represents the capability of
 
 Elements can be given to the curve with an array, a vector or by implementing the [DiscreteGenerator] trait. Basically every collection with an indexing operation can implement this trait. However generators can also implement it. Such one may generate the elements which should be interpolated on-the-fly. This can reduce the memory footprint if elements can be generically generated and one wants to interpolate many elements.
 
-[addition]: Add
-[multiplication]: Mul
-[Merge]: Merge
-[Default]: Default
-[DiscreteGenerator]: DiscreteGenerator
+[addition]: https://doc.rust-lang.org/core/ops/trait.Add.html
+[multiplication]: https://doc.rust-lang.org/core/ops/trait.Mul.html
+[Merge]: https://docs.rs/topology-traits/0.1.1/topology_traits/trait.Merge.html
+[Default]: https://doc.rust-lang.org/beta/core/default/trait.Default.html
+[DiscreteGenerator]: https://docs.rs/enterpolation/0.1.0/enterpolation/trait.DiscreteGenerator.html
 
 #### Requirements for Knots
 
@@ -125,16 +125,16 @@ Knots represent the location of the elements in the input space. Such knots are 
 
 Knots also can be given via an array or a vector, or some other type which implements the [DiscreteGenerator] trait. One may also implement the [SortedGenerator] trait if the type is always guaranteed to represent sorted knots.
 
-[DiscreteGenerator]: DiscreteGenerator
-[SortedGenerator]: SortedGenerator
+[DiscreteGenerator]: https://docs.rs/enterpolation/0.1.0/enterpolation/trait.DiscreteGenerator.html
+[SortedGenerator]: https://docs.rs/enterpolation/0.1.0/enterpolation/trait.SortedGenerator.html
 
 #### B-spline Peculiarity
 
-Except for the *Legacy* mode of B-splines, the construction in this crate works different than in most other libraries. Normally the first and last knots of each B-spline definition are useless, as the don't effect the generation of points inside the allowed domain of a B-spline. Without these two knots it's more clear how B-spline operate and in which way they are similar to the other interpolation curves. Such the decision was made to forego the usual definition. As we acknowledge that they may be a need of accepting the old format of knots, `BSpline` implements a legacy mode which can be used to define a B-spline in an old fashioned way.
+Except for the *Legacy* mode of B-splines, the construction in this crate works different than in most other libraries. Normally the first and last knots of each B-spline definition are useless, as the don't effect the generation of points inside the allowed domain of a B-spline. Without these two knots it's more clear how B-spline operate and in which way they are similar to the other interpolation curves. Such the decision was made to forego the usual definition. As we acknowledge that there may be a need of accepting the old format of knots, `BSpline` implements a legacy mode which can be used to define a B-spline in an old fashioned way.
 
 The example [bspline-reasoning] illustrates the elegance of forgetting these two end knots and contains code which makes use of the legacy mode.
 
-[bspline-reasoning]: ./bla
+[bspline-reasoning]: https://github.com/NicolasKlenert/enterpolation/blob/main/examples/bspline_reasoning.rs
 
 #### B-spline Variations
 
@@ -144,11 +144,11 @@ As B-splines are rather complex curves, their [builder] allows different modes t
 - **clamped** - This mode clamps the curve such that its start- and endpoint are guaranteed to be the first and last element given. This is done by repeating the first and last knots.
 - **legacy** - This mode may be used to configure a B-spline the same way most other sources do. This mode is useful if one only gets the values for the configuration of a B-spline and is not creating them themselves.
 
-[builder]: bspline::builder::BSplineBuilder
+[builder]: bspline::BSplineBuilder
 
 ## Contributing
 
-All contributions are welcome, no matter how huge or tiny. If you are interested, take a look at [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+All contributions are welcome, no matter how huge or tiny. If you are interested, take a look at [CONTRIBUTING.md](https://github.com/NicolasKlenert/enterpolation/blob/main/CONTRIBUTING.md) for guidelines.
 
 ## License
 

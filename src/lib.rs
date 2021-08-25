@@ -1,18 +1,4 @@
-//! This crate provides a myriad of different interpolation, extrapolation and animation methods.
-//! Most notably it tries to be generic and modular. If instances of your type act somewhat like
-//! a vector space, this crate will be able to interpolate, extrapolate and animate them.
-//! TODO: describe more
-
-//TODO: Also our min and max_index of our linear interpolation does NOT clamp the values together...array out of bounds!
-//TODO: SO upper_border can be broken somehow! Look into it!
-
-//TODO: all interpolations should have as knots field not just K but Sorted(NonEmpty(K))
-//TODO: all interpolations should have as elements field not just E but NonEmpty(E)
-//TODO: we want to achieve many different creation options such that a builder will be necessary
-//TODO: for now, create a builder for each different interpolation!
-//TODO: Afterwards delete the implementation of SortedList for array and vec
-//TODO: and add NonEmpty as super trait for SortedList!
-
+#![doc = include_str!("../README.md")]
 #![ cfg_attr( not(feature = "std"), no_std ) ]
 
 #![warn(
@@ -58,6 +44,6 @@ pub use topology_traits::Merge;
 pub use base::DynSpace;
 pub use base::{Generator, Interpolation, Curve, Extract, Stepper, Space, ConstSpace,
     DiscreteGenerator, ConstDiscreteGenerator, Equidistant, ConstEquidistant,
-    Sorted, SortedGenerator, NotSorted, TransformInput, Chain, Stack, Slice, Repeat, Wrap};
+    Sorted, SortedGenerator, NotSorted, TransformInput, Composition, Stack, Slice, Repeat, Wrap};
 pub use easing::{Easing, Identity};
 // pub use weights::{Homogeneous, Weighted, Weights, IntoWeight};

@@ -25,7 +25,7 @@ autoexamples = false
 # - `cargo +nightly doc --all-features --no-deps --open` and re-read and final polish of documentation.
 #
 # - Update CHANGELOG.md.
-# - Update version numbers in Cargo.yml, Cargo.toml, install section of readme.
+# - Update version numbers in Cargo.toml and install section of readme.
 #
 # - `touch **.rs && cargo clippy --tests --examples --benches --all-features`
 # - `cargo update`
@@ -38,10 +38,10 @@ autoexamples = false
 # - push dev and verify CI result
 # - `cargo test` on dependent crates
 #
-# - cargo publish
 # - `git checkout master && git merge dev --no-ff`
 # - `git tag x.x.x` with version number.
 # - `git push && git push --tags`
+# - cargo publish
 #
 version = "0.1.0"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
