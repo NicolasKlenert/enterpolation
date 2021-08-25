@@ -1,8 +1,4 @@
 //! Builder module for linear interpolations.
-//!
-//! Each interpolation has it's own builder module, which accumalates all methods to create their interpolation.
-
-//TODO: EXAMPLE
 
 use core::ops::Mul;
 use core::marker::PhantomData;
@@ -18,14 +14,51 @@ use super::error::LinearError;
 
 /// Builder for linear interpolation.
 ///
-/// This struct helps create linear interpolations. The differene between this struct and LinearBuilder
-/// is that this struct may have other fallible methods and not only the `build()` method.
+/// This struct helps create linear interpolations. The differene between this struct and [`LinearBuilder`]
+/// is that this struct may have other fallible methods and not only the [`build()`] method.
 ///
 /// Before building, one has to give information for:
-/// - The elements the interpolation should use. Methods like `elements` and `elements_with_weights`
-/// exist for that cause.
-/// - The knots the interpolation uses. Either by giving them directly with `knots` or by using
-/// equidistant knots with `equidistant`.
+/// - The elements the interpolation should use. Methods like [`elements()`] and [`elements_with_weights()`]
+///   exist for that cause.
+/// - The knots the interpolation uses. This can be seen as the spacing between those elements.
+///   Either by giving them directly with [`knots()`] or by using equidistant knots with [`equidistant()`].
+///
+/// ```rust
+/// # use enterpolation::{linear::{LinearDirector, LinearError}, Generator, Curve};
+/// # use assert_float_eq::{afe_is_f64_near, afe_near_error_msg, assert_f64_near};
+/// #
+/// # fn main() -> Result<(), LinearError> {
+/// let linear = LinearDirector::new()
+///                 .elements([1.0,5.0,100.0])
+///                 .equidistant::<f64>()
+///                 .normalized()
+///                 .build()?;
+/// let results = [1.0,3.0,5.0,52.5,100.0];
+/// for (value,result) in linear.take(5).zip(results.iter().copied()){
+///     assert_f64_near!(value, result);
+/// }
+/// #
+/// #     Ok(())
+/// # }
+/// ```
+///
+/// Sometimes the spacing between elements should not also be linear, such creating a quasi-linear interpolation.
+/// To achieve this, one may use the [`easing()`] function.
+/// A working example of this can be seen in [plateaus.rs].
+///
+/// Linear equidistant constant interpolations are often wanted to define some specific curve
+/// (like a specific gradient). To create such interpolation, the builder pattern can not be used yet.
+/// Instead one should create a linear interpolation directly with the [`equidistant_unchecked()`] constructor.
+///
+/// [`LinearBuilder`]: LinearBuilder
+/// [`easing()`]: LinearDirector::easing()
+/// [plateaus.rs]: https://github.com/NicolasKlenert/enterpolation/blob/main/examples/plateaus.rs
+/// [`build()`]: LinearDirector::build()
+/// [`elements()`]: LinearDirector::elements()
+/// [`elements_with_weights()`]: LinearDirector::elements_with_weights()
+/// [`knots()`]: LinearDirector::knots()
+/// [`equidistant()`]: LinearDirector::equidistant()
+/// [`equidistant_unchecked()`]: super::Linear::equidistant_unchecked()
 #[derive(Debug, Clone)]
 pub struct LinearDirector<K,E,F,W> {
     knots: K,
@@ -36,14 +69,51 @@ pub struct LinearDirector<K,E,F,W> {
 
 /// Builder for linear interpolation.
 ///
-/// This struct helps create linear interpolations. Its only fallible method is `build`.
-/// Usually one creates an instance by using the `builder()` method on the interpolation itself.
+/// This struct helps create linear interpolations. Its only fallible method is [`build()`].
+/// Usually one creates an instance by using the [`builder()`] method on the interpolation itself.
 ///
 /// Before building, one has to give information for:
-/// - The elements the interpolation should use. Methods like `elements` and `elements_with_weights`
-/// exist for that cause.
-/// - The knots the interpolation uses. Either by giving them directly with `knots` or by using
-/// equidistant knots with `equidistant`.
+/// - The elements the interpolation should use. Methods like [`elements()`] and [`elements_with_weights()`]
+///   exist for that cause.
+/// - The knots the interpolation uses. This can be seen as the spacing between those elements.
+///   Either by giving them directly with [`knots()`] or by using equidistant knots with [`equidistant()`].
+///
+/// ```rust
+/// # use enterpolation::{linear::{Linear, LinearError}, Generator, Curve};
+/// # use assert_float_eq::{afe_is_f64_near, afe_near_error_msg, assert_f64_near};
+/// #
+/// # fn main() -> Result<(), LinearError> {
+/// let linear = Linear::builder()
+///                 .elements([1.0,5.0,100.0])
+///                 .equidistant::<f64>()
+///                 .normalized()
+///                 .build()?;
+/// let results = [1.0,3.0,5.0,52.5,100.0];
+/// for (value,result) in linear.take(5).zip(results.iter().copied()){
+///     assert_f64_near!(value, result);
+/// }
+/// #
+/// #     Ok(())
+/// # }
+/// ```
+///
+/// Sometimes the spacing between elements should not also be linear, such creating a quasi-linear interpolation.
+/// To achieve this, one may use the [`easing()`] function.
+/// A working example of this can be seen in [plateaus.rs].
+///
+/// Linear equidistant constant interpolations are often wanted to define some specific curve
+/// (like a specific gradient). To create such interpolation, the builder pattern can not be used yet.
+/// Instead one should create a linear interpolation directly with the [`equidistant_unchecked()`] constructor.
+///
+/// [`easing()`]: LinearBuilder::easing()
+/// [plateaus.rs]: https://github.com/NicolasKlenert/enterpolation/blob/main/examples/plateaus.rs
+/// [`build()`]: LinearBuilder::build()
+/// [`builder()`]: super::Linear::builder()
+/// [`elements()`]: LinearBuilder::elements()
+/// [`elements_with_weights()`]: LinearBuilder::elements_with_weights()
+/// [`knots()`]: LinearBuilder::knots()
+/// [`equidistant()`]: LinearBuilder::equidistant()
+/// [`equidistant_unchecked()`]: super::Linear::equidistant_unchecked()
 #[derive(Debug, Clone)]
 pub struct LinearBuilder<K,E,F,W> {
     inner: Result<LinearDirector<K,E,F,W>,LinearError>,
@@ -221,6 +291,9 @@ impl<E,F,W> LinearDirector<Unknown, E, F, W>
     }
 
     /// Build an interpolation with equidistant knots.
+    ///
+    /// This may drastically increase performance, as one does not have to use binary search to find
+    /// the relevant knots in an interpolation.
     pub fn equidistant<R>(self) -> LinearDirector<Type<R>,E,F,W>{
         LinearDirector {
             knots: Type::new(),
@@ -253,6 +326,9 @@ impl<E,F,W> LinearBuilder<Unknown, E, F, W>
     }
 
     /// Build an interpolation with equidistant knots.
+    ///
+    /// This may drastically increase performance, as one does not have to use binary search to find
+    /// the relevant knots in an interpolation.
     pub fn equidistant<R>(self) -> LinearBuilder<Type<R>,E,F,W>{
         LinearBuilder {
             inner: self.inner.and_then(|director| Ok(director.equidistant()))

@@ -281,7 +281,7 @@ impl<C,Idx> Index<Idx> for Sorted<C> where C: Index<Idx> {
     }
 }
 
-/// Error returned if the number of elements and the number of knots are not matching.
+/// Error returned if the given knots are not sorted.
 #[derive(Debug, Copy, Clone)]
 pub struct NotSorted {
     index: usize,

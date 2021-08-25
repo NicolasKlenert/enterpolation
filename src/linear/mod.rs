@@ -1,12 +1,47 @@
-//! Linear Interpolations.
+//! Linear and quasi-linear interpolations.
 //!
-//! Linear Interplations are one of the simplest forms of interpolations.
-//! Most of the time, Linear Interpolations are used as an approximation of curves, such
-//! Linear Interpolations often do have many elements. For this reason
-//! we supply the specialized LinearEquidistant Interplation, in which we assume that the distance
-//! of an element to it's neighbors is constant. This increases performance, as the search for
-//! the border elements to calculate the linear interpolation with can be found in O(1)
-//! instead of O(log n) with n being the number of elements in the interpolation structure.
+//! The easist way to create a linear interpolation is by using the builder pattern of [`LinearBuilder`].
+//!
+//! ```rust
+//! # use std::error::Error;
+//! # use enterpolation::{linear::{Linear, LinearError}, Generator, Curve};
+//! # use assert_float_eq::{afe_is_f64_near, afe_near_error_msg, assert_f64_near};
+//! #
+//! # fn main() -> Result<(), LinearError> {
+//! let linear = Linear::builder()
+//!                 .elements([0.0,5.0,3.0])
+//!                 .knots([0.0,1.0,2.0])
+//!                 .build()?;
+//! let results = [0.0,2.5,5.0,4.0,3.0];
+//! for (value,result) in linear.take(5).zip(results.iter().copied()){
+//!     assert_f64_near!(value, result);
+//! }
+//! #
+//! #     Ok(())
+//! # }
+//! ```
+//!
+//! Linear interplations are one of the simplest forms of interpolations.
+//! Most of the time, linear interpolations are used as an approximation of some smoother curve,
+//! such they often have many elements.
+//! For this reason the [`equidistant()`] method on the builder is recommended.
+//!
+//! `Linear` is always linear in its output but not necessarily in its input. In that case, we
+//! say that the interpolation is quasi-linear.
+//! One can imagine a linear interpolation between 2D points. Then quasi-linearity means that
+//! the curve consists of lines between the given 2D points but its velocity may change non-linear.
+//! To achieve a non-linear interpolation, the [`easing()`] method on the builder may be used.
+//!
+//! Linear equidistant constant interpolations are often wanted to define some specific curve
+//! (like a specific gradient). To create such interpolation, the builder pattern can not be used yet.
+//! Instead one should create a linear interpolation directly with its [`equidistant_unchecked()`] constructor.
+//!
+//! [linear module]: super
+//! [`LinearBuilder`]: LinearBuilder
+//! [plateus.rs]: https://github.com/NicolasKlenert/enterpolation/blob/main/examples/plateaus.rs
+//! [`equidistant()`]: LinearBuilder::equidistant()
+//! [`easing()`]: LinearBuilder::easing()
+//! [`equidistant_unchecked()`]: Linear::equidistant_unchecked()
 
 use crate::{Generator, Interpolation, Curve, SortedGenerator,
     DiscreteGenerator, ConstEquidistant, Easing, Identity};

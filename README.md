@@ -1,6 +1,5 @@
 # Enterpolation
 
-<!--- This should be the same as the short description in cargo.toml --->
 A library for creating and computing interpolation, extrapolation and smoothing of generic data points.
 
 Enterpolation is a library to generate and use different interpolation and extrapolation methods. This includes linear interpolation, bezier curves, B-spline and their weighted and non-uniform counterparts like NURBS. This library aims to be as generic as possible to allow interpolating elements of any vector space. Also building and using different interpolations should create as less friction as possible such that one may experiment with different methods to find the interpolation which best fits their needs. To achieve this, Enterpolation heavily uses consistent builder options to allow customization and minimise the need to change code while experimenting.
