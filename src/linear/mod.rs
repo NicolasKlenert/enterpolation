@@ -59,6 +59,10 @@ pub mod error;
 pub use error::{LinearError, TooFewElements, KnotElementInequality, NotSorted};
 
 /// Linear Interpolation.
+///
+/// See [linear module] for more information.
+///
+/// [linear module]: self
 #[derive(Debug, Copy, Clone)]
 pub struct Linear<K,E,F>
 {
@@ -71,8 +75,8 @@ impl Linear<Unknown,Unknown, Unknown> {
     /// Get the builder for a linear interpolation.
     ///
     /// The builder takes:
-    /// - elements with `elements` or `elements_with_weights`
-    /// - knots with either `knots` or `equidistant`
+    /// - elements with [`elements()`] or [`elements_with_weights()`]
+    /// - knots with either [`knots()`] or [`equidistant()`]
     ///
     /// # Examples
     ///
@@ -95,6 +99,11 @@ impl Linear<Unknown,Unknown, Unknown> {
     /// #     Ok(())
     /// # }
     /// ```
+    ///
+    /// [`elements()`]: LinearBuilder::elements()
+    /// [`elements_with_weights()`]: LinearBuilder::elements_with_weights()
+    /// [`knots()`]: LinearBuilder::knots()
+    /// [`equidistant()`]: LinearBuilder::equidistant()
     pub fn builder() -> LinearBuilder<Unknown,Unknown, Identity, Unknown> {
         LinearBuilder::new()
     }

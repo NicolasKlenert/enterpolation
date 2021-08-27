@@ -275,7 +275,9 @@ impl<E,F,W> LinearDirector<Unknown, E, F, W>
     /// # Performance
     ///
     /// If you have equidistant knots, near equidistant knots are you do not really care about
-    /// knots, consider using `equidistant()` instead.
+    /// knots, consider using [`equidistant()`] instead.
+    ///
+    /// [`equidistant()`]: LinearDirector::equidistant()
     pub fn knots<K>(self, knots: K) -> Result<LinearDirector<Sorted<K>,E, F, W>, NotSorted>
     where
         E: DiscreteGenerator,
@@ -292,8 +294,24 @@ impl<E,F,W> LinearDirector<Unknown, E, F, W>
 
     /// Build an interpolation with equidistant knots.
     ///
+    /// This method takes `R` as a generic parameter. `R` has to be the type you want the knots to be.
+    /// Often this is just `f32` or `f64`.
+    ///
+    /// After this call, you also have to call either of
+    /// - [`domain()`],
+    /// - [`normalized()`] or
+    /// - [`distance()`],
+    ///
+    /// which all define the domain of the interpolation and the spacing of the knots.
+    ///
+    /// # Performance
+    ///
     /// This may drastically increase performance, as one does not have to use binary search to find
     /// the relevant knots in an interpolation.
+    ///
+    /// [`domain()`]: LinearDirector::domain()
+    /// [`normalized()`]: LinearDirector::normalized()
+    /// [`distance()`]: LinearDirector::distance()
     pub fn equidistant<R>(self) -> LinearDirector<Type<R>,E,F,W>{
         LinearDirector {
             knots: Type::new(),
@@ -313,7 +331,9 @@ impl<E,F,W> LinearBuilder<Unknown, E, F, W>
     /// # Performance
     ///
     /// If you have equidistant knots, near equidistant knots are you do not really care about
-    /// knots, consider using `equidistant()` instead.
+    /// knots, consider using [`equidistant()`] instead.
+    ///
+    /// [`equidistant()`]: LinearBuilder::equidistant()
     pub fn knots<K>(self, knots: K) -> LinearBuilder<Sorted<K>,E, F, W>
     where
         E: DiscreteGenerator,
@@ -327,8 +347,24 @@ impl<E,F,W> LinearBuilder<Unknown, E, F, W>
 
     /// Build an interpolation with equidistant knots.
     ///
+    /// This method takes `R` as a generic parameter. `R` has to be the type you want the knots to be.
+    /// Often this is just `f32` or `f64`.
+    ///
+    /// After this call, you also have to call either of
+    /// - [`domain()`],
+    /// - [`normalized()`] or
+    /// - [`distance()`],
+    ///
+    /// which all define the domain of the interpolation and the spacing of the knots.
+    ///
+    /// # Performance
+    ///
     /// This may drastically increase performance, as one does not have to use binary search to find
     /// the relevant knots in an interpolation.
+    ///
+    /// [`domain()`]: LinearBuilder::domain()
+    /// [`normalized()`]: LinearBuilder::normalized()
+    /// [`distance()`]: LinearBuilder::distance()
     pub fn equidistant<R>(self) -> LinearBuilder<Type<R>,E,F,W>{
         LinearBuilder {
             inner: self.inner.and_then(|director| Ok(director.equidistant()))
@@ -401,15 +437,16 @@ impl<K,E,F,W> LinearDirector<K,E,F,W>
 where
     K: SortedGenerator
 {
-    /// Set another easing function.
+    /// Sets an easing function.
     ///
-    /// This interpolation uses a factor to merge elements together.
-    /// The dynamic how to merge these two elements together can be changed by easing the factor itself
-    /// before merging.
+    /// This allows quasi-linear interpolations. Before merging two elements together with a factor,
+    /// the factor is send to the given function before and the output is the new factor.
     ///
     /// # Examples
     ///
-    /// See the plateau example for more information.
+    /// See the [plateau example] for more information.
+    ///
+    /// [plateau example]: https://github.com/NicolasKlenert/enterpolation/blob/main/examples/plateaus.rs
     pub fn easing<FF>(self, easing: FF) -> LinearDirector<K,E,FF,W>{
         LinearDirector {
             knots: self.knots,
@@ -424,15 +461,16 @@ impl<K,E,F,W> LinearBuilder<K,E,F,W>
 where
     K: SortedGenerator
 {
-    /// Set another easing function.
+    /// Sets an easing function.
     ///
-    /// This interpolation uses a factor to merge elements together.
-    /// The dynamic how to merge these two elements together can be changed by easing the factor itself
-    /// before merging.
+    /// This allows quasi-linear interpolations. Before merging two elements together with a factor,
+    /// the factor is send to the given function before and the output is the new factor.
     ///
     /// # Examples
     ///
-    /// See the plateau example for more information.
+    /// See the [plateau example] for more information.
+    ///
+    /// [plateau example]: https://github.com/NicolasKlenert/enterpolation/blob/main/examples/plateaus.rs
     pub fn easing<FF>(self, easing: FF) -> LinearBuilder<K,E,FF,W>{
         LinearBuilder {
             inner: self.inner.and_then(|director| Ok(director.easing(easing)))
@@ -508,7 +546,7 @@ type WeightedLinear<K,G,F> = Weighted<Linear<K,Weights<G>,F>>;
 #[cfg(test)]
 mod test {
     use super::LinearBuilder;
-    // Homogeneous for creating Homogeneous, Generator for using .stack(
+    // Homogeneous for creating Homogeneous, Generator for using .stack()
     use crate::{weights::Homogeneous, Generator};
     #[test]
     fn building_weights() {

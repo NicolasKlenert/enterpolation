@@ -108,7 +108,7 @@ features = ["linear"]
 
 If the elements you want to interpolate already implement [addition] with themselves and [multiplication] with a scalar, you should already be fine. If that is not the case, you may want to consider implementing these, as most interpolations will only work properly if the elements are living in a vector-space (and such addition and multiplication is defined for them).
 
-Otherwise this crate defines a trait [Merge], which represents the capability of an element to be merged with another one. This trait is necessary for all interpolations. Furthermore the core [Default] trait is also necessary for bezier curves and B-splines.
+Otherwise this crate re-exports a trait [Merge], which represents the capability of an element to be merged with another one. This trait is necessary for all interpolations. Furthermore the core [Default] trait is also necessary for bezier curves and B-splines.
 
 Elements can be given to the curve with an array, a vector or by implementing the [DiscreteGenerator] trait. Basically every collection with an indexing operation can implement this trait. However generators can also implement it. Such one may generate the elements which should be interpolated on-the-fly. This can reduce the memory footprint if elements can be generically generated and one wants to interpolate many elements.
 
