@@ -66,6 +66,10 @@ bezier = []
 bspline = []
 
 [[example]]
+name = "bspline_reasoning"
+required-features = ["linear","bezier","bspline"]
+
+[[example]]
 name = "gradient"
 required-features = ["bspline"]
 
