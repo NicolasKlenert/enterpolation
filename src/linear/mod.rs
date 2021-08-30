@@ -1,4 +1,4 @@
-//! Linear and quasi-linear interpolations.
+//! Linear and quasi-linear interpolations
 //!
 //! The easist way to create a linear interpolation is by using the builder pattern of [`LinearBuilder`].
 //!

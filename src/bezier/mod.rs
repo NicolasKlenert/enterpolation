@@ -1,5 +1,30 @@
-//! Bezier curves do have a performance of O(n^2), as their degree corresponds with the number of elements.
-
+//! Bezier curves
+//!
+//! The easist way to create a bezier curve is by using the builder pattern of [`BezierBuilder`].
+//!
+//! ```rust
+//! # use std::error::Error;
+//! # use enterpolation::{bezier::{Bezier, BezierError}, Generator, Curve};
+//! # use assert_float_eq::{afe_is_f64_near, afe_near_error_msg, assert_f64_near};
+//! #
+//! # fn main() -> Result<(), BezierError> {
+//! let bezier = Bezier::builder()
+//!                 .elements([0.0,5.0,3.0])
+//!                 .normalized()
+//!                 .constant::<4>()
+//!                 .build()?;
+//! let results = [0.0,3.25,3.0];
+//! for (value,result) in bezier.take(3).zip(results.iter().copied()){
+//!     assert_f64_near!(value, result);
+//! }
+//! #
+//! #     Ok(())
+//! # }
+//! ```
+//!
+//! Bezier curves are polynomial curves with their degree given by the number of elements they consist of.
+//!
+//! [`BezierBuilder`]: BezierBuilder
 // TODO: create LinearEquidistant Interpolation from Bezier, when a constant speed is wished for
 // TODO: -> see https://www.researchgate.net/post/How-can-I-assign-a-specific-velocity-to-a-point-moving-on-a-Bezier-curve
 use core::ops::{Mul, Sub};
@@ -80,7 +105,11 @@ where
     grad
 }
 
-/// Bezier curve with given elements.
+/// Bezier curve.
+///
+/// See [bezier module] for more information.
+///
+/// [bezier module]: self
 #[derive(Debug, Copy, Clone)]
 pub struct Bezier<R,E,S>
 {
@@ -93,9 +122,9 @@ impl Bezier<Unknown, Unknown, Unknown> {
     /// Get a builder for bezier curves.
     ///
     /// The builder takes:
-    /// - elements with `elements` or `elements_with_weights`
-    /// - the type of input with `input`
-    /// - the kind of workspace to use with `dynamic`, `constant` or `workspace`
+    /// - elements with [`elements()`] or [`elements_with_weights()`]
+    /// - the domain of the bezier curve with [`normalized()`] or [`domain()`]
+    /// - the kind of workspace to use with [`dynamic()`], [`constant()`] or [`workspace()`]
     ///
     /// # Examples
     ///
@@ -120,6 +149,14 @@ impl Bezier<Unknown, Unknown, Unknown> {
     /// #     Ok(())
     /// # }
     /// ```
+    ///
+    /// [`elements()`]: BezierBuilder::elements()
+    /// [`elements_with_weights()`]: BezierBuilder::elements_with_weights()
+    /// [`normalized()`]: BezierBuilder::normalized()
+    /// [`domain()`]: BezierBuilder::domain()
+    /// [`dynamic()`]: BezierBuilder::dynamic()
+    /// [`constant()`]: BezierBuilder::constant()
+    /// [`workspace()`]: BezierBuilder::workspace()
     pub fn builder() -> BezierBuilder<Unknown, Unknown, Unknown, Unknown>{
         BezierBuilder::new()
     }

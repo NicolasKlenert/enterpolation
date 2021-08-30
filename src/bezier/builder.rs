@@ -2,8 +2,6 @@
 //!
 //! Each interpolation has it's own builder module, which accumalates all methods to create their interpolation.
 
-//TODO: EXAMPLE
-
 use core::ops::{Mul, Div};
 use core::marker::PhantomData;
 use num_traits::real::Real;
@@ -17,16 +15,47 @@ use crate::builder::{WithWeight,WithoutWeight,Unknown, InputDomain, NormalizedIn
 use super::Bezier;
 use super::error::BezierError;
 
-/// Builder for linear interpolation.
+/// Builder for bezier curves.
 ///
-/// This struct helps create linear interpolations.
+/// This struct helps create bezier curves.
 /// Usually one creates an instance by using the `builder()` method on the interpolation itself.
 ///
 /// Before building, one has to give information for:
-/// - The elements the interpolation should use. Methods like `elements` and `elements_with_weights`
-/// exist for that cause.
-/// - The knots the interpolation uses. Either by giving them directly with `knots` or by using
-/// equidistant knots with `equidistant`.
+/// - which elements to use with [`elements()`] or [`elements_with_weights()`],
+/// - the domain of the bezier curve with the standard [`normalized()`] domain or a custom [`domain()`],
+/// - the kind of workspace to use with [`dynamic()`], [`constant()`] or [`workspace()`]
+///
+/// # Examples
+///
+/// ```rust
+/// # use std::error::Error;
+/// # use enterpolation::{bezier::{Bezier, BezierError}, Generator, Curve};
+/// # use assert_float_eq::{afe_is_f64_near, afe_near_error_msg, assert_f64_near};
+/// #
+/// # fn main() -> Result<(), BezierError> {
+/// let bez = Bezier::builder()
+///     .elements([20.0,100.0,0.0,200.0])
+///     .normalized::<f64>()
+///     .constant()
+///     .build()?;
+/// let mut iter = bez.take(5);
+/// let expected = [20.0,53.75,65.0,98.75,200.0];
+/// for i in 0..=4 {
+///     let val = iter.next().unwrap();
+///     assert_f64_near!(val, expected[i]);
+/// }
+/// #
+/// #     Ok(())
+/// # }
+/// ```
+///
+/// [`elements()`]: BezierBuilder::elements()
+/// [`elements_with_weights()`]: BezierBuilder::elements_with_weights()
+/// [`normalized()`]: BezierBuilder::normalized()
+/// [`domain()`]: BezierBuilder::domain()
+/// [`dynamic()`]: BezierBuilder::dynamic()
+/// [`constant()`]: BezierBuilder::constant()
+/// [`workspace()`]: BezierBuilder::workspace()
 #[derive(Debug, Clone)]
 pub struct BezierBuilder<I,E,S,W> {
     input: I,
@@ -42,7 +71,7 @@ impl Default for BezierBuilder<Unknown, Unknown, Unknown, Unknown> {
 }
 
 impl BezierBuilder<Unknown, Unknown, Unknown, Unknown> {
-    /// Create a new linear interpolation builder.
+    /// Create a new bezier curve builder.
     pub const fn new() -> Self {
         BezierBuilder {
             input: Unknown,
@@ -54,7 +83,7 @@ impl BezierBuilder<Unknown, Unknown, Unknown, Unknown> {
 }
 
 impl BezierBuilder<Unknown, Unknown, Unknown, Unknown> {
-    /// Set the elements of the linear interpolation.
+    /// Create a new bezier curve builder.
     pub fn elements<E>(self, elements: E) -> BezierBuilder<Unknown, E, Unknown, WithoutWeight>
     where E: DiscreteGenerator,
     {
