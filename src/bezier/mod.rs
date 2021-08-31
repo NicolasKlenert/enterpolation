@@ -10,8 +10,8 @@
 //! # fn main() -> Result<(), BezierError> {
 //! let bezier = Bezier::builder()
 //!                 .elements([0.0,5.0,3.0])
-//!                 .normalized()
-//!                 .constant::<4>()
+//!                 .normalized::<f64>()
+//!                 .constant::<3>()
 //!                 .build()?;
 //! let results = [0.0,3.25,3.0];
 //! for (value,result) in bezier.take(3).zip(results.iter().copied()){

@@ -61,17 +61,33 @@ impl<R> UnknownDomain<R>{
 
 /// Builder for bspline interpolation.
 ///
-/// This struct helps create bspline interpolations. The difference between this struct and BSplineBuilder
-/// is that this struct is allowed to have fallible methods which are not `build()`.
-/// Usually one creates an instance by using the `builder()` method on the interpolation itself.
+/// This struct helps create bspline interpolations. The difference between this struct and [`BSplineBuilder`]
+/// is that this struct is allowed to have fallible methods which are not [`build()`].
 ///
 /// Before building, one has to give information for:
-/// - The elements the interpolation should use. Methods like `elements` and `elements_with_weights`
-/// exist for that cause.
-/// - The knots the interpolation uses. Either by giving them directly with `knots` or by using
-/// equidistant knots with `equidistant`.
+/// - The elements the interpolation should use. Methods like [`elements()`] and [`elements_with_weights`()]
+///     exist for that cause.
+/// - The knots the interpolation uses. Either by giving them directly with [`knots()`] or by using
+///     equidistant knots with [`equidistant()`].
 /// - A workspace to use, that is, a mutable slice-like object to do operations on.
-/// Usually this is done by calling `constant` or `dynamic`.
+///     Usually this is done by calling [`constant()`] or [`dynamic()`].
+///     [`workspace()`] is also posbbile for a custom workspace.
+///
+/// Furthermore one may want to use different modes, toggled by the methods [`open()`],[`clamped()`]
+/// and [`legacy()`], where [`open()`] is the default one.
+///
+/// [`build()`]: BSplineDirector::build()
+/// [`BSplineBuilder`]: BSplineBuilder
+/// [`elements()`]: BSplineDirector::elements()
+/// [`elements_with_weights`()]: BSplineDirector::elements_with_weights()
+/// [`knots()`]: BSplineDirector::knots()
+/// [`equidistant()`]: BSplineDirector::equidistant()
+/// [`constant()`]: BSplineDirector::constant()
+/// [`dynamic()`]: BSplineDirector::dynamic()
+/// [`workspace()`]: BSplineDirector::workspace()
+/// [`open()`]: BSplineDirector::open()
+/// [`clamped()`]: BSplineDirector::clamped()
+/// [`legacy()`]: BSplineDirector::legacy()
 #[derive(Debug, Clone)]
 pub struct BSplineDirector<K,E,S,W,M> {
     elements: E,
@@ -83,16 +99,33 @@ pub struct BSplineDirector<K,E,S,W,M> {
 /// Builder for bspline interpolation.
 ///
 /// This struct helps create bspline interpolations. This is the usual builder to use
-/// as the only fallible method is the `build()` method.
-/// Usually one creates an instance by using the `builder()` method on the interpolation itself.
+/// as the only fallible method is the [`build()`] method.
+/// Usually one creates an instance by using the [`builder()`] method on the interpolation itself.
 ///
 /// Before building, one has to give information for:
-/// - The elements the interpolation should use. Methods like `elements` and `elements_with_weights`
-/// exist for that cause.
-/// - The knots the interpolation uses. Either by giving them directly with `knots` or by using
-/// equidistant knots with `equidistant`.
+/// - The elements the interpolation should use. Methods like [`elements()`] and [`elements_with_weights`()]
+///     exist for that cause.
+/// - The knots the interpolation uses. Either by giving them directly with [`knots()`] or by using
+///     equidistant knots with [`equidistant()`].
 /// - A workspace to use, that is, a mutable slice-like object to do operations on.
-/// Usually this is done by calling `constant` or `dynamic`.
+///     Usually this is done by calling [`constant()`] or [`dynamic()`].
+///     [`workspace()`] is also posbbile for a custom workspace.
+///
+/// Furthermore one may want to use different modes, toggled by the methods [`open()`],[`clamped()`]
+/// and [`legacy()`], where [`open()`] is the default one.
+///
+/// [`build()`]: BSplineBuilder::build()
+/// [`builder()`]: super::BSpline::builder()
+/// [`elements()`]: BSplineBuilder::elements()
+/// [`elements_with_weights`()]: BSplineBuilder::elements_with_weights()
+/// [`knots()`]: BSplineBuilder::knots()
+/// [`equidistant()`]: BSplineBuilder::equidistant()
+/// [`constant()`]: BSplineBuilder::constant()
+/// [`dynamic()`]: BSplineBuilder::dynamic()
+/// [`workspace()`]: BSplineBuilder::workspace()
+/// [`open()`]: BSplineBuilder::open()
+/// [`clamped()`]: BSplineBuilder::clamped()
+/// [`legacy()`]: BSplineBuilder::legacy()
 #[derive(Debug, Clone)]
 pub struct BSplineBuilder<K,E,S,W,M> {
     inner: Result<BSplineDirector<K,E,S,W,M>,BSplineError>,
@@ -196,10 +229,6 @@ impl<M> BSplineDirector<Unknown, Unknown, Unknown, Unknown, M> {
     ///
     /// If you want to work with points at infinity,
     /// you may want to use homogeneous data itself without this wrapping mechanism.
-    ///
-    /// # Errors
-    ///
-    /// Returns `Empty` if the generator is empty.
     pub fn elements_with_weights<G>(self, gen: G)
         -> BSplineDirector<Unknown, Weights<G>,Unknown, WithWeight, M>
     where
@@ -271,10 +300,6 @@ impl<M> BSplineBuilder<Unknown, Unknown, Unknown, Unknown, M> {
     ///
     /// If you want to work with points at infinity,
     /// you may want to use homogeneous data itself without this wrapping mechanism.
-    ///
-    /// # Errors
-    ///
-    /// Returns `Empty` if the generator is empty.
     pub fn elements_with_weights<G>(self, gen: G)
         -> BSplineBuilder<Unknown, Weights<G>,Unknown, WithWeight, M>
     where
@@ -294,17 +319,19 @@ impl<E,W> BSplineDirector<Unknown, E, Unknown, W, Open>
 {
     /// Set the knots of the interpolation.
     ///
-    /// The degree of this bspline interplation is given by knots.len() - elements.len() - 1.
+    /// The degree of this bspline interplation is given by `knots.len() - elements.len() - 1`.
     ///
     /// # Errors
     ///
-    /// Returns NotSorted if a knot is not greater or equal then the knot before him.
-    /// Returns NonValidDegree if the calulated degree would be less than 1.
+    /// Returns [`NotSorted`] if a knot is not greater or equal then the knot before him.
     ///
     /// # Performance
     ///
     /// If you have equidistant knots, near equidistant knots are you do not really care about
-    /// knots, consider using `equidistant()` instead.
+    /// knots, consider using [`equidistant()`] instead.
+    ///
+    /// [`equidistant()`]: BSplineDirector::equidistant()
+    /// [`NotSorted`]: super::error::BSplineError
     pub fn knots<K>(self, knots: K) -> Result<BSplineDirector<Sorted<K>,E, Unknown, W, Open>, NotSorted>
     where
         E: DiscreteGenerator,
@@ -324,17 +351,14 @@ impl<E,W> BSplineBuilder<Unknown, E, Unknown, W, Open>
 {
     /// Set the knots of the interpolation.
     ///
-    /// The degree of this bspline interplation is given by knots.len() - elements.len() - 1.
-    ///
-    /// # Errors
-    ///
-    /// Returns NotSorted if a knot is not greater or equal then the knot before him.
-    /// Returns NonValidDegree if the calulated degree would be less than 1.
+    /// The degree of this bspline interplation is given by `knots.len() - elements.len() - 1`.
     ///
     /// # Performance
     ///
     /// If you have equidistant knots, near equidistant knots are you do not really care about
-    /// knots, consider using `equidistant()` instead.
+    /// knots, consider using [`equidistant()`] instead.
+    ///
+    /// [`equidistant()`]: BSplineBuilder::equidistant()
     pub fn knots<K>(self, knots: K) -> BSplineBuilder<Sorted<K>,E, Unknown, W, Open>
     where
         E: DiscreteGenerator,
@@ -351,17 +375,21 @@ impl<E,W> BSplineDirector<Unknown, E, Unknown, W, Clamped>
 {
     /// Set the knots of the interpolation.
     ///
-    /// The degree of this bspline interplation is given by knots.len() - elements.len() - 1.
+    /// The degree of this bspline interplation is given by `knots.len() - elements.len() - 1`.
     ///
     /// # Errors
     ///
-    /// Returns NotSorted if a knot is not greater or equal then the knot before him.
-    /// Returns NonValidDegree if the calulated degree would be less than 1.
+    /// Returns [`NotSorted`] if a knot is not greater or equal then the knot before him.
+    /// Returns [`InvalidDegree`] if the number of knots is biggere than the number of elements.
     ///
     /// # Performance
     ///
     /// If you have equidistant knots, near equidistant knots are you do not really care about
-    /// knots, consider using `equidistant()` instead.
+    /// knots, consider using [`equidistant()`] instead.
+    ///
+    /// [`equidistant()`]: BSplineDirector::equidistant()
+    /// [`NotSorted`]: super::BSplineError
+    /// [`InvalidDegree`]: super::BSplineError
     pub fn knots<K>(self, knots: K) -> Result<BSplineDirector<BorderBuffer<Sorted<K>>,E, Unknown, W, Clamped>, BSplineError>
     where
         E: DiscreteGenerator,
@@ -385,17 +413,14 @@ impl<E,W> BSplineBuilder<Unknown, E, Unknown, W, Clamped>
 {
     /// Set the knots of the interpolation.
     ///
-    /// The degree of this bspline interplation is given by knots.len() - elements.len() - 1.
-    ///
-    /// # Errors
-    ///
-    /// Returns NotSorted if a knot is not greater or equal then the knot before him.
-    /// Returns NonValidDegree if the calulated degree would be less than 1.
+    /// The degree of this bspline interplation is given by `knots.len() - elements.len() - 1`.
     ///
     /// # Performance
     ///
     /// If you have equidistant knots, near equidistant knots are you do not really care about
-    /// knots, consider using `equidistant()` instead.
+    /// knots, consider using [`equidistant()`] instead.
+    ///
+    /// [`equidistant()`]: BSplineBuilder::equidistant()
     pub fn knots<K>(self, knots: K) -> BSplineBuilder<BorderBuffer<Sorted<K>>,E, Unknown, W, Clamped>
     where
         E: DiscreteGenerator,
@@ -412,16 +437,21 @@ impl<E,W> BSplineDirector<Unknown, E, Unknown, W, Legacy>
 {
     /// Set the knots of the interpolation.
     ///
-    /// The degree of this bspline interplation is given by knots.len() - elements.len() - 1.
+    /// The degree of this bspline interplation is given by `knots.len() - elements.len() - 1`.
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// Will panic if the given knots are less than two.
+    /// Returns [`NotSorted`] if a knot is not greater or equal then the knot before him.
+    /// Returns [`TooFewElements`] if there are not at least *two* elements.
     ///
     /// # Performance
     ///
     /// If you have equidistant knots, near equidistant knots are you do not really care about
-    /// knots, consider using `equidistant()` instead.
+    /// knots, consider using [`equidistant()`] instead.
+    ///
+    /// [`equidistant()`]: BSplineDirector::equidistant()
+    /// [`NotSorted`]: super::error::BSplineError
+    /// [`TooFewElements`]: super::error::BSplineError
     pub fn knots<K>(self, knots: K) -> Result<BSplineDirector<BorderDeletion<Sorted<K>>,E, Unknown, W, Legacy>, BSplineError>
     where
         E: DiscreteGenerator,
@@ -441,16 +471,14 @@ impl<E,W> BSplineBuilder<Unknown, E, Unknown, W, Legacy>
 {
     /// Set the knots of the interpolation.
     ///
-    /// The degree of this bspline interplation is given by knots.len() - elements.len() - 1.
-    ///
-    /// # Panics
-    ///
-    /// Will panic if the given knots are less than two.
+    /// The degree of this bspline interplation is given by `knots.len() - elements.len() - 1`.
     ///
     /// # Performance
     ///
     /// If you have equidistant knots, near equidistant knots are you do not really care about
-    /// knots, consider using `equidistant()` instead.
+    /// knots, consider using [`equidistant()`] instead.
+    ///
+    /// [`equidistant()`]: BSplineBuilder::equidistant()
     pub fn knots<K>(self, knots: K) -> BSplineBuilder<BorderDeletion<Sorted<K>>,E, Unknown, W, Legacy>
     where
         E: DiscreteGenerator,
@@ -466,6 +494,20 @@ impl<E,W> BSplineBuilder<Unknown, E, Unknown, W, Legacy>
 impl<E,W,M> BSplineDirector<Unknown, E, Unknown, W, M>
 {
     /// Build an interpolation with equidistant knots.
+    ///
+    /// This method takes `R` as a generic parameter. `R` has to be the type you want the knots to be.
+    /// Often this is just `f32` or `f64`.
+    ///
+    /// After this call, you also have to call either of [`degree()`] or [`quantity()`],
+    /// which define the number of knots used.
+    ///
+    /// # Performance
+    ///
+    /// This may drastically increase performance, as one does not have to use binary search to find
+    /// the relevant knots in an interpolation.
+    ///
+    /// [`degree()`]: BSplineDirector::domain()
+    /// [`quantity()`]: BSplineDirector::normalized()
     pub fn equidistant<R>(self) -> BSplineDirector<Type<R>,E, Unknown, W, M>{
         BSplineDirector {
             knots: Type::new(),
@@ -479,6 +521,20 @@ impl<E,W,M> BSplineDirector<Unknown, E, Unknown, W, M>
 impl<E,W,M> BSplineBuilder<Unknown, E, Unknown, W, M>
 {
     /// Build an interpolation with equidistant knots.
+    ///
+    /// This method takes `R` as a generic parameter. `R` has to be the type you want the knots to be.
+    /// Often this is just `f32` or `f64`.
+    ///
+    /// After this call, you also have to call either of [`degree()`] or [`quantity()`],
+    /// which define the number of knots used.
+    ///
+    /// # Performance
+    ///
+    /// This may drastically increase performance, as one does not have to use binary search to find
+    /// the relevant knots in an interpolation.
+    ///
+    /// [`degree()`]: BSplineBuilder::domain()
+    /// [`quantity()`]: BSplineBuilder::normalized()
     pub fn equidistant<R>(self) -> BSplineBuilder<Type<R>,E, Unknown, W, M>{
         BSplineBuilder {
             inner: self.inner.and_then(|director| Ok(director.equidistant()))
@@ -490,12 +546,24 @@ impl<R,E,W> BSplineDirector<Type<R>, E, Unknown, W, Open>
 where
     E: DiscreteGenerator,
 {
-    /// Set the degree of the curve. The degree has to be bigger than 0 and less than the number of elements,
-    /// otherwise it will return an error.
+    /// Set the degree of the curve.
+    ///
+    /// The degree of the curve has to be at least 1 and be less than the number of elements.
+    ///
+    /// After this call, you also have to call either of
+    /// - [`domain()`],
+    /// - [`normalized()`] or
+    /// - [`distance()`],
+    ///
+    /// which all define the domain of the interpolation and the spacing of the knots.
     ///
     /// # Panics
     ///
     /// Panics if the number of elements is zero.
+    ///
+    /// [`domain()`]: BSplineDirector::domain()
+    /// [`normalized()`]: BSplineDirector::normalized()
+    /// [`distance()`]: BSplineDirector::distance()
     pub fn degree(self, degree: usize) -> BSplineDirector<UnknownDomain<R>,E,Unknown,W, Open>{
         BSplineDirector{
             knots: UnknownDomain::new(self.elements.len() - 1 + degree, degree),
@@ -510,10 +578,21 @@ where
     /// For open curves, the number of knots has to be bigger then the number of elements.
     /// For closed curves, the number of knots has to be at most as big as the number of elements.
     ///
-    /// # Panic
+    /// After this call, you also have to call either of
+    /// - [`domain()`],
+    /// - [`normalized()`] or
+    /// - [`distance()`],
+    ///
+    /// which all define the domain of the interpolation and the spacing of the knots.
+    ///
+    /// # Panics
     ///
     /// Panics if given quantity is less than the number of elements.
     /// May also panic if the number of elements is zero.
+    ///
+    /// [`domain()`]: BSplineDirector::domain()
+    /// [`normalized()`]: BSplineDirector::normalized()
+    /// [`distance()`]: BSplineDirector::distance()
     pub fn quantity(self, quantity: usize) -> BSplineDirector<UnknownDomain<R>,E,Unknown,W, Open>{
         BSplineDirector{
             knots: UnknownDomain::new(quantity, quantity - self.elements.len() +1),
@@ -528,12 +607,24 @@ impl<R,E,W> BSplineBuilder<Type<R>, E, Unknown, W, Open>
 where
     E: DiscreteGenerator,
 {
-    /// Set the degree of the curve. The degree has to be bigger than 0 and less than the number of elements,
-    /// otherwise it will return an error.
+    /// Set the degree of the curve.
+    ///
+    /// The degree of the curve has to be at least 1 and be less than the number of elements.
+    ///
+    /// After this call, you also have to call either of
+    /// - [`domain()`],
+    /// - [`normalized()`] or
+    /// - [`distance()`],
+    ///
+    /// which all define the domain of the interpolation and the spacing of the knots.
     ///
     /// # Panics
     ///
     /// Panics if the number of elements is zero.
+    ///
+    /// [`domain()`]: BSplineBuilder::domain()
+    /// [`normalized()`]: BSplineBuilder::normalized()
+    /// [`distance()`]: BSplineBuilder::distance()
     pub fn degree(self, degree: usize) -> BSplineBuilder<UnknownDomain<R>,E,Unknown,W, Open>{
         BSplineBuilder {
             inner: self.inner.and_then(|director| Ok(director.degree(degree)))
@@ -545,10 +636,21 @@ where
     /// For open curves, the number of knots has to be bigger then the number of elements.
     /// For closed curves, the number of knots has to be at most as big as the number of elements.
     ///
-    /// # Panic
+    /// After this call, you also have to call either of
+    /// - [`domain()`],
+    /// - [`normalized()`] or
+    /// - [`distance()`],
+    ///
+    /// which all define the domain of the interpolation and the spacing of the knots.
+    ///
+    /// # Panics
     ///
     /// Panics if given quantity is less than the number of elements.
     /// May also panic if the number of elements is zero.
+    ///
+    /// [`domain()`]: BSplineBuilder::domain()
+    /// [`normalized()`]: BSplineBuilder::normalized()
+    /// [`distance()`]: BSplineBuilder::distance()
     pub fn quantity(self, quantity: usize) -> BSplineBuilder<UnknownDomain<R>,E,Unknown,W, Open>{
         BSplineBuilder {
             inner: self.inner.and_then(|director| Ok(director.quantity(quantity)))
@@ -560,13 +662,24 @@ impl<R,E,W> BSplineDirector<Type<R>, E, Unknown, W, Clamped>
 where
     E: DiscreteGenerator,
 {
-    /// Set the degree of the curve. The degree has to be bigger than 0 and less than the number of elements,
-    /// otherwise it will return an error.
+    /// Set the degree of the curve.
+    ///
+    /// The degree of the curve has to be at least 1 and be less than the number of elements.
+    ///
+    /// After this call, you also have to call either of
+    /// - [`domain()`],
+    /// - [`normalized()`] or
+    /// - [`distance()`],
+    ///
+    /// which all define the domain of the interpolation and the spacing of the knots.
     ///
     /// # Panics
     ///
-    /// Panics if the given degree is bigger than the number of elements.
-    /// May also panic if the given degree is zero.
+    /// Panics if the number of elements is zero.
+    ///
+    /// [`domain()`]: BSplineDirector::domain()
+    /// [`normalized()`]: BSplineDirector::normalized()
+    /// [`distance()`]: BSplineDirector::distance()
     pub fn degree(self, degree: usize) -> BSplineDirector<UnknownDomain<R>,E,Unknown,W, Clamped>{
         BSplineDirector{
             knots: UnknownDomain::new(self.elements.len() - degree + 1, degree),
@@ -581,10 +694,21 @@ where
     /// For open curves, the number of knots has to be bigger then the number of elements.
     /// For closed curves, the number of knots has to be at most as big as the number of elements.
     ///
+    /// After this call, you also have to call either of
+    /// - [`domain()`],
+    /// - [`normalized()`] or
+    /// - [`distance()`],
+    ///
+    /// which all define the domain of the interpolation and the spacing of the knots.
+    ///
     /// # Panics
     ///
-    /// Panics if the given quantity is bigger than the number of elements.
-    /// May also panic if the given quantity is zero.
+    /// Panics if given quantity is less than the number of elements.
+    /// May also panic if the number of elements is zero.
+    ///
+    /// [`domain()`]: BSplineDirector::domain()
+    /// [`normalized()`]: BSplineDirector::normalized()
+    /// [`distance()`]: BSplineDirector::distance()
     pub fn quantity(self, quantity: usize) -> BSplineDirector<UnknownDomain<R>,E,Unknown,W, Clamped>{
         BSplineDirector{
             knots: UnknownDomain::new(quantity, self.elements.len() - quantity + 1),
@@ -599,13 +723,24 @@ impl<R,E,W> BSplineBuilder<Type<R>, E, Unknown, W, Clamped>
 where
     E: DiscreteGenerator,
 {
-    /// Set the degree of the curve. The degree has to be bigger than 0 and less than the number of elements,
-    /// otherwise it will return an error.
+    /// Set the degree of the curve.
+    ///
+    /// The degree of the curve has to be at least 1 and be less than the number of elements.
+    ///
+    /// After this call, you also have to call either of
+    /// - [`domain()`],
+    /// - [`normalized()`] or
+    /// - [`distance()`],
+    ///
+    /// which all define the domain of the interpolation and the spacing of the knots.
     ///
     /// # Panics
     ///
-    /// Panics if the given degree is bigger than the number of elements.
-    /// May also panic if the given degree is zero.
+    /// Panics if the number of elements is zero.
+    ///
+    /// [`domain()`]: BSplineBuilder::domain()
+    /// [`normalized()`]: BSplineBuilder::normalized()
+    /// [`distance()`]: BSplineBuilder::distance()
     pub fn degree(self, degree: usize) -> BSplineBuilder<UnknownDomain<R>,E,Unknown,W, Clamped>{
         BSplineBuilder{
             inner: self.inner.and_then(|director| Ok(director.degree(degree)))
@@ -617,10 +752,21 @@ where
     /// For open curves, the number of knots has to be bigger then the number of elements.
     /// For closed curves, the number of knots has to be at most as big as the number of elements.
     ///
+    /// After this call, you also have to call either of
+    /// - [`domain()`],
+    /// - [`normalized()`] or
+    /// - [`distance()`],
+    ///
+    /// which all define the domain of the interpolation and the spacing of the knots.
+    ///
     /// # Panics
     ///
-    /// Panics if the given quantity is bigger than the number of elements.
-    /// May also panic if the given quantity is zero.
+    /// Panics if given quantity is less than the number of elements.
+    /// May also panic if the number of elements is zero.
+    ///
+    /// [`domain()`]: BSplineBuilder::domain()
+    /// [`normalized()`]: BSplineBuilder::normalized()
+    /// [`distance()`]: BSplineBuilder::distance()
     pub fn quantity(self, quantity: usize) -> BSplineBuilder<UnknownDomain<R>,E,Unknown,W, Clamped>{
         BSplineBuilder{
             inner: self.inner.and_then(|director| Ok(director.quantity(quantity)))
@@ -652,7 +798,7 @@ where
             _phantoms: self._phantoms,
         }
     }
-    /// Set the domain of the interpolation by defining the distance between the knots
+    /// Set the domain of the interpolation by defining the distance between the knots.
     pub fn distance(self, start: R, step: R) -> BSplineDirector<Equidistant<R>,E,Unknown,W,Open>{
         BSplineDirector {
             knots: Equidistant::step(self.knots.len(), start, step),
@@ -681,7 +827,7 @@ where
             inner: self.inner.and_then(|director| Ok(director.normalized()))
         }
     }
-    /// Set the domain of the interpolation by defining the distance between the knots
+    /// Set the domain of the interpolation by defining the distance between the knots.
     pub fn distance(self, start: R, step: R) -> BSplineBuilder<Equidistant<R>,E,Unknown,W,Open>{
         BSplineBuilder {
             inner: self.inner.and_then(|director| Ok(director.distance(start, step)))
@@ -713,7 +859,7 @@ where
             _phantoms: self._phantoms,
         }
     }
-    /// Set the domain of the interpolation by defining the distance between the knots
+    /// Set the domain of the interpolation by defining the distance between the knots.
     pub fn distance(self, start: R, step: R) -> BSplineDirector<BorderBuffer<Equidistant<R>>,E,Unknown,W,Clamped>{
         BSplineDirector {
             knots: BorderBuffer::new(Equidistant::step(self.knots.len(), start, step), self.knots.deg()-1),
@@ -742,7 +888,7 @@ where
             inner: self.inner.and_then(|director| Ok(director.normalized()))
         }
     }
-    /// Set the domain of the interpolation by defining the distance between the knots
+    /// Set the domain of the interpolation by defining the distance between the knots.
     pub fn distance(self, start: R, step: R) -> BSplineBuilder<BorderBuffer<Equidistant<R>>,E,Unknown,W,Clamped>{
         BSplineBuilder {
             inner: self.inner.and_then(|director| Ok(director.distance(start, step)))
@@ -761,7 +907,11 @@ where
     ///
     /// Tells the builder to use a vector as workspace,
     /// such you don't need to know the degree of the bezier curve at compile-time,
-    /// but every generation of a value an allocation of memory will be necessary.
+    /// but for every generation of a value an allocation of memory will be necessary.
+    ///
+    /// If the degree of the bezier curve is known at compile-time, consider using [`constant()`] instead.
+    ///
+    /// [`constant()`]: BSplineDirector::constant()
     #[cfg(feature = "std")]
     pub fn dynamic(self) -> BSplineDirector<K,E,DynSpace<E::Output>,W,M>{
         BSplineDirector{
@@ -774,15 +924,10 @@ where
 
     /// Set the workspace which the interpolation uses.
     ///
-    /// Tells the builder the size of the workspace needed such that no memory allocations are needed
+    /// Tells the builder the size of the workspace needed such that no memory allocations are necessary
     /// when interpolating.
     ///
-    /// The size needed is the degree of the interpolation + 1.
-    ///
-    /// # Errors
-    ///
-    /// Returns TooSmallWorkspace if the size of the workspace is not at least the degree + 1 of the curve.
-    /// To calculate the space needed, one may use the equation: `knots.len() - elements.len()`.
+    /// The size needed is `degree + 1` and/or `knots.len() - elements.len()`.
     pub fn constant<const N: usize>(self) -> BSplineDirector<K,E,ConstSpace<E::Output,N>,W,M>
     {
         BSplineDirector{
@@ -793,12 +938,15 @@ where
         }
     }
 
-    /// Set the workspace whcih the interpolation uses.
+    /// Set the workspace which the interpolation uses.
     ///
-    /// The workspace has to have a size of the number of elements in the bezier curve.
+    /// This method should be applied if one don't want to or can't use `Vector`.
     ///
-    /// If the degree of the bezier curve is known at compile-time, consider using `constant` instead.
-    /// Otherwise without std support, one has to set a specific object implementing the `Space` trait.
+    /// If the degree of the bezier curve is known at compile-time, consider using [`constant()`] instead.
+    /// Otherwise without std support, one has to set a specific object implementing the [`Space`] trait.
+    ///
+    /// [`constant()`]: BSplineDirector::constant()
+    /// [`Space`]: crate::base::space::Space
     pub fn workspace<S>(self, space: S) -> BSplineDirector<K,E,S,W,M>
     where S: Space<E::Output>
     {
@@ -820,7 +968,11 @@ where
     ///
     /// Tells the builder to use a vector as workspace,
     /// such you don't need to know the degree of the bezier curve at compile-time,
-    /// but every generation of a value an allocation of memory will be necessary.
+    /// but for every generation of a value an allocation of memory will be necessary.
+    ///
+    /// If the degree of the bezier curve is known at compile-time, consider using [`constant()`] instead.
+    ///
+    /// [`constant()`]: BSplineBuilder::constant()
     #[cfg(feature = "std")]
     pub fn dynamic(self) -> BSplineBuilder<K,E,DynSpace<E::Output>,W,M>{
         BSplineBuilder {
@@ -830,15 +982,10 @@ where
 
     /// Set the workspace which the interpolation uses.
     ///
-    /// Tells the builder the size of the workspace needed such that no memory allocations are needed
+    /// Tells the builder the size of the workspace needed such that no memory allocations are necessary
     /// when interpolating.
     ///
-    /// The size needed is the degree of the interpolation + 1.
-    ///
-    /// # Errors
-    ///
-    /// Returns TooSmallWorkspace if the size of the workspace is not at least the degree + 1 of the curve.
-    /// To calculate the space needed, one may use the equation: `knots.len() - elements.len()`.
+    /// The size needed is `degree + 1` and/or `knots.len() - elements.len()`.
     pub fn constant<const N: usize>(self) -> BSplineBuilder<K,E,ConstSpace<E::Output,N>,W,M>
     {
         BSplineBuilder {
@@ -846,12 +993,15 @@ where
         }
     }
 
-    /// Set the workspace whcih the interpolation uses.
+    /// Set the workspace which the interpolation uses.
     ///
-    /// The workspace has to have a size of the number of elements in the bezier curve.
+    /// This method should be applied if one don't want to or can't use `Vector`.
     ///
-    /// If the degree of the bezier curve is known at compile-time, consider using `constant` instead.
-    /// Otherwise without std support, one has to set a specific object implementing the `Space` trait.
+    /// If the degree of the bezier curve is known at compile-time, consider using [`constant()`] instead.
+    /// Otherwise without std support, one has to set a specific object implementing the [`Space`] trait.
+    ///
+    /// [`constant()`]: BSplineBuilder::constant()
+    /// [`Space`]: crate::base::space::Space
     pub fn workspace<S>(self, space: S) -> BSplineBuilder<K,E,S,W,M>
     where S: Space<E::Output>
     {
@@ -869,6 +1019,16 @@ where
     S: Space<E::Output>,
 {
     /// Build a bezier interpolation.
+    ///
+    /// # Errors
+    ///
+    /// [`TooFewElements`] if there are less than two elements.
+    /// [`InvalidDegree`] if degree is not at least 1 and at most the number of elements - 1.
+    /// [`TooSmallWorkspace`] if the workspace is not bigger than the degree of the curve.
+    ///
+    /// [`TooFewElements`]: super::BSplineError
+    /// [`InvalidDegree`]: super::BSplineError
+    /// [`TooSmallWorkspace`]: super::BSplineError
     pub fn build(self) -> Result<BSpline<K,E,S>, BSplineError>{
         BSpline::new(self.elements, self.knots, self.space)
     }
@@ -882,6 +1042,19 @@ where
     S: Space<E::Output>,
 {
     /// Build a bezier interpolation.
+    ///
+    /// # Errors
+    ///
+    /// [`TooFewElements`] if there are less than two elements or less than four elements in legacy mode.
+    /// [`InvalidDegree`] if degree is not at least 1 and at most the number of elements - 1.
+    /// [`TooSmallWorkspace`] if the workspace is not bigger than the degree of the curve.
+    /// [`NotSorted`] if the knots given in the method [`knots()`] were not sorted.
+    ///
+    /// [`TooFewElements`]: super::BSplineError
+    /// [`InvalidDegree`]: super::BSplineError
+    /// [`TooSmallWorkspace`]: super::BSplineError
+    /// [`NotSorted`]: super::BSplineError
+    /// [`knots()`]: BSplineBuilder::knots()
     pub fn build(self) -> Result<BSpline<K,E,S>, BSplineError>{
         match self.inner {
             Err(err) => return Err(err),
@@ -899,7 +1072,17 @@ where
     <Weights<G> as Generator<usize>>::Output: Merge<K::Output> + Copy,
     <G::Output as IntoWeight>::Element: Div<<G::Output as IntoWeight>::Weight, Output = <G::Output as IntoWeight>::Element>,
 {
-    /// Build a weighted bezier interpolation.
+    /// Build a bezier interpolation.
+    ///
+    /// # Errors
+    ///
+    /// [`TooFewElements`] if there are less than two elements.
+    /// [`InvalidDegree`] if degree is not at least 1 and at most the number of elements - 1.
+    /// [`TooSmallWorkspace`] if the workspace is not bigger than the degree of the curve.
+    ///
+    /// [`TooFewElements`]: super::BSplineError
+    /// [`InvalidDegree`]: super::BSplineError
+    /// [`TooSmallWorkspace`]: super::BSplineError
     pub fn build(self) -> Result<WeightedBSpline<K,G,S>, BSplineError>
     {
         Ok(Weighted::new(BSpline::new(self.elements, self.knots, self.space)?))
@@ -915,7 +1098,20 @@ where
     <Weights<G> as Generator<usize>>::Output: Merge<K::Output> + Copy,
     <G::Output as IntoWeight>::Element: Div<<G::Output as IntoWeight>::Weight, Output = <G::Output as IntoWeight>::Element>,
 {
-    /// Build a weighted bezier interpolation.
+    /// Build a bezier interpolation.
+    ///
+    /// # Errors
+    ///
+    /// [`TooFewElements`] if there are less than two elements or less than four elements in legacy mode.
+    /// [`InvalidDegree`] if degree is not at least 1 and at most the number of elements - 1.
+    /// [`TooSmallWorkspace`] if the workspace is not bigger than the degree of the curve.
+    /// [`NotSorted`] if the knots given in the method [`knots()`] were not sorted.
+    ///
+    /// [`TooFewElements`]: super::BSplineError
+    /// [`InvalidDegree`]: super::BSplineError
+    /// [`TooSmallWorkspace`]: super::BSplineError
+    /// [`NotSorted`]: super::BSplineError
+    /// [`knots()`]: BSplineBuilder::knots()
     pub fn build(self) -> Result<WeightedBSpline<K,G,S>, BSplineError>
     {
         match self.inner {

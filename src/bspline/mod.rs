@@ -1,11 +1,36 @@
-//! This implementation of BSpline has a performance of O(n + d^2), with n number of elements and
-//! d degree of the curve. There are implementations with a performance of O(log n + d^2), however
-//! they need to allocate memory on the heap. This implementation does not if one uses arrays as
-//! the collection of the elements. We assume that most of the time this tradeoff pays off.
-//! If you have a use case in which you have a bspline with a large number of elements,
-//! don't hesitate to create an issue on github and tell us about it.
-//! Another option is to divide the bspline into fewer pieces.
-
+//! Basis spline curves
+//!
+//! The easist way to create a bspline is by using the builder pattern of [`BSplineBuilder`].
+//!
+//! ```rust
+//! # use std::error::Error;
+//! # use enterpolation::{bspline::{BSpline, BSplineError}, Generator, Curve};
+//! # use assert_float_eq::{afe_is_f64_near, afe_near_error_msg, assert_f64_near};
+//! #
+//! # fn main() -> Result<(), BSplineError> {
+//! let bspline = BSpline::builder()
+//!                 .clamped()
+//!                 .elements([0.0,5.0,3.0,10.0,7.0])
+//!                 .equidistant::<f64>()
+//!                 .degree(3)
+//!                 .normalized()
+//!                 .constant::<4>()
+//!                 .build()?;
+//! let results = [0.0,2.346,3.648,4.302,4.704,5.25,6.2,7.27,8.04,8.09,7.0];
+//! for (value,result) in bspline.take(results.len()).zip(results.iter().copied()){
+//!     assert_f64_near!(value, result);
+//! }
+//! #
+//! #     Ok(())
+//! # }
+//! ```
+//!
+//! BSplines can be seen as many bezier curves put together. They have most properties of bezier curves
+//! but changing an element in a bspline only affects a local area of the curve,
+//! not the whole curve, like it is in bezier curves.
+//! BSplines allow you to define curves with a lot of control points without increasing the degree of the curve.
+//!
+//! [`BSplineBuilder`]: BSplineBuilder
 mod error;
 mod builder;
 mod adaptors;
@@ -22,10 +47,11 @@ use topology_traits::Merge;
 
 use core::fmt::Debug;
 
-/// BSplines are generalisations of Bezier Curves.
-/// They allow you to define curves with a lot of control points without increasing the degree of the curve.
-/// In contrast to Bezier Curves, BSplines do have a locally property.
-/// That is, changing one control points only affects a local area of the curve, not the whole curve.
+/// BSpline curve.
+///
+/// See [bspline module] for more information.
+///
+/// [bspline module]: self
 #[derive(Debug, Copy, Clone)]
 pub struct BSpline<K,E,S>
 {
@@ -36,7 +62,48 @@ pub struct BSpline<K,E,S>
 }
 
 impl BSpline<Unknown, Unknown, Unknown>{
-    /// Return a builder instance of BSpline.
+    /// Get a builder for bsplines.
+    ///
+    /// The builder takes:
+    /// - a mode, either [`open()`](default), [`clamped()`] or [`legacy()`]
+    /// - elements with [`elements()`] or [`elements_with_weights()`]
+    /// - knots with [`knots()`] or [`equidistant()`]
+    /// - the kind of workspace to use with [`dynamic()`], [`constant()`] or [`workspace()`]
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use std::error::Error;
+    /// # use enterpolation::{bezier::{Bezier, BezierError}, Generator, Curve};
+    /// # use assert_float_eq::{afe_is_f64_near, afe_near_error_msg, assert_f64_near};
+    /// #
+    /// # fn main() -> Result<(), BezierError> {
+    /// let bez = Bezier::builder()
+    ///     .elements([20.0,100.0,0.0,200.0])
+    ///     .normalized::<f64>()
+    ///     .constant()
+    ///     .build()?;
+    /// let mut iter = bez.take(5);
+    /// let expected = [20.0,53.75,65.0,98.75,200.0];
+    /// for i in 0..=4 {
+    ///     let val = iter.next().unwrap();
+    ///     assert_f64_near!(val, expected[i]);
+    /// }
+    /// #
+    /// #     Ok(())
+    /// # }
+    /// ```
+    ///
+    /// [`open()`]: BSplineBuilder::open()
+    /// [`clamped()`]: BSplineBuilder::clamped()
+    /// [`legacy()`]: BSplineBuilder::legacy()
+    /// [`elements()`]: BSplineBuilder::elements()
+    /// [`elements_with_weights()`]: BSplineBuilder::elements_with_weights()
+    /// [`knots()`]: BSplineBuilder::knots()
+    /// [`equidistant`]: BSplineBuilder::equidistant()
+    /// [`dynamic()`]: BSplineBuilder::dynamic()
+    /// [`constant()`]: BSplineBuilder::constant()
+    /// [`workspace()`]: BSplineBuilder::workspace()
     pub fn builder() -> BSplineBuilder<Unknown, Unknown, Unknown, Unknown, Open>{
         BSplineBuilder::new()
     }
@@ -120,10 +187,21 @@ where
     S: Space<E::Output>,
 {
     /// Creates a bspline curve of elements and knots given.
-    /// The resulting degree of the curve is elements.len() - knots.len() +1
-    /// The degree has to be at least 1.
-    /// The knots should be sorted.
-    /// The domain for the curve with degree p is knots[p-1] and knots[knots.len() - p -2].
+    ///
+    /// The resulting degree of the curve is `elements.len() - knots.len() +1`.
+    /// The domain for the curve with degree `p` is `knots[p-1]` and `knots[knots.len() - p -2]`.
+    ///
+    /// The knots have to be sorted.
+    ///
+    /// # Errors
+    ///
+    /// [`TooFewElements`] if there are less than two elements.
+    /// [`InvalidDegree`] if degree is not at least 1 and at most the number of elements - 1.
+    /// [`TooSmallWorkspace`] if the workspace is not bigger than the degree of the curve.
+    ///
+    /// [`TooFewElements`]: BSplineError
+    /// [`InvalidDegree`]: BSplineError
+    /// [`TooSmallWorkspace`]: BSplineError
     pub fn new(elements: E, knots: K, space: S) -> Result<Self, BSplineError>
     {
         //Test if we have at least two elements
@@ -136,7 +214,7 @@ where
         }
         // Test if we have enough elements for the degree
         if elements.len() < knots.len() - elements.len() {
-            return Err(TooFewElements::new(elements.len()).into());
+            return Err(InvalidDegree::new(knots.len() as isize - elements.len() as isize +1).into());
         }
         let degree = knots.len() - elements.len() + 1;
         if space.len() <= degree {
@@ -158,10 +236,14 @@ where
     S: Space<E::Output>,
 {
     /// Creates a bspline curve of elements and knots given.
-    /// The resulting degree of the curve is elements.len() - knots.len() + 1
-    /// The degree has to be at least 1.
-    /// The knots should be sorted.
-    /// The domain for the curve with degree p is knots[p-1] and knots[knots.len() - p -2].
+    ///
+    /// The resulting degree of the curve is `elements.len() - knots.len() + 1`.
+    /// The domain for the curve with degree `p` is `knots[p-1]` and `knots[knots.len() - p -2]`.
+    /// The knots have to be sorted.
+    ///
+    /// # Panics
+    ///
+    /// The degree has to be at least 1, otherwise the library may panic at any time.
     pub fn new_unchecked(elements: E, knots: K, space: S) -> Self
     {
         let degree = knots.len() - elements.len() + 1;

@@ -160,7 +160,8 @@ where
     E::Output: Merge<K::Output>,
 {
     /// Create a linear interpolation with slice-like collections of elements and knots.
-    /// Knots should be in increasing order (not checked), there should be as many knots as elements
+    ///
+    /// Knots have to be sorted, there should be as many knots as elements
     /// and there has to be at least 2 elements.
     pub fn new(elements: E, knots: K, easing: F) -> Result<Self, LinearError>
     {
@@ -186,10 +187,12 @@ where
     K::Output: Real,
 {
     /// Create a linear interpolation with slice-like collections of elements and knots.
-    /// Knots should be in increasing order, there should be as many knots as elements
-    /// and there has to be at least 2 elements.
     ///
-    /// All requirements are not checked.
+    /// # Panics
+    ///
+    /// Knots should be in increasing order, there should be as many knots as elements
+    /// and there has to be at least *two* elements.
+    /// If any of these requirements are not uphold, the library may panic at any time.
     pub fn new_unchecked(elements: E, knots: K, easing: F) -> Self
     {
         Linear {
@@ -204,12 +207,11 @@ impl<R,T,const N: usize> Linear<ConstEquidistant<R,N>,[T;N], Identity>
 {
     /// Create a linear interpolation with an array of elements.
     ///
-    /// There has to be at least *two* elements, which is NOT checked.
-    /// This function should be used if one wants to create a constant Interpolation.
+    /// This constructor should be used if one wants to create a constant Interpolation.
     ///
-    /// # Requirements
+    /// # Panics
     ///
-    /// The array has to be at least of length *two*.
+    /// The array has to be at least of length *two*. Otherwise the library may panic at any time.
     pub const fn equidistant_unchecked(elements: [T;N]) -> Self
     {
         Linear {
