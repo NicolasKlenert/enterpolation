@@ -252,14 +252,14 @@ impl<M> BSplineBuilder<Unknown, Unknown, Unknown, Unknown, M> {
     /// Change the mode to an open curve.
     pub fn open(self) -> BSplineBuilder<Unknown, Unknown, Unknown, Unknown, Open> {
         BSplineBuilder {
-            inner: self.inner.and_then(|director| Ok(director.open()))
+            inner: self.inner.map(|director| director.open())
         }
     }
 
     /// Change the mode to a clamped curve.
     pub fn clamped(self) -> BSplineBuilder<Unknown, Unknown, Unknown, Unknown, Clamped> {
         BSplineBuilder {
-            inner: self.inner.and_then(|director| Ok(director.clamped()))
+            inner: self.inner.map(|director| director.clamped())
         }
     }
 
@@ -271,7 +271,7 @@ impl<M> BSplineBuilder<Unknown, Unknown, Unknown, Unknown, M> {
     /// [main documentation]: crate
     pub fn legacy(self) -> BSplineBuilder<Unknown, Unknown, Unknown, Unknown, Legacy> {
         BSplineBuilder {
-            inner: self.inner.and_then(|director| Ok(director.legacy()))
+            inner: self.inner.map(|director| director.legacy())
         }
     }
 
@@ -287,7 +287,7 @@ impl<M> BSplineBuilder<Unknown, Unknown, Unknown, Unknown, M> {
     where E: DiscreteGenerator,
     {
         BSplineBuilder {
-            inner: self.inner.and_then(|director| Ok(director.elements(elements)))
+            inner: self.inner.map(|director| director.elements(elements))
         }
     }
 
@@ -310,7 +310,7 @@ impl<M> BSplineBuilder<Unknown, Unknown, Unknown, Unknown, M> {
         <G::Output as IntoWeight>::Weight: Zero + Copy,
     {
         BSplineBuilder {
-            inner: self.inner.and_then(|director| Ok(director.elements_with_weights(gen)))
+            inner: self.inner.map(|director| director.elements_with_weights(gen))
         }
     }
 }
@@ -390,7 +390,7 @@ impl<E,W> BSplineDirector<Unknown, E, Unknown, W, Clamped>
     /// [`equidistant()`]: BSplineDirector::equidistant()
     /// [`NotSorted`]: super::BSplineError
     /// [`InvalidDegree`]: super::BSplineError
-    pub fn knots<K>(self, knots: K) -> Result<BSplineDirector<BorderBuffer<Sorted<K>>,E, Unknown, W, Clamped>, BSplineError>
+    pub fn knots<K>(self, knots: K) -> Result<ClampedBSplineDirector<K,E,W>, BSplineError>
     where
         E: DiscreteGenerator,
         K: DiscreteGenerator,
@@ -421,7 +421,7 @@ impl<E,W> BSplineBuilder<Unknown, E, Unknown, W, Clamped>
     /// knots, consider using [`equidistant()`] instead.
     ///
     /// [`equidistant()`]: BSplineBuilder::equidistant()
-    pub fn knots<K>(self, knots: K) -> BSplineBuilder<BorderBuffer<Sorted<K>>,E, Unknown, W, Clamped>
+    pub fn knots<K>(self, knots: K) -> ClampedBSplineBuilder<K,E,W>
     where
         E: DiscreteGenerator,
         K: DiscreteGenerator,
@@ -452,7 +452,7 @@ impl<E,W> BSplineDirector<Unknown, E, Unknown, W, Legacy>
     /// [`equidistant()`]: BSplineDirector::equidistant()
     /// [`NotSorted`]: super::error::BSplineError
     /// [`TooFewElements`]: super::error::BSplineError
-    pub fn knots<K>(self, knots: K) -> Result<BSplineDirector<BorderDeletion<Sorted<K>>,E, Unknown, W, Legacy>, BSplineError>
+    pub fn knots<K>(self, knots: K) -> Result<LegacyBSplineDirector<K,E,W>, BSplineError>
     where
         E: DiscreteGenerator,
         K: DiscreteGenerator,
@@ -479,7 +479,7 @@ impl<E,W> BSplineBuilder<Unknown, E, Unknown, W, Legacy>
     /// knots, consider using [`equidistant()`] instead.
     ///
     /// [`equidistant()`]: BSplineBuilder::equidistant()
-    pub fn knots<K>(self, knots: K) -> BSplineBuilder<BorderDeletion<Sorted<K>>,E, Unknown, W, Legacy>
+    pub fn knots<K>(self, knots: K) -> LegacyBSplineBuilder<K,E,W>
     where
         E: DiscreteGenerator,
         K: DiscreteGenerator,
@@ -537,7 +537,7 @@ impl<E,W,M> BSplineBuilder<Unknown, E, Unknown, W, M>
     /// [`quantity()`]: BSplineBuilder::normalized()
     pub fn equidistant<R>(self) -> BSplineBuilder<Type<R>,E, Unknown, W, M>{
         BSplineBuilder {
-            inner: self.inner.and_then(|director| Ok(director.equidistant()))
+            inner: self.inner.map(|director| director.equidistant())
         }
     }
 }
@@ -627,7 +627,7 @@ where
     /// [`distance()`]: BSplineBuilder::distance()
     pub fn degree(self, degree: usize) -> BSplineBuilder<UnknownDomain<R>,E,Unknown,W, Open>{
         BSplineBuilder {
-            inner: self.inner.and_then(|director| Ok(director.degree(degree)))
+            inner: self.inner.map(|director| director.degree(degree))
         }
     }
 
@@ -653,7 +653,7 @@ where
     /// [`distance()`]: BSplineBuilder::distance()
     pub fn quantity(self, quantity: usize) -> BSplineBuilder<UnknownDomain<R>,E,Unknown,W, Open>{
         BSplineBuilder {
-            inner: self.inner.and_then(|director| Ok(director.quantity(quantity)))
+            inner: self.inner.map(|director| director.quantity(quantity))
         }
     }
 }
@@ -743,7 +743,7 @@ where
     /// [`distance()`]: BSplineBuilder::distance()
     pub fn degree(self, degree: usize) -> BSplineBuilder<UnknownDomain<R>,E,Unknown,W, Clamped>{
         BSplineBuilder{
-            inner: self.inner.and_then(|director| Ok(director.degree(degree)))
+            inner: self.inner.map(|director| director.degree(degree))
         }
     }
 
@@ -769,7 +769,7 @@ where
     /// [`distance()`]: BSplineBuilder::distance()
     pub fn quantity(self, quantity: usize) -> BSplineBuilder<UnknownDomain<R>,E,Unknown,W, Clamped>{
         BSplineBuilder{
-            inner: self.inner.and_then(|director| Ok(director.quantity(quantity)))
+            inner: self.inner.map(|director| director.quantity(quantity))
         }
     }
 }
@@ -817,20 +817,20 @@ where
     /// Set the domain of the interpolation.
     pub fn domain(self, start: R, end: R) -> BSplineBuilder<Equidistant<R>,E,Unknown,W,Open>{
         BSplineBuilder {
-            inner: self.inner.and_then(|director| Ok(director.domain(start, end)))
+            inner: self.inner.map(|director| director.domain(start, end))
         }
     }
 
     /// Set the domain of the interpolation to be [0.0,1.0].
     pub fn normalized(self) -> BSplineBuilder<Equidistant<R>,E,Unknown,W,Open>{
         BSplineBuilder {
-            inner: self.inner.and_then(|director| Ok(director.normalized()))
+            inner: self.inner.map(|director| director.normalized())
         }
     }
     /// Set the domain of the interpolation by defining the distance between the knots.
     pub fn distance(self, start: R, step: R) -> BSplineBuilder<Equidistant<R>,E,Unknown,W,Open>{
         BSplineBuilder {
-            inner: self.inner.and_then(|director| Ok(director.distance(start, step)))
+            inner: self.inner.map(|director| director.distance(start, step))
         }
     }
 }
@@ -878,20 +878,20 @@ where
     /// Set the domain of the interpolation.
     pub fn domain(self, start: R, end: R) -> BSplineBuilder<BorderBuffer<Equidistant<R>>,E,Unknown,W,Clamped>{
         BSplineBuilder {
-            inner: self.inner.and_then(|director| Ok(director.domain(start, end)))
+            inner: self.inner.map(|director| director.domain(start, end))
         }
     }
 
     /// Set the domain of the interpolation to be [0.0,1.0].
     pub fn normalized(self) -> BSplineBuilder<BorderBuffer<Equidistant<R>>,E,Unknown,W,Clamped>{
         BSplineBuilder {
-            inner: self.inner.and_then(|director| Ok(director.normalized()))
+            inner: self.inner.map(|director| director.normalized())
         }
     }
     /// Set the domain of the interpolation by defining the distance between the knots.
     pub fn distance(self, start: R, step: R) -> BSplineBuilder<BorderBuffer<Equidistant<R>>,E,Unknown,W,Clamped>{
         BSplineBuilder {
-            inner: self.inner.and_then(|director| Ok(director.distance(start, step)))
+            inner: self.inner.map(|director| director.distance(start, step))
         }
     }
 }
@@ -976,7 +976,7 @@ where
     #[cfg(feature = "std")]
     pub fn dynamic(self) -> BSplineBuilder<K,E,DynSpace<E::Output>,W,M>{
         BSplineBuilder {
-            inner: self.inner.and_then(|director| Ok(director.dynamic()))
+            inner: self.inner.map(|director| director.dynamic())
         }
     }
 
@@ -989,7 +989,7 @@ where
     pub fn constant<const N: usize>(self) -> BSplineBuilder<K,E,ConstSpace<E::Output,N>,W,M>
     {
         BSplineBuilder {
-            inner: self.inner.and_then(|director| Ok(director.constant()))
+            inner: self.inner.map(|director| director.constant())
         }
     }
 
@@ -1006,7 +1006,7 @@ where
     where S: Space<E::Output>
     {
         BSplineBuilder {
-            inner: self.inner.and_then(|director| Ok(director.workspace(space)))
+            inner: self.inner.map(|director| director.workspace(space))
         }
     }
 }
@@ -1057,7 +1057,7 @@ where
     /// [`knots()`]: BSplineBuilder::knots()
     pub fn build(self) -> Result<BSpline<K,E,S>, BSplineError>{
         match self.inner {
-            Err(err) => return Err(err),
+            Err(err) => Err(err),
             Ok(director) => director.build()
         }
     }
@@ -1115,7 +1115,7 @@ where
     pub fn build(self) -> Result<WeightedBSpline<K,G,S>, BSplineError>
     {
         match self.inner {
-            Err(err) => return Err(err),
+            Err(err) => Err(err),
             Ok(director) => director.build()
         }
     }
@@ -1123,6 +1123,14 @@ where
 
 /// Type alias for weighted bsplines.
 type WeightedBSpline<K,G,S> = Weighted<BSpline<K,Weights<G>,S>>;
+/// Type alias for ClampedBuilder
+type ClampedBSplineBuilder<K,E,W> = BSplineBuilder<BorderBuffer<Sorted<K>>,E,Unknown,W,Clamped>;
+/// Type alias for ClampedDirector
+type ClampedBSplineDirector<K,E,W> = BSplineDirector<BorderBuffer<Sorted<K>>,E,Unknown,W,Clamped>;
+///Type alias for LegacyBuilder
+type LegacyBSplineBuilder<K,E,W> = BSplineBuilder<BorderDeletion<Sorted<K>>,E,Unknown,W,Legacy>;
+///Type alias for LegacyDirector
+type LegacyBSplineDirector<K,E,W> = BSplineDirector<BorderDeletion<Sorted<K>>,E,Unknown,W,Legacy>;
 
 #[cfg(test)]
 mod test {

@@ -218,7 +218,7 @@ impl<F> LinearBuilder<Unknown, Unknown, F, Unknown> {
     where E: DiscreteGenerator,
     {
         LinearBuilder {
-            inner: self.inner.and_then(|director| Ok(director.elements(elements)))
+            inner: self.inner.map(|director| director.elements(elements))
         }
     }
 
@@ -261,7 +261,7 @@ impl<F> LinearBuilder<Unknown, Unknown, F, Unknown> {
         <G::Output as IntoWeight>::Weight: Zero + Copy,
     {
         LinearBuilder {
-            inner: self.inner.and_then(|director| Ok(director.elements_with_weights(gen)))
+            inner: self.inner.map(|director| director.elements_with_weights(gen))
         }
     }
 }
@@ -367,7 +367,7 @@ impl<E,F,W> LinearBuilder<Unknown, E, F, W>
     /// [`distance()`]: LinearBuilder::distance()
     pub fn equidistant<R>(self) -> LinearBuilder<Type<R>,E,F,W>{
         LinearBuilder {
-            inner: self.inner.and_then(|director| Ok(director.equidistant()))
+            inner: self.inner.map(|director| director.equidistant())
         }
     }
 }
@@ -415,20 +415,20 @@ where
     /// Set the domain of the interpolation.
     pub fn domain(self, start: R, end: R) -> LinearBuilder<Equidistant<R>,E,F,W>{
         LinearBuilder {
-            inner: self.inner.and_then(|director| Ok(director.domain(start,end)))
+            inner: self.inner.map(|director| director.domain(start,end))
         }
     }
 
     /// Set the domain of the interpolation to be [0.0,1.0].
     pub fn normalized(self) -> LinearBuilder<Equidistant<R>,E,F,W>{
         LinearBuilder {
-            inner: self.inner.and_then(|director| Ok(director.normalized()))
+            inner: self.inner.map(|director| director.normalized())
         }
     }
     /// Set the domain of the interpolation by defining the distance between the knots
     pub fn distance(self, start: R, step: R) -> LinearBuilder<Equidistant<R>,E,F,W>{
         LinearBuilder {
-            inner: self.inner.and_then(|director| Ok(director.distance(start,step)))
+            inner: self.inner.map(|director| director.distance(start,step))
         }
     }
 }
@@ -473,7 +473,7 @@ where
     /// [plateau example]: https://github.com/NicolasKlenert/enterpolation/blob/main/examples/plateaus.rs
     pub fn easing<FF>(self, easing: FF) -> LinearBuilder<K,E,FF,W>{
         LinearBuilder {
-            inner: self.inner.and_then(|director| Ok(director.easing(easing)))
+            inner: self.inner.map(|director| director.easing(easing))
         }
     }
 }
@@ -501,7 +501,7 @@ where
     /// Build a linear interpolation.
     pub fn build(self) -> Result<Linear<K,E,F>,LinearError>{
         match self.inner {
-            Err(err)=> return Err(err),
+            Err(err)=> Err(err),
             Ok(director) => director.build()
         }
     }
@@ -534,7 +534,7 @@ where
     pub fn build(self) -> Result<WeightedLinear<K,G,F>, LinearError>
     {
         match self.inner {
-            Err(err)=> return Err(err),
+            Err(err)=> Err(err),
             Ok(director) => director.build()
         }
     }
