@@ -1,6 +1,6 @@
 # Enterpolation
 
-A library for creating and computing interpolation, extrapolation and smoothing of generic data points.
+A library for creating and computing interpolations, extrapolations and smoothing of generic data points.
 
 Enterpolation is a library to generate and use different interpolation and extrapolation methods. This includes linear interpolation, bezier curves, B-spline and their weighted and non-uniform counterparts like NURBS. This library aims to be as generic as possible to allow interpolating elements of any vector space. Also building and using different interpolations should create as less friction as possible such that one may experiment with different methods to find the interpolation which best fits their needs. To achieve this, Enterpolation heavily uses consistent builder options to allow customization and minimise the need to change code while experimenting.
 
@@ -125,7 +125,7 @@ Elements can be given to the curve with an array, a vector or by implementing th
 
 #### Requirements for Knots
 
-Knots represent the location of the elements in the input space. Such knots are usually of the same type as your input for the interpolation itself. As all interpolations (yet) are curves, usually knots are f32 or f64. Elements must be multipliable with knots and knots have to be sorted with the smallest knot at index zero.
+Knots represent the location of the elements in the input space. Such knots are usually of the same type as your input for the interpolation itself. As all interpolations (yet) are curves, usually knots are `f32` or `f64`. Elements must be multipliable with knots and knots have to be sorted with the smallest knot at index zero.
 
 Knots also can be given via an array or a vector, or some other type which implements the [`DiscreteGenerator`] trait. One may also implement the [`SortedGenerator`] trait if the type is always guaranteed to represent sorted knots.
 

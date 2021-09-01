@@ -23,7 +23,7 @@ pub trait Space<T> {
     fn workspace(&self) -> Self::Output;
 }
 
-/// Struct handles workspace while in compilation
+/// Struct to handle a constant workspace.
 #[derive(Debug, Copy, Clone)]
 pub struct ConstSpace<T,const N: usize>{
     _phantom: PhantomData<*const T>,
@@ -56,7 +56,7 @@ impl<T,const N: usize> Default for ConstSpace<T,N>{
     }
 }
 
-/// Struct handles workspace at run-time.
+/// Struct which handles workspace at run-time.
 #[cfg(feature = "std")]
 #[derive(Debug, Copy, Clone)]
 pub struct DynSpace<T>{

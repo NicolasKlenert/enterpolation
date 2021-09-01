@@ -1,4 +1,4 @@
-//! Bezier curves
+//! Bezier curves.
 //!
 //! The easist way to create a bezier curve is by using the builder pattern of [`BezierBuilder`].
 //!

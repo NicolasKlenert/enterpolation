@@ -175,7 +175,9 @@ impl<G: Generator<I> + ?Sized,I> Generator<I> for &G {
     }
 }
 
-/// Curve is a specialized Generator which takes a real number as input
+/// Specialized [`Generator`] which takes a real number as input.
+///
+/// [`Generator`]: Generator
 pub trait Curve<R> : Generator<R>
 where R: Real
 {
@@ -286,30 +288,34 @@ where R: Real
 }
 //TODO: add derive macro to implement IntoIterator and Iterator for all DiscreteGenerators
 
-/// DiscreteGenerator are generators which only guarantee creation of elements if the input is lower than their length.
+/// Specialized [`Generator`] with input of type `usize`.
 ///
-/// All `DiscreteGenerators` should implement `IntoIterator` -> create derive macro.
+/// All `DiscreteGenerator` must return valid values
+/// when using inputs less than the value returned by their [`len()`] method.
+///
+/// [`Generator`]: Generator
+/// [`len()`]: DiscreteGenerator::len()
 pub trait DiscreteGenerator : Generator<usize> {
     /// Returns the minimum amount of elements the generator can create.
     ///
     /// The generator has to guarantee that every usize number
     /// lower than the returned number has to create a valid element.
     fn len(&self) -> usize;
-    /// Returns the first element of the generator, or None if it is empty.
+    /// Returns the first element of the generator, or `None` if it is empty.
     fn first(&self) -> Option<Self::Output> {
         if self.is_empty(){
             return None;
         }
         Some(self.gen(0))
     }
-    /// Returns the last element of the generator, or None if it is empty.
+    /// Returns the last element of the generator, or `None` if it is empty.
     fn last(&self) -> Option<Self::Output> {
         if self.is_empty(){
             return None;
         }
         Some(self.gen(self.len() - 1))
     }
-    /// Returns true if the generator does not generate any elements.
+    /// Returns `true` if the generator does not generate any elements.
     fn is_empty(&self) -> bool {
         self.len() == 0
     }
@@ -319,7 +325,7 @@ pub trait DiscreteGenerator : Generator<usize> {
     {
         IntoIter::new(self)
     }
-    /// create iterator which steps through all generatable values.
+    /// Create iterator which steps through all generatable values.
     fn iter(&self) -> IntoIter<&Self>{
         IntoIter::new(self)
     }
@@ -331,15 +337,16 @@ pub trait DiscreteGenerator : Generator<usize> {
     }
 }
 
-//Make references of DiscreteGenerator also DiscreteGenerator
+// Make references of DiscreteGenerator also DiscreteGenerator
 impl<G: DiscreteGenerator + ?Sized> DiscreteGenerator for &G {
     fn len(&self) -> usize {
         (**self).len()
     }
 }
 
-/// ConstDiscreteGenerator is a marker for `DiscreteGenerator` where its length is knwon at compile-time
-/// and given by `N`.
+/// Trait for [`DiscreteGenerator`] where its length is knwon at compile-time.
+///
+/// [`DiscreteGenerator`]: DiscreteGenerator
 pub trait ConstDiscreteGenerator<const N: usize> : DiscreteGenerator {
     /// Collect all elements generated into an array.
     ///
@@ -438,7 +445,7 @@ where G: DiscreteGenerator
     }
 }
 
-/// Iterator adaptor
+/// Iterator adaptor.
 ///
 /// Maps the items of the iterator to the output of the curve.
 ///
@@ -548,8 +555,11 @@ where
     }
 }
 
-/// Newtype Stepper to encapsulate implementation details.
-/// Stepper is an Iterator which steps from 0.0 to 1.0 in a specific amount of constant steps.
+/// Stepper is an iterator which increments its number.
+///
+/// Stepper can be seen as a [`Range`] with variable step size.
+///
+/// [`Range`]: core::ops::Range
 #[derive(Debug, Clone)] // Iterators shouldn't be Copy -- see #27186
 pub struct Stepper<R: Real = f64>(IntoIter<Equidistant<R>>);
 

@@ -1,4 +1,4 @@
-//! Basis spline curves
+//! Basis spline curves.
 //!
 //! The easist way to create a bspline is by using the builder pattern of [`BSplineBuilder`].
 //!

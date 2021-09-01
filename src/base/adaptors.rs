@@ -42,7 +42,7 @@ where
     }
 }
 
-/// Acts like a slice of a curve
+/// Acts like a slice of a curve.
 ///
 /// That is, a slice of a curve has the same domain as the curve itself but maps the domain onto the range given.
 ///
@@ -193,7 +193,9 @@ where
     }
 }
 
-/// DiscreteGenerator Adaptor which takes two generators with output S and T and stacks them, such that the output is (T,R).
+/// DiscreteGenerator adaptor which stacks two generators.
+///
+/// That it, the struct holds two generators with output S and T and outputs (S,T).
 ///
 /// This `struct` is created by [`Generator::stack]. See its documentation for more.
 #[derive(Debug, Copy, Clone)]
@@ -283,7 +285,7 @@ impl<G> ConstDiscreteGenerator<{usize::MAX}> for Repeat<G>
 where G: DiscreteGenerator
 {}
 
-/// DiscreteGenerator Adaptor which repeats a fixed amount of first elements.
+/// Generator adaptor which repeats a fixed amount of first elements.
 #[derive(Debug, Copy, Clone)]
 pub struct Wrap<G>{
     inner: G,
