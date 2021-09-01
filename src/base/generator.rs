@@ -286,7 +286,6 @@ where R: Real
         (**self).domain()
     }
 }
-//TODO: add derive macro to implement IntoIterator and Iterator for all DiscreteGenerators
 
 /// Specialized [`Generator`] with input of type `usize`.
 ///

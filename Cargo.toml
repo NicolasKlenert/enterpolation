@@ -5,49 +5,14 @@ exclude = ["examples/*", ".gitignore", "CHANGELOG.md", "CONTRIBUTING.md"]
 edition = "2018"
 description = "A library for creating and computing interpolations, extrapolations and smoothing of generic data points."
 license = "MIT OR Apache-2.0"
-#documentation = "https://docs.rs/palette/0.5.0/palette/"
-#repository = "https://github.com/Ogeon/palette"
+documentation = "https://docs.rs/enterpolation"
+repository = "https://github.com/NicolasKlenert/enterpolation"
 readme = "README.md"
 keywords = ["interpolation", "curve", "spline", "lerp"]
 categories = ["graphics", "mathematics", "no-std"]
-# necessary for now to run cargo test with specific features, see https://github.com/rust-lang/cargo/issues/4663
-autoexamples = false
-
-# cargo test --no-default-features --features "linear"
-# cargo run --examples
-
-# TODO: run all examples before releasing!
-
-# When releasing to crates.io:
-#
-# - last check for all TODO, FIXME, expect, unwrap, todo!, unreachable!.
-# - recheck log statements (informative, none left that were just for development, ...)
-# - `cargo +nightly doc --all-features --no-deps --open` and re-read and final polish of documentation.
-#
-# - Update CHANGELOG.md.
-# - Update version numbers in Cargo.toml and install section of readme.
-#
-# - `touch **.rs && cargo clippy --tests --examples --benches --all-features`
-# - `cargo update`
-# - `cargo outdated --root-deps-only`
-# - `cargo audit`
-# - `cargo udeps --all-targets --all-features`
-# - `cargo crev crate verify --show-all --recursive` and review.
-# - 'cargo test --all-targets --all-features'
-#
-# - push dev and verify CI result
-# - `cargo test` on dependent crates
-#
-# - `git checkout master && git merge dev --no-ff`
-# - `git tag x.x.x` with version number.
-# - `git push && git push --tags`
-# - cargo publish
-#
 version = "0.1.0"
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-# enterpolation_attribute = {version = "0.1", path = "./enterpolation_attribute"}
 topology-traits = "0.1"
 assert_float_eq = "1"
 num-traits = "0.2"
@@ -64,23 +29,3 @@ libm = ["num-traits/libm"]
 linear = []
 bezier = []
 bspline = []
-
-[[example]]
-name = "bspline_reasoning"
-required-features = ["linear","bezier","bspline"]
-
-[[example]]
-name = "gradient"
-required-features = ["bspline"]
-
-[[example]]
-name = "noise"
-required-features = ["bspline"]
-
-[[example]]
-name = "nurbs"
-required-features = ["bspline"]
-
-[[example]]
-name = "plateaus"
-required-features = ["linear"]

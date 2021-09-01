@@ -896,8 +896,6 @@ where
     }
 }
 
-//TODO: dynamic may return error if elements > knots -> We may want to test this before!
-
 impl<K,E,W,M> BSplineDirector<K,E, Unknown, W,M>
 where
     E: DiscreteGenerator,

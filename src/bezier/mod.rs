@@ -25,8 +25,6 @@
 //! Bezier curves are polynomial curves with their degree given by the number of elements they consist of.
 //!
 //! [`BezierBuilder`]: BezierBuilder
-// TODO: create LinearEquidistant Interpolation from Bezier, when a constant speed is wished for
-// TODO: -> see https://www.researchgate.net/post/How-can-I-assign-a-specific-velocity-to-a-point-moving-on-a-Bezier-curve
 use core::ops::{Mul, Sub};
 use crate::{Generator, Curve, Space, DiscreteGenerator};
 use crate::builder::Unknown;
@@ -210,8 +208,6 @@ where
         workspace
     }
 }
-
-//TODO: change such that E::Output does not have to be copy
 
 impl<R,E,S> Generator<R> for Bezier<R,E,S>
 where

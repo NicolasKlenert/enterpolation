@@ -1,6 +1,3 @@
-//TODO: create derives for Interpolation and Curve etc(?) -> https://github.com/rust-lang/rfcs/issues/1024
-//TODO: is Extrapolation as a marker trait also an idea?
-
 mod generator;
 mod adaptors;
 mod list;
