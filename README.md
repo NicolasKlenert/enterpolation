@@ -17,7 +17,7 @@ Enterpolation is a library to generate and use different interpolation and extra
 Add this to your `Cargo.toml`:
 ```toml
 [dependencies]
-enterpolation = "0.1"
+enterpolation = "0.1.1"
 ```
 
 Here is a simple example creating a linear interpolation of `f64` and extracting 21 values from start to end. This library supports all elements which can be added together and multiplied with a scalar (in our case also `f64`). Instead of interpolating floats, one could interpolate coordinates, rotations, transformations, velocities, geometries, sound, colors and so on.
