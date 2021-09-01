@@ -5,32 +5,21 @@
 
 use num_traits::real::Real;
 use num_traits::FromPrimitive;
-use crate::{Generator, Interpolation, Curve};
+use crate::{Generator, Curve};
 
 mod plateau;
 pub use plateau::Plateau;
 
-/// Marker trait for special curves.
-///
-/// Curves are Easing if and only if their domain is [0.0,1.0] and their output is also in [0.0,1.0]
-/// as well as their output for 0.0 has to be 0.0 and their output for 1.0 has to be 1.0.
-pub trait Easing<R> : Curve<R>
-where R: Real
-{}
-
 /// This is just a wrapper for easing functions.
 ///
-/// This wrapper should only ever constructed with easing functions, as this would otherwise
-/// wrongly implement the Easing trait.
+/// We expect the domain to be normalized.
 #[derive(Debug, Clone, Copy)]
 pub struct FuncEase<F> {
     func: F,
 }
 
 impl<F> FuncEase<F>{
-    /// Create a new struct which implements the `Easing` trait.
-    ///
-    /// The given function should hold the requirements of an easing function.
+    /// Create a new struct from the given function.
     pub fn new(func: F) -> Self {
         FuncEase {
             func
@@ -47,9 +36,6 @@ where F: Fn(R) -> R,
     }
 }
 
-impl<F,R> Interpolation<R> for FuncEase<F>
-where F: Fn(R) -> R {}
-
 impl<F,R> Curve<R> for FuncEase<F>
 where
     F: Fn(R) -> R,
@@ -60,18 +46,12 @@ where
     }
 }
 
-impl<F,R> Easing<R> for FuncEase<F>
-where
-    F: Fn(R) -> R,
-    R: Real,
-{}
-
-/// Easing struct returning its input without modifying it.
+/// Identity as Curve.
 #[derive(Debug, Copy, Clone)]
-pub struct Identity{}
+pub struct Identity {}
 
 impl Identity {
-    /// Create a new Identity Easing struct.
+    /// Create a new Identity struct.
     pub const fn new() -> Self {
         Identity {}
     }
@@ -91,8 +71,6 @@ impl<R> Generator<R> for Identity
     }
 }
 
-impl<R> Interpolation<R> for Identity {}
-
 impl<R> Curve<R> for Identity
 where
     R: Real,
@@ -101,8 +79,6 @@ where
         [R::zero(),R::one()]
     }
 }
-
-impl<R> Easing<R> for Identity where R: Real {}
 
 /// Flips the "start" and "end".
 ///

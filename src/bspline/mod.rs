@@ -39,7 +39,7 @@ pub use error::{BSplineError, InvalidDegree, TooSmallWorkspace, NotSorted, TooFe
 pub use adaptors::{BorderBuffer, BorderDeletion};
 pub use builder::{BSplineBuilder, BSplineDirector};
 
-use crate::{Generator, SortedGenerator, DiscreteGenerator, Space, Interpolation, Curve};
+use crate::{Generator, SortedGenerator, DiscreteGenerator, Space, Curve};
 use crate::builder::Unknown;
 use builder::Open;
 use num_traits::real::Real;
@@ -65,7 +65,7 @@ impl BSpline<Unknown, Unknown, Unknown>{
     /// Get a builder for bsplines.
     ///
     /// The builder takes:
-    /// - a mode, either [`open()`](default), [`clamped()`] or [`legacy()`]
+    /// - a mode, either [`open()`], which is default, [`clamped()`] or [`legacy()`]
     /// - elements with [`elements()`] or [`elements_with_weights()`]
     /// - knots with [`knots()`] or [`equidistant()`]
     /// - the kind of workspace to use with [`dynamic()`], [`constant()`] or [`workspace()`]
@@ -100,7 +100,7 @@ impl BSpline<Unknown, Unknown, Unknown>{
     /// [`elements()`]: BSplineBuilder::elements()
     /// [`elements_with_weights()`]: BSplineBuilder::elements_with_weights()
     /// [`knots()`]: BSplineBuilder::knots()
-    /// [`equidistant`]: BSplineBuilder::equidistant()
+    /// [`equidistant()`]: BSplineBuilder::equidistant()
     /// [`dynamic()`]: BSplineBuilder::dynamic()
     /// [`constant()`]: BSplineBuilder::constant()
     /// [`workspace()`]: BSplineBuilder::workspace()
@@ -157,15 +157,6 @@ where
         elements[0]
     }
 }
-
-impl<K,E,S,R> Interpolation<R> for BSpline<K,E,S>
-where
-    E: DiscreteGenerator,
-    S: Space<E::Output>,
-    E::Output: Merge<R> + Copy,
-    R: Real + Debug,
-    K: SortedGenerator<Output = R>
-{}
 
 impl<K,E,S,R> Curve<R> for BSpline<K,E,S>
 where

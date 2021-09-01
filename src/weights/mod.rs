@@ -1,4 +1,4 @@
-//! Module with structures for Homogeneous datapoints, non-uniform inerpolations, weighted interpolations
+//! Module with structures for homogeneous datapoints, non-uniform inerpolations, weighted interpolations
 //! and adapters to handle these better.
 
 mod homogeneous;
@@ -7,12 +7,12 @@ mod weighted;
 pub use homogeneous::Homogeneous;
 pub use weighted::Weighted;
 
-use crate::{Generator, DiscreteGenerator, ConstDiscreteGenerator, Interpolation, Curve};
+use crate::{Generator, DiscreteGenerator, ConstDiscreteGenerator, Curve};
 use core::ops::Mul;
 use num_traits::real::Real;
 use num_traits::identities::Zero;
 
-/// Generator Adaptor to transform (T,R) to Homogeneous<T,R>.
+/// Generator adaptor to transform `(T,R)` to `Homogeneous<T,R>`.
 ///
 /// Weights given by the generator who equal `R::zero()` are considered to be at infinity.
 #[derive(Debug, Copy, Clone)]
@@ -56,8 +56,6 @@ where
     G::Output: IntoWeight,
 {}
 
-
-impl<I,Input> Interpolation<Input> for Weights<I> where I: Interpolation<Input>, I::Output: IntoWeight{}
 impl<C,R> Curve<R> for Weights<C> where C: Curve<R>, C::Output: IntoWeight, R: Real {
     fn domain(&self) -> [R; 2] {
         self.gen.domain()

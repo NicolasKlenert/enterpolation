@@ -77,6 +77,11 @@ fn main() -> Result<(), BSplineError> {
 }
 ```
 
+For further information how to use any curve, one may look at the main traits of this crate: [`Generator`] and [`Curve`].
+
+[`Generator`]: https://docs.rs/enterpolation/0.1.0/enterpolation/trait.Generator.html
+[`Curve`]: https://docs.rs/enterpolation/0.1.0/enterpolation/trait.Curve.html
+
 ### Further Examples
 
 Examples showcasing use cases (like defining a smooth color gradient or using NURBS) can be found in the [examples] directory.
@@ -97,7 +102,7 @@ features = ["linear"]
 ```
 
 - **std** - When enabled, run-time allocations may be done with std::vec. For the most part one can disable this feature and implement the necessary traits for their custom run-time allocation or only use arrays.
-- **libm** - This feature has to be enabled fpor the crate to work properly if the **std** feature is disabled.
+- **libm** - This feature has to be enabled for the crate to work properly if the **std** feature is disabled.
 - **linear** - Enables all relevant methods and the construction of linear interpolation.
 - **bezier** - Enables all relevant methods and the construction of bezier curves.
 - **bspline** - Enables all relevant methods and the construction of B-Spline.
@@ -122,10 +127,10 @@ Elements can be given to the curve with an array, a vector or by implementing th
 
 Knots represent the location of the elements in the input space. Such knots are usually of the same type as your input for the interpolation itself. As all interpolations (yet) are curves, usually knots are f32 or f64. Elements must be multipliable with knots and knots have to be sorted with the smallest knot at index zero.
 
-Knots also can be given via an array or a vector, or some other type which implements the [DiscreteGenerator] trait. One may also implement the [SortedGenerator] trait if the type is always guaranteed to represent sorted knots.
+Knots also can be given via an array or a vector, or some other type which implements the [`DiscreteGenerator`] trait. One may also implement the [`SortedGenerator`] trait if the type is always guaranteed to represent sorted knots.
 
-[DiscreteGenerator]: https://docs.rs/enterpolation/0.1.0/enterpolation/trait.DiscreteGenerator.html
-[SortedGenerator]: https://docs.rs/enterpolation/0.1.0/enterpolation/trait.SortedGenerator.html
+[`DiscreteGenerator`]: https://docs.rs/enterpolation/0.1.0/enterpolation/trait.DiscreteGenerator.html
+[`SortedGenerator`]: https://docs.rs/enterpolation/0.1.0/enterpolation/trait.SortedGenerator.html
 
 #### B-spline Peculiarity
 

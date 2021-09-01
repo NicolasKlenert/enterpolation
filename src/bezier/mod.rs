@@ -28,8 +28,7 @@
 // TODO: create LinearEquidistant Interpolation from Bezier, when a constant speed is wished for
 // TODO: -> see https://www.researchgate.net/post/How-can-I-assign-a-specific-velocity-to-a-point-moving-on-a-Bezier-curve
 use core::ops::{Mul, Sub};
-use crate::{Generator, Interpolation, Curve, Space, DiscreteGenerator};
-use crate::utils::{triangle_folding_inline, lower_triangle_folding_inline};
+use crate::{Generator, Curve, Space, DiscreteGenerator};
 use crate::builder::Unknown;
 use num_traits::real::Real;
 use num_traits::cast::FromPrimitive;
@@ -40,6 +39,40 @@ mod builder;
 pub use builder::BezierBuilder;
 mod error;
 pub use error::{BezierError, Empty, TooSmallWorkspace};
+
+/// Calculate a pascalsche triangle with the given closure until the maximal steps as levels are reached.
+/// If one wants to fold all values into the first position of the given buffer
+/// a step size of the length of the buffer - 1 should be used.
+fn triangle_folding_inline<P,T>(mut triangle: P, func: impl Fn(T,T) -> T, steps: usize)
+where
+    P: AsMut<[T]>,
+    T: Copy
+{
+    let elements = triangle.as_mut();
+    let len = elements.len();
+    for k in 1..=steps {
+        for i in 0..len-k {
+            elements[i] = func(elements[i], elements[i+1]);
+        }
+    }
+}
+
+/// Calculate a pascalsche triangle with the given closure until the maximal steps as levels are reached.
+/// If one wants to fold all values into the last position of the given buffer
+/// a step size of the length of the buffer - 1 should be used.
+fn lower_triangle_folding_inline<P,T>(mut triangle: P, func: impl Fn(T,T) -> T, steps: usize)
+where
+    P: AsMut<[T]>,
+    T: Copy
+{
+    let elements = triangle.as_mut();
+    let len = elements.len();
+    for k in 1..=steps {
+        for i in k..len {
+            elements[i] = func(elements[i-1], elements[i]);
+        }
+    }
+}
 
 /// Bezier curve interpolate/extrapolate with the elements given.
 /// This mutates the elements, such copying them first is necessary!
@@ -193,14 +226,6 @@ where
         bezier(&mut self.workspace().as_mut()[..self.elements.len()], scalar)
     }
 }
-
-impl<R,E,S> Interpolation<R> for Bezier<R,E,S>
-where
-    E: DiscreteGenerator,
-    E::Output: Merge<R> + Copy,
-    S: Space<E::Output>,
-    R: Real
-{}
 
 impl<R,E,S> Curve<R> for Bezier<R,E,S>
 where

@@ -8,9 +8,9 @@ mod space;
 
 // These get re-exported at the library level.
 #[allow(unreachable_pub)]
-pub use generator::{Generator, Interpolation, Curve, DiscreteGenerator, ConstDiscreteGenerator, Extract, Stepper, Take};
+pub use generator::{Generator, Curve, DiscreteGenerator, ConstDiscreteGenerator, Extract, Stepper, Take};
 #[allow(unreachable_pub)]
-pub use adaptors::{Composition, Stack, TransformInput, Slice, Repeat, Wrap};
+pub use adaptors::{Composite, Stack, TransformInput, Slice, Repeat, Wrap, Clamp};
 #[allow(unreachable_pub)]
 pub use list::{Equidistant, ConstEquidistant, SortedGenerator, Sorted, NotSorted};
 #[allow(unreachable_pub)]
@@ -33,16 +33,16 @@ impl<T: Copy> DiscreteGenerator for Vec<T> {
     }
 }
 
-/// A stack of values or generators
-#[cfg(feature = "std")]
-impl<G,I> Generator<(usize, I)> for Vec<G>
-where G: Generator<I>
-{
-    type Output = G::Output;
-    fn gen(&self, input: (usize, I)) -> Self::Output {
-        self[input.0].gen(input.1)
-    }
-}
+// /// A stack of values or generators
+// #[cfg(feature = "std")]
+// impl<G,I> Generator<(usize, I)> for Vec<G>
+// where G: Generator<I>
+// {
+//     type Output = G::Output;
+//     fn gen(&self, input: (usize, I)) -> Self::Output {
+//         self[input.0].gen(input.1)
+//     }
+// }
 
 impl<T: Copy, const N: usize> Generator<usize> for [T;N] {
     type Output = T;
@@ -59,12 +59,12 @@ impl<T: Copy, const N: usize> DiscreteGenerator for [T;N] {
 
 impl<T:Copy, const N: usize> ConstDiscreteGenerator<N> for [T;N] {}
 
-/// A stack of values or generators
-impl<G,I, const N: usize> Generator<(usize, I)> for [G;N]
-where G: Generator<I>
-{
-    type Output = G::Output;
-    fn gen(&self, input: (usize, I)) -> Self::Output {
-        self[input.0].gen(input.1)
-    }
-}
+// /// A stack of values or generators
+// impl<G,I, const N: usize> Generator<(usize, I)> for [G;N]
+// where G: Generator<I>
+// {
+//     type Output = G::Output;
+//     fn gen(&self, input: (usize, I)) -> Self::Output {
+//         self[input.0].gen(input.1)
+//     }
+// }

@@ -5,7 +5,7 @@ use core::ops::RangeBounds;
 use core::iter::FusedIterator;
 
 use super::Equidistant;
-use super::{Stack, Composition, Slice, Repeat};
+use super::{Stack, Composite, Slice, Repeat, Clamp};
 
 /// Trait which symbolises the generation or copying of an element.
 ///
@@ -15,23 +15,69 @@ use super::{Stack, Composition, Slice, Repeat};
 pub trait Generator<Input> {
     /// The element outputted
     type Output;
-    /// Function to generate the element
+    /// Method to generate the element at the given input
     fn gen(&self, input: Input) -> Self::Output;
     /// Helper function if one wants to extract values from the interpolation.
-    /// It takes an iterator which yields items which are inputted into the `get` function
-    /// and returns the output of the interpolation.
-    fn extract<I>(self, iterator: I) -> Extract<Self, I>
+    ///
+    /// It takes an iterator of items which are inputed into the [`gen()`] method
+    /// and returns an iterator of the corresponding outputs.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use enterpolation::{linear::{Linear, LinearError}, Generator};
+    /// # use assert_float_eq::{afe_is_f64_near, afe_near_error_msg, assert_f64_near};
+    /// #
+    /// # fn main() -> Result<(), LinearError> {
+    /// let linear = Linear::builder()
+    ///                 .elements([0.0,3.0])
+    ///                 .knots([0.0,1.0])
+    ///                 .build()?;
+    /// let samples = [0.0,0.2,0.4,0.5,0.55,1.0];    // take these samples
+    /// let expected = [0.0,0.6,1.2,1.5,1.65,3.0];
+    /// for (value, result) in linear.extract(samples).zip(expected) {
+    ///     assert_f64_near!(value, result);
+    /// }
+    /// #
+    /// #     Ok(())
+    /// # }
+    /// ```
+    ///
+    /// [`gen()`]: Self::gen()
+    fn extract<I,J>(self, iterator: I) -> Extract<Self, J>
     where
         Self: Sized,
-        I: Iterator<Item = Input>
+        I: IntoIterator<IntoIter = J>,
+        J: Iterator<Item = Input>,
     {
         Extract {
             generator: self,
-            iterator,
+            iterator: iterator.into_iter(),
         }
     }
-    /// Stack two generators together, that is for two generators with output T and R
-    /// the created generators output will be (T,R).
+    /// Stack two generators together
+    ///
+    /// That is for two generators with output `T` and `R` the created generators output will be `(T,R)`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use enterpolation::{linear::{Linear, LinearError}, Generator};
+    /// # use assert_float_eq::{afe_is_f64_near, afe_near_error_msg, assert_f64_near};
+    /// #
+    /// # fn main() -> Result<(), LinearError> {
+    /// let elements = [1.0,5.0,3.0];
+    /// let weights = [1.0,3.0,2.0];
+    /// // We assume elements and weights to be huge, such that zipping and collecting them is not viable.
+    /// let linear = Linear::builder()
+    ///                 .elements_with_weights(elements.stack(weights))
+    ///                 .knots([0.0,1.0,2.0])
+    ///                 .build()?;
+    /// assert_f64_near!(linear.gen(0.5), 4.0);
+    /// #
+    /// #     Ok(())
+    /// # }
+    /// ```
     fn stack<G>(self, gen: G) -> Stack<Self,G>
     where Self: Sized
     {
@@ -39,29 +85,83 @@ pub trait Generator<Input> {
     }
     /// Takes two generators and creates a new generator pipelining both generators.
     ///
-    /// composite() will return a new generator which will first generate values from the original input
+    /// [`composite()`] will return a new generator which will first generate values from the original input
     /// and then use these values as input for the second generator.
     ///
     /// In other words, it is the composite of two functions.
-    fn composite<G>(self, gen: G) -> Composition<Self,G>
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use enterpolation::{bezier::{Bezier, BezierError}, easing::{FuncEase, smoothstep}, Generator};
+    /// # use assert_float_eq::{afe_is_f64_near, afe_near_error_msg, assert_f64_near};
+    /// #
+    /// # fn main() {
+    /// let elements = [-3.0,-2.0,2.0,3.0]; // In reality these would be 2D points etc.
+    /// let curve = Bezier::builder()
+    ///                 .elements(elements)
+    ///                 .normalized::<f64>()
+    ///                 .constant::<4>()
+    ///                 .build().expect("hardcoded");
+    /// // we want to change the velocity of our point transversing the curve
+    /// let smoothing = FuncEase::new(smoothstep);
+    /// let samples = [0.1,0.25];
+    /// let corrected_samples : Vec<_> = smoothing.sample(samples).collect();
+    /// let results : Vec<_> = curve.sample(corrected_samples).collect();
+    ///
+    /// let smoother_animation = smoothing.composite(curve);
+    /// assert_f64_near!(smoother_animation.gen(0.1), results[0]);
+    /// assert_f64_near!(smoother_animation.gen(0.25), results[1]);
+    /// # }
+    /// ```
+    ///
+    /// [`composite()`]: Self::composite()
+    fn composite<G>(self, gen: G) -> Composite<Self,G>
     where Self: Sized
     {
-        Composition::new(self,gen)
+        Composite::new(self,gen)
     }
     /// Get a reference of the generator.
-    /// This is useful if one wants to add an adapter without consuming the original.
+    ///
+    /// This is useful if one wants to add an adaptor without consuming the original.
     fn by_ref(&self) -> &Self {
         self
     }
     /// Helper function if one wants to sample values from the interpolation.
     ///
-    /// It takes an iterator which yields items which are inputted into the `get` function
-    /// and returns the output of the interpolation.
+    /// It takes an iterator of items which are inputed into the [`gen()`] method
+    /// and returns an iterator of the corresponding outputs.
     ///
-    /// This acts the same as 'generator.as_ref().extract()'.
-    fn sample<I>(&self, iterator: I) -> Extract<&Self, I>
+    /// This acts the same as `generator.by_ref().extract()`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use enterpolation::{linear::{Linear, LinearError}, Generator};
+    /// # use assert_float_eq::{afe_is_f64_near, afe_near_error_msg, assert_f64_near};
+    /// #
+    /// # fn main() -> Result<(), LinearError> {
+    /// let linear = Linear::builder()
+    ///                 .elements([0.0,3.0])
+    ///                 .knots([0.0,1.0])
+    ///                 .build()?;
+    /// let samples = [0.0,0.2,0.4,0.5,0.55,1.0];    // take these samples
+    /// let expected = [0.0,0.6,1.2,1.5,1.65,3.0];
+    /// for (value, result) in linear.sample(samples).zip(expected) {
+    ///     assert_f64_near!(value, result);
+    /// }
+    /// // we can still use linear here as it was not consumed!
+    /// #
+    /// #     Ok(())
+    /// # }
+    /// ```
+    ///
+    /// [`gen()`]: Self::gen()
+    fn sample<I,J>(&self, iterator: I) -> Extract<&Self, J>
     where
-        I: Iterator<Item = Input>
+        Self: Sized,
+        I: IntoIterator<IntoIter = J>,
+        J: Iterator<Item = Input>,
     {
         self.extract(iterator)
     }
@@ -75,27 +175,39 @@ impl<G: Generator<I> + ?Sized,I> Generator<I> for &G {
     }
 }
 
-/// Trait for all Interpolations.
-///
-/// Interpolations are nothing else then Generators which are guaranteeing that
-/// the generation of elements inbetween some specific points is smooth.
-pub trait Interpolation<Input> : Generator<Input>
-{}
-
-//Make references of interpolations also interpolations
-impl<I: Interpolation<Input> + ?Sized,Input> Interpolation<Input> for &I {}
-
-/// Curve is a specialized Interpolation which takes a real number as input
-pub trait Curve<R> : Interpolation<R>
+/// Curve is a specialized Generator which takes a real number as input
+pub trait Curve<R> : Generator<R>
 where R: Real
 {
-    /// The domain in which the curve uses interpolation. Not all Curves may extrapolate in a safe way.
+    /// The domain in which the curve uses interpolation.
+    ///
+    /// Not all Curves may extrapolate in a safe way.
     fn domain(&self) -> [R; 2];
     /// Takes equidistant samples of the curve.
     ///
-    /// #Panics
+    /// # Examples
     ///
-    /// Panics if given size of samples is 0 or if `samples - 1` can not be converted to R.
+    /// ```rust
+    /// # use enterpolation::{linear::{Linear, LinearError}, Curve};
+    /// # use assert_float_eq::{afe_is_f64_near, afe_near_error_msg, assert_f64_near};
+    /// #
+    /// # fn main() -> Result<(), LinearError> {
+    /// let linear = Linear::builder()
+    ///                 .elements([0.0,5.0,3.0])
+    ///                 .knots([0.0,1.0,2.0])
+    ///                 .build()?;
+    /// let results = [0.0,1.0,2.0,3.0,4.0,5.0,4.6,4.2,3.8,3.4,3.0];    // take 11 samples
+    /// for (value,result) in linear.take(results.len()).zip(results.iter().copied()){
+    ///     assert_f64_near!(value, result);
+    /// }
+    /// #
+    /// #     Ok(())
+    /// # }
+    /// ```
+    ///
+    /// # Panics
+    ///
+    /// Panics if given size of samples is 0 or if `samples - 1` can not be converted to the type `R`.
     fn take(self, samples: usize) -> Take<Self, R>
     where
         Self: Sized,
@@ -106,13 +218,61 @@ where R: Real
     }
     /// Take a slice of a curve.
     ///
-    /// A slice of a curve has the same domain as the curve itself but maps the domain onto the given range.
-    fn slice<B>(&self, bounds: B) -> Slice<'_,Self,R>
+    /// A slice of a curve maps its domain onto the given range.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use enterpolation::{linear::{Linear, LinearError}, Curve};
+    /// # use assert_float_eq::{afe_is_f64_near, afe_near_error_msg, assert_f64_near};
+    /// #
+    /// # fn main() -> Result<(), LinearError> {
+    /// let linear = Linear::builder()
+    ///                 .elements([0.0,5.0,3.0])
+    ///                 .knots([0.0,1.0,2.0])
+    ///                 .build()?;
+    /// let sliced_linear = linear.slice(0.5..1.5);
+    /// let results = [2.5,5.0,4.0];
+    /// for (value,result) in sliced_linear.take(results.len()).zip(results.iter().copied()){
+    ///     assert_f64_near!(value, result);
+    /// }
+    /// #
+    /// #     Ok(())
+    /// # }
+    /// ```
+    fn slice<B>(self, bounds: B) -> Slice<Self,R>
     where
         Self: Sized,
         B: RangeBounds<R>,
     {
         Slice::new(self, bounds)
+    }
+    /// Clamp the input of a curve to its domain.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use enterpolation::{linear::{Linear, LinearError}, Generator, Curve};
+    /// # use assert_float_eq::{afe_is_f64_near, afe_near_error_msg, assert_f64_near};
+    /// #
+    /// # fn main() -> Result<(), LinearError> {
+    /// let linear = Linear::builder()
+    ///                 .elements([0.0,3.0])
+    ///                 .knots([0.0,1.0])
+    ///                 .build()?
+    ///                 .clamp();
+    /// let expected = [[-1.0,0.0],[0.0,0.0],[0.5,1.5],[1.0,3.0],[2.0,3.0]];
+    /// for [input,result] in expected {
+    ///     assert_f64_near!(linear.gen(input), result);
+    /// }
+    /// #
+    /// #     Ok(())
+    /// # }
+    /// ```
+    fn clamp(self) -> Clamp<Self>
+    where Self: Sized,
+    {
+        Clamp::new(self)
     }
 }
 
@@ -278,7 +438,14 @@ where G: DiscreteGenerator
     }
 }
 
-/// Iterator adaptor, which transforms an iterator with InterScalar items to an iterator with the correspondending values of the interpolation
+/// Iterator adaptor
+///
+/// Maps the items of the iterator to the output of the curve.
+///
+/// This struct is created by the [`extract()`] method on [`Generator`]. See its documentation for more.
+///
+/// [`extract()`]: crate::Generator::extract()
+/// [`Generator`]: crate::Generator
 #[derive(Debug, Clone)] // Iterators shouldn't be Copy -- see #27186
 pub struct Extract<G, I> {
     generator: G,

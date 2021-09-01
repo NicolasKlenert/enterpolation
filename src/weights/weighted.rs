@@ -2,7 +2,7 @@
 
 use core::ops::Div;
 use num_traits::real::Real;
-use crate::{Generator, Interpolation, Curve};
+use crate::{Generator, Curve};
 use crate::weights::Homogeneous;
 
 /// Interpolation Adaptor used for weighted elements to automatically unwrap them from their weights.
@@ -36,12 +36,6 @@ where
         self.inner.gen(input).project()
     }
 }
-
-impl<G,I> Interpolation<I> for Weighted<G>
-where
-    G: Interpolation<I>,
-    G::Output: Project,
-{}
 
 impl<G,R> Curve<R> for Weighted<G>
 where

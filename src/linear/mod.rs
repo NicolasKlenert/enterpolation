@@ -3,7 +3,6 @@
 //! The easist way to create a linear interpolation is by using the builder pattern of [`LinearBuilder`].
 //!
 //! ```rust
-//! # use std::error::Error;
 //! # use enterpolation::{linear::{Linear, LinearError}, Generator, Curve};
 //! # use assert_float_eq::{afe_is_f64_near, afe_near_error_msg, assert_f64_near};
 //! #
@@ -43,8 +42,8 @@
 //! [`easing()`]: LinearBuilder::easing()
 //! [`equidistant_unchecked()`]: Linear::equidistant_unchecked()
 
-use crate::{Generator, Interpolation, Curve, SortedGenerator,
-    DiscreteGenerator, ConstEquidistant, Easing, Identity};
+use crate::{Generator, Curve, SortedGenerator,
+    DiscreteGenerator, ConstEquidistant, Identity};
 use crate::builder::Unknown;
 use num_traits::real::Real;
 use topology_traits::Merge;
@@ -114,7 +113,7 @@ where
     K: SortedGenerator<Output = R>,
     E: DiscreteGenerator,
     E::Output: Merge<R> + Debug,
-    F: Easing<R, Output = R>,
+    F: Curve<R, Output = R>,
     R: Real + Debug
 {
     type Output = E::Output;
@@ -130,21 +129,12 @@ where
     }
 }
 
-impl<R,K,E,F> Interpolation<R> for Linear<K,E,F>
-where
-    K: SortedGenerator<Output = R>,
-    E: DiscreteGenerator,
-    E::Output: Merge<R> + Debug,
-    F: Easing<R, Output = R>,
-    R: Real + Debug
-{}
-
 impl<R,K,E,F> Curve<R> for Linear<K,E,F>
 where
     K: SortedGenerator<Output = R>,
     E: DiscreteGenerator,
     E::Output: Merge<R> + Debug,
-    F: Easing<R, Output = R>,
+    F: Curve<R, Output = R>,
     R: Real + Debug
 {
     fn domain(&self) -> [R; 2] {

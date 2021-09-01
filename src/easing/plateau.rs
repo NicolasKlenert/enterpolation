@@ -1,6 +1,6 @@
 use num_traits::real::Real;
 use num_traits::FromPrimitive;
-use crate::{Generator,Interpolation,Curve,Easing};
+use crate::{Generator,Curve};
 use crate::easing::smoothstep;
 
 /// Plateau is an easing curve which - therefore the name - create constant plateaus if given to
@@ -53,12 +53,8 @@ where R: Real + FromPrimitive
     }
 }
 
-impl<R> Interpolation<R> for Plateau<R> where R: Real + FromPrimitive {}
-
 impl<R> Curve<R> for Plateau<R> where R: Real + FromPrimitive {
     fn domain(&self) -> [R;2] {
         [R::zero(), R::one()]
     }
 }
-
-impl<R> Easing<R> for Plateau<R> where R: Real + FromPrimitive {}

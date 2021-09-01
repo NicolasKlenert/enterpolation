@@ -191,7 +191,7 @@ impl<M> BSplineDirector<Unknown, Unknown, Unknown, Unknown, M> {
     /// This allows the builder to take in the "usual" definition of knots for B-splines.
     /// For more information, see the *Peculariaty of B-splines* section of the [main documentation].
     ///
-    /// [main documentation]: crate
+    /// [main documentation]: crate#b-spline-peculiarity
     pub fn legacy(self) -> BSplineDirector<Unknown, Unknown, Unknown, Unknown, Legacy> {
         BSplineDirector {
             knots: self.knots,
@@ -946,7 +946,7 @@ where
     /// Otherwise without std support, one has to set a specific object implementing the [`Space`] trait.
     ///
     /// [`constant()`]: BSplineDirector::constant()
-    /// [`Space`]: crate::base::space::Space
+    /// [`Space`]: crate::base::Space
     pub fn workspace<S>(self, space: S) -> BSplineDirector<K,E,S,W,M>
     where S: Space<E::Output>
     {
@@ -1001,7 +1001,7 @@ where
     /// Otherwise without std support, one has to set a specific object implementing the [`Space`] trait.
     ///
     /// [`constant()`]: BSplineBuilder::constant()
-    /// [`Space`]: crate::base::space::Space
+    /// [`Space`]: crate::base::Space
     pub fn workspace<S>(self, space: S) -> BSplineBuilder<K,E,S,W,M>
     where S: Space<E::Output>
     {
