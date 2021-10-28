@@ -27,7 +27,7 @@ pub trait Space<T> {
 #[derive(Debug, Copy, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct ConstSpace<T, const N: usize> {
-    _phantom: PhantomData<*const T>,
+    _phantom: PhantomData<fn() -> T>,
 }
 
 impl<T, const N: usize> Space<T> for ConstSpace<T, N>
@@ -64,7 +64,7 @@ impl<T, const N: usize> Default for ConstSpace<T, N> {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct DynSpace<T> {
     len: usize,
-    _phantom: PhantomData<*const T>,
+    _phantom: PhantomData<fn() -> T>,
 }
 
 #[cfg(feature = "std")]
