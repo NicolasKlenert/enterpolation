@@ -1,11 +1,10 @@
 #[allow(unreachable_pub)]
 pub use crate::builder::{Empty, TooSmallWorkspace};
 
-use core::{fmt, convert::From};
+use core::{convert::From, fmt};
 
 #[cfg(feature = "std")]
 use std::error::Error;
-
 
 /// Errors which could occur when using or creating a linear interpolation.
 #[derive(Debug, Copy, Clone)]

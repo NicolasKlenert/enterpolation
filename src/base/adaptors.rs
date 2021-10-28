@@ -1,7 +1,7 @@
-use num_traits::real::Real;
+use crate::{ConstDiscreteGenerator, Curve, DiscreteGenerator, Generator};
+use core::ops::{Add, Bound, Mul, RangeBounds};
 use num_traits::clamp;
-use core::ops::{Add, Mul, RangeBounds, Bound};
-use crate::{Generator, Curve, DiscreteGenerator, ConstDiscreteGenerator};
+use num_traits::real::Real;
 
 /// Wrapper for curves to clamp input to their domain.
 ///
@@ -19,7 +19,7 @@ impl<G> Clamp<G> {
     }
 }
 
-impl<G,R> Generator<R> for Clamp<G>
+impl<G, R> Generator<R> for Clamp<G>
 where
     G: Curve<R>,
     R: Real,
@@ -32,12 +32,12 @@ where
     }
 }
 
-impl<G,R> Curve<R> for Clamp<G>
+impl<G, R> Curve<R> for Clamp<G>
 where
     G: Curve<R>,
     R: Real,
 {
-    fn domain(&self) -> [R;2] {
+    fn domain(&self) -> [R; 2] {
         self.0.domain()
     }
 }
@@ -50,9 +50,9 @@ where
 ///
 /// [`slice()`]: crate::Curve::slice()
 #[derive(Clone, Debug)]
-pub struct Slice<G,R>(TransformInput<G, R, R>);
+pub struct Slice<G, R>(TransformInput<G, R, R>);
 
-impl<G,R> Slice<G,R>
+impl<G, R> Slice<G, R>
 where
     G: Curve<R>,
     R: Real,
@@ -61,7 +61,8 @@ where
     ///
     /// It does not matter if the bounds itself are included or excluded as we assume a continuous curve.
     pub fn new<B>(gen: G, bound: B) -> Self
-    where B: RangeBounds<R>,
+    where
+        B: RangeBounds<R>,
     {
         let [gen_start, gen_end] = gen.domain();
         let bound_start = match bound.start_bound() {
@@ -73,14 +74,14 @@ where
             Bound::Unbounded => gen_end,
         };
         let scale = (bound_end - bound_start) / (gen_end - gen_start);
-        Slice(TransformInput::new(gen,bound_start - gen_start, scale))
+        Slice(TransformInput::new(gen, bound_start - gen_start, scale))
     }
 }
 
-impl<G,R> Generator<R> for Slice<G,R>
+impl<G, R> Generator<R> for Slice<G, R>
 where
     G: Generator<R>,
-    R: Real
+    R: Real,
 {
     type Output = G::Output;
     fn gen(&self, input: R) -> Self::Output {
@@ -88,12 +89,12 @@ where
     }
 }
 
-impl<G,R> Curve<R> for Slice<G,R>
+impl<G, R> Curve<R> for Slice<G, R>
 where
     G: Curve<R>,
     R: Real,
 {
-    fn domain(&self) -> [R;2]{
+    fn domain(&self) -> [R; 2] {
         self.0.inner.domain()
     }
 }
@@ -102,13 +103,13 @@ where
 ///
 /// Both addition and multiplication is done. In regards to math operation priorities, multiplication is done first.
 #[derive(Clone, Debug)]
-pub struct TransformInput<G,A,M>{
+pub struct TransformInput<G, A, M> {
     addition: A,
     multiplication: M,
-    inner: G
+    inner: G,
 }
 
-impl<G,A,M> TransformInput<G,A,M>{
+impl<G, A, M> TransformInput<G, A, M> {
     /// Create a generic `TransformInput`.
     pub fn new(generator: G, addition: A, multiplication: M) -> Self {
         TransformInput {
@@ -119,7 +120,7 @@ impl<G,A,M> TransformInput<G,A,M>{
     }
 }
 
-impl<G,R> TransformInput<G,R,R>
+impl<G, R> TransformInput<G, R, R>
 where
     G: Curve<R>,
     R: Real,
@@ -131,7 +132,7 @@ where
     }
 }
 
-impl<G,A,M,I> Generator<I> for TransformInput<G,A,M>
+impl<G, A, M, I> Generator<I> for TransformInput<G, A, M>
 where
     I: Mul<M>,
     I::Output: Add<A>,
@@ -145,7 +146,7 @@ where
     }
 }
 
-impl<G,R> Curve<R> for TransformInput<G,R,R>
+impl<G, R> Curve<R> for TransformInput<G, R, R>
 where
     G: Curve<R>,
     R: Real,
@@ -154,7 +155,7 @@ where
         let orig = self.inner.domain();
         let start = (orig[0] - self.addition) / self.multiplication;
         let end = (orig[1] - self.addition) / self.multiplication;
-        [start,end]
+        [start, end]
     }
 }
 
@@ -162,19 +163,19 @@ where
 ///
 /// This `struct` is created by [`Generator::composite`]. See its documentation for more.
 #[derive(Clone, Copy, Debug)]
-pub struct Composite<A,B>(A,B);
+pub struct Composite<A, B>(A, B);
 
-impl<A,B> Composite<A,B>{
+impl<A, B> Composite<A, B> {
     /// Creates a stacked generator, working similar like the `zip` method of iterators.
     pub fn new(first: A, second: B) -> Self {
         Composite(first, second)
     }
 }
 
-impl<A,B,T> Generator<T> for Composite<A,B>
+impl<A, B, T> Generator<T> for Composite<A, B>
 where
     A: Generator<T>,
-    B: Generator<A::Output>
+    B: Generator<A::Output>,
 {
     type Output = B::Output;
     fn gen(&self, scalar: T) -> Self::Output {
@@ -182,7 +183,7 @@ where
     }
 }
 
-impl<A,B,R> Curve<R> for Composite<A,B>
+impl<A, B, R> Curve<R> for Composite<A, B>
 where
     A: Curve<R>,
     B: Generator<A::Output>,
@@ -199,16 +200,16 @@ where
 ///
 /// This `struct` is created by [`Generator::stack]. See its documentation for more.
 #[derive(Debug, Copy, Clone)]
-pub struct Stack<G,H>(G,H);
+pub struct Stack<G, H>(G, H);
 
-impl<G,H> Stack<G,H>{
+impl<G, H> Stack<G, H> {
     /// Creates a stacked generator, working similar like the `zip` method of iterators.
     pub fn new(first: G, second: H) -> Self {
-        Stack(first,second)
+        Stack(first, second)
     }
 }
 
-impl<G,H,Input> Generator<Input> for Stack<G,H>
+impl<G, H, Input> Generator<Input> for Stack<G, H>
 where
     G: Generator<Input>,
     H: Generator<Input>,
@@ -220,7 +221,7 @@ where
     }
 }
 
-impl<G,H> DiscreteGenerator for Stack<G,H>
+impl<G, H> DiscreteGenerator for Stack<G, H>
 where
     G: DiscreteGenerator,
     H: DiscreteGenerator,
@@ -230,22 +231,23 @@ where
     }
 }
 
-impl<G,H, const N: usize> ConstDiscreteGenerator<N> for Stack<G,H>
+impl<G, H, const N: usize> ConstDiscreteGenerator<N> for Stack<G, H>
 where
     G: ConstDiscreteGenerator<N>,
     H: ConstDiscreteGenerator<N>,
-{}
+{
+}
 
-impl<G,H,R> Curve<R> for Stack<G,H>
+impl<G, H, R> Curve<R> for Stack<G, H>
 where
     G: Curve<R>,
     H: Curve<R>,
-    R: Real
+    R: Real,
 {
     fn domain(&self) -> [R; 2] {
         let first = self.0.domain();
         let second = self.1.domain();
-        [first[0].max(second[0]),first[1].min(second[1])]
+        [first[0].max(second[0]), first[1].min(second[1])]
     }
 }
 
@@ -253,7 +255,7 @@ where
 #[derive(Debug, Copy, Clone)]
 pub struct Repeat<G>(G);
 
-impl<G> Repeat<G>{
+impl<G> Repeat<G> {
     /// Repeat a given DiscreteGenerator pseudo-endlessly.
     ///
     /// In reality this adaptpor repeats the underlying elements until `usize::MAX` is reached.
@@ -274,31 +276,26 @@ where
 
 impl<G> DiscreteGenerator for Repeat<G>
 where
-    G: DiscreteGenerator
+    G: DiscreteGenerator,
 {
     fn len(&self) -> usize {
         usize::MAX
     }
 }
 
-impl<G> ConstDiscreteGenerator<{usize::MAX}> for Repeat<G>
-where G: DiscreteGenerator
-{}
+impl<G> ConstDiscreteGenerator<{ usize::MAX }> for Repeat<G> where G: DiscreteGenerator {}
 
 /// Generator adaptor which repeats a fixed amount of first elements.
 #[derive(Debug, Copy, Clone)]
-pub struct Wrap<G>{
+pub struct Wrap<G> {
     inner: G,
     n: usize,
 }
 
-impl<G> Wrap<G>{
+impl<G> Wrap<G> {
     /// Wrap the first `n` elements to the end.
     pub fn new(gen: G, n: usize) -> Self {
-        Wrap{
-            inner: gen,
-            n,
-        }
+        Wrap { inner: gen, n }
     }
 }
 
@@ -314,7 +311,7 @@ where
 
 impl<G> DiscreteGenerator for Wrap<G>
 where
-    G: DiscreteGenerator
+    G: DiscreteGenerator,
 {
     fn len(&self) -> usize {
         self.inner.len() + self.n
@@ -327,32 +324,35 @@ mod test {
     use crate::easing::Identity;
 
     #[test]
-    fn input_transform(){
-        let identity = Identity{};
+    fn input_transform() {
+        let identity = Identity {};
         let transformed = TransformInput::new(identity, 0.0, 2.0);
         assert_f64_near!(transformed.gen(1.0), 2.0);
-        let results = [0.0,1.0,2.0];
+        let results = [0.0, 1.0, 2.0];
         // try to extract
-        let extractor = transformed.extract([0.0,0.5,1.0]);
+        let extractor = transformed.extract([0.0, 0.5, 1.0]);
         for (val, res) in extractor.zip(results.iter()) {
-            assert_f64_near!(val,res);
+            assert_f64_near!(val, res);
         }
         // try to take - should be the same as before as the domain should have changed accordingly
         let transformed = TransformInput::new(identity, 0.0, 2.0);
-        for (val, res) in transformed.take(results.len()).zip(<Identity as Curve<f64>>::take(identity,results.len())){
-            assert_f64_near!(val,res);
+        for (val, res) in transformed
+            .take(results.len())
+            .zip(<Identity as Curve<f64>>::take(identity, results.len()))
+        {
+            assert_f64_near!(val, res);
         }
     }
 
     #[test]
     fn slice() {
-        let identity = Identity{};
+        let identity = Identity {};
         let slice = Slice::new(identity, 10.0..100.0);
-        let results = [10.0,100.0];
-        assert_f64_near!(slice.gen(0.0),10.0);
-        assert_f64_near!(slice.gen(1.0),100.0);
-        for (val,res) in slice.take(results.len()).zip(results.iter()){
-            assert_f64_near!(val,res);
+        let results = [10.0, 100.0];
+        assert_f64_near!(slice.gen(0.0), 10.0);
+        assert_f64_near!(slice.gen(1.0), 100.0);
+        for (val, res) in slice.take(results.len()).zip(results.iter()) {
+            assert_f64_near!(val, res);
         }
     }
 }

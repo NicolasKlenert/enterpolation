@@ -1,24 +1,22 @@
 //! The adaptor `Weighted` can be used for all interpolations to hide the inner workings of a weighted element.
 
+use crate::weights::Homogeneous;
+use crate::{Curve, Generator};
 use core::ops::Div;
 use num_traits::real::Real;
-use crate::{Generator, Curve};
-use crate::weights::Homogeneous;
 
 /// Interpolation Adaptor used for weighted elements to automatically unwrap them from their weights.
 ///
 /// This Adaptor is often appended to an interpolation with weighted elements to automatically unwrap them.
 #[derive(Debug, Copy, Clone)]
-pub struct Weighted<G>{
+pub struct Weighted<G> {
     inner: G,
 }
 
-impl<G> Weighted<G>{
+impl<G> Weighted<G> {
     /// Use the `Weighted` Adaptor on the given weighted interpolation to automatically unwrap the elements of their weight.
     pub fn new(gen: G) -> Self {
-        Weighted {
-            inner: gen,
-        }
+        Weighted { inner: gen }
     }
     /// Return the inner interpolation.
     pub fn inner(self) -> G {
@@ -26,7 +24,7 @@ impl<G> Weighted<G>{
     }
 }
 
-impl<G,I> Generator<I> for Weighted<G>
+impl<G, I> Generator<I> for Weighted<G>
 where
     G: Generator<I>,
     G::Output: Project,
@@ -37,7 +35,7 @@ where
     }
 }
 
-impl<G,R> Curve<R> for Weighted<G>
+impl<G, R> Curve<R> for Weighted<G>
 where
     G: Curve<R>,
     G::Output: Project,
@@ -55,8 +53,9 @@ pub trait Project {
     fn project(self) -> Self::Element;
 }
 
-impl<T,R> Project for Homogeneous<T,R>
-where T: Div<R,Output = T>,
+impl<T, R> Project for Homogeneous<T, R>
+where
+    T: Div<R, Output = T>,
 {
     type Element = T;
     type Weight = R;
