@@ -1,10 +1,10 @@
-use core::marker::PhantomData;
-use core::ops::{Sub, Div, Index};
 use core::cmp::Ordering;
+use core::fmt;
+use core::marker::PhantomData;
+use core::ops::{Div, Index, Sub};
 use num_traits::identities::Zero;
 use num_traits::real::Real;
 use num_traits::FromPrimitive;
-use core::fmt;
 
 #[cfg(feature = "std")]
 use std::error::Error;
@@ -12,7 +12,7 @@ use std::error::Error;
 //temp
 use core::fmt::Debug;
 
-use super::{Generator, DiscreteGenerator};
+use super::{DiscreteGenerator, Generator};
 
 // REMARK: It may be valuable to create traits SortedNonEmpty and SortedNonSingular
 // REMARK: These would be Sorted + NonEmpty and Sorted + MinSize<2>.
@@ -47,8 +47,7 @@ use super::{Generator, DiscreteGenerator};
 ///     - a knot inside the array
 ///     - value inbetween two knots
 /// - semi-constant array with values outside of the array (both_sides)
-pub trait SortedGenerator : DiscreteGenerator
-{
+pub trait SortedGenerator: DiscreteGenerator {
     /// Returns the smallest index between `min` and `max`
     /// for which the corresponding element is bigger then the input.
     /// If all elements are smaller, this function will return the given maximum.
@@ -68,17 +67,18 @@ pub trait SortedGenerator : DiscreteGenerator
     /// assert_eq!(arr.strict_upper_bound_clamped(20.0,1,5),5);
     /// ```
     fn strict_upper_bound_clamped(&self, element: Self::Output, min: usize, max: usize) -> usize
-    where Self::Output: PartialOrd + Copy
+    where
+        Self::Output: PartialOrd + Copy,
     {
         let mut pointer = min;
         let mut dist = max - min;
         while dist > 0 {
             let step = dist / 2;
             let sample = pointer + step;
-            if element >= self.gen(sample){
-                pointer = sample +1;
-                dist -= step +1;
-            }else{
+            if element >= self.gen(sample) {
+                pointer = sample + 1;
+                dist -= step + 1;
+            } else {
                 dist = step;
             }
         }
@@ -102,7 +102,8 @@ pub trait SortedGenerator : DiscreteGenerator
     /// assert_eq!(arr.strict_upper_bound(20.0),8);
     /// ```
     fn strict_upper_bound(&self, element: Self::Output) -> usize
-    where Self::Output: PartialOrd + Copy
+    where
+        Self::Output: PartialOrd + Copy,
     {
         self.strict_upper_bound_clamped(element, 0, self.len())
     }
@@ -167,21 +168,38 @@ pub trait SortedGenerator : DiscreteGenerator
     /// ```
     fn upper_border(&self, element: Self::Output) -> (usize, usize, Self::Output)
     where
-        Self::Output: PartialOrd + Sub<Output = Self::Output> + Div<Output = Self::Output> + Zero + Copy + Debug
+        Self::Output: PartialOrd
+            + Sub<Output = Self::Output>
+            + Div<Output = Self::Output>
+            + Zero
+            + Copy
+            + Debug,
     {
         let max_index = self.strict_upper_bound(element);
         // test if we have to clamp max_index -> if so, factor has to be calculated with a check for NaN.
         if self.len() == max_index {
-            let max_index = self.len()-1;
+            let max_index = self.len() - 1;
             let min_index = max_index - 1;
-            return (min_index,max_index, self.linear_factor(min_index, max_index, element));
+            return (
+                min_index,
+                max_index,
+                self.linear_factor(min_index, max_index, element),
+            );
         }
         if max_index == 0 {
             let max_index = 1;
             let min_index = 0;
-            return (min_index,max_index, self.linear_factor(min_index, max_index, element));
+            return (
+                min_index,
+                max_index,
+                self.linear_factor(min_index, max_index, element),
+            );
         }
-        (max_index-1, max_index, self.linear_factor_unchecked(max_index-1, max_index, element))
+        (
+            max_index - 1,
+            max_index,
+            self.linear_factor_unchecked(max_index - 1, max_index, element),
+        )
     }
 
     /// Calculate the factor of `element` inbetween `min` and `max`.
@@ -191,8 +209,14 @@ pub trait SortedGenerator : DiscreteGenerator
     ///
     /// This function may try to divide by zero if both elements behind the indices are the same.
     /// This is not checked.
-    fn linear_factor_unchecked(&self, min_index: usize, max_index: usize, element: Self::Output) -> Self::Output
-    where Self::Output: Sub<Output = Self::Output> + Div<Output = Self::Output> + Copy
+    fn linear_factor_unchecked(
+        &self,
+        min_index: usize,
+        max_index: usize,
+        element: Self::Output,
+    ) -> Self::Output
+    where
+        Self::Output: Sub<Output = Self::Output> + Div<Output = Self::Output> + Copy,
     {
         let max = self.gen(max_index);
         let min = self.gen(min_index);
@@ -205,8 +229,14 @@ pub trait SortedGenerator : DiscreteGenerator
     /// `min` and `max`, with `min` being the element generated by `min_index` and the same holds for `max_index`.
     ///
     /// If the factor could be anything, as both elements are the same, 1.0 is returned.
-    fn linear_factor(&self, min_index: usize, max_index: usize, element: Self::Output) -> Self::Output
-    where Self::Output: Sub<Output = Self::Output> + Div<Output = Self::Output> + Zero + Copy
+    fn linear_factor(
+        &self,
+        min_index: usize,
+        max_index: usize,
+        element: Self::Output,
+    ) -> Self::Output
+    where
+        Self::Output: Sub<Output = Self::Output> + Div<Output = Self::Output> + Zero + Copy,
     {
         let max = self.gen(max_index);
         let min = self.gen(min_index);
@@ -226,46 +256,50 @@ pub struct Sorted<C>(C);
 impl<C> Sorted<C>
 where
     C: DiscreteGenerator,
-    C::Output: PartialOrd
+    C::Output: PartialOrd,
 {
     /// Returns Some(Sorted) if collection is sorted, otherwise returns `NotSorted` Error.
-    pub fn new(col: C) -> Result<Self, NotSorted>{
+    pub fn new(col: C) -> Result<Self, NotSorted> {
         if col.is_empty() {
-            return Ok(Sorted(col))
+            return Ok(Sorted(col));
         }
         let mut last = col.gen(0);
-        for i in 1..col.len(){
+        for i in 1..col.len() {
             let current = col.gen(i);
-            match last.partial_cmp(&current){
-                None | Some(Ordering::Greater) => return Err(NotSorted{index: i}),
-                _ => {last = current;},
+            match last.partial_cmp(&current) {
+                None | Some(Ordering::Greater) => return Err(NotSorted { index: i }),
+                _ => {
+                    last = current;
+                }
             }
         }
         Ok(Sorted(col))
     }
 }
 
-impl<C> Sorted<C>{
+impl<C> Sorted<C> {
     /// Creates a sorted collection without checking if it is sorted.
     ///
     /// As unsorted collection will not create UB but will probably panic at some point,
     /// such this function is still safe, even if an unsorted collection is given.
-    pub const fn new_unchecked(col: C) -> Self{
+    pub const fn new_unchecked(col: C) -> Self {
         Sorted(col)
     }
 }
 
 impl<C> Generator<usize> for Sorted<C>
-where C: Generator<usize>
+where
+    C: Generator<usize>,
 {
     type Output = C::Output;
-    fn gen(&self, input: usize) -> Self::Output{
+    fn gen(&self, input: usize) -> Self::Output {
         self.0.gen(input)
     }
 }
 
 impl<C> DiscreteGenerator for Sorted<C>
-where C: DiscreteGenerator
+where
+    C: DiscreteGenerator,
 {
     fn len(&self) -> usize {
         self.0.len()
@@ -274,7 +308,10 @@ where C: DiscreteGenerator
 
 impl<C: DiscreteGenerator> SortedGenerator for Sorted<C> {}
 
-impl<C,Idx> Index<Idx> for Sorted<C> where C: Index<Idx> {
+impl<C, Idx> Index<Idx> for Sorted<C>
+where
+    C: Index<Idx>,
+{
     type Output = C::Output;
     fn index(&self, index: Idx) -> &Self::Output {
         self.0.index(index)
@@ -290,16 +327,18 @@ pub struct NotSorted {
 impl NotSorted {
     /// Create a new error in which from index to index + 1 the values were decreasing.
     pub fn new(index: usize) -> Self {
-        NotSorted{
-            index,
-        }
+        NotSorted { index }
     }
 }
 
 impl fmt::Display for NotSorted {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Given knots are not sorted. From index {} to {} we found decreasing values.",
-        self.index, self.index+1)
+        write!(
+            f,
+            "Given knots are not sorted. From index {} to {} we found decreasing values.",
+            self.index,
+            self.index + 1
+        )
     }
 }
 
@@ -309,7 +348,7 @@ impl Error for NotSorted {}
 /// Struct used as a generator for equidistant elements.
 /// Acts like an array of knots.
 #[derive(Debug, Copy, Clone)]
-pub struct Equidistant<R = f64>{
+pub struct Equidistant<R = f64> {
     len: usize,
     step: R,
     offset: R,
@@ -327,7 +366,8 @@ pub struct Equidistant<R = f64>{
 // }
 
 impl<R> Equidistant<R>
-where R: Real + FromPrimitive
+where
+    R: Real + FromPrimitive,
 {
     /// Create a generator for equidistant real numbers with `len-1` steps from 0.0 to 1.0.
     ///
@@ -351,7 +391,7 @@ where R: Real + FromPrimitive
         Equidistant {
             len,
             step: (end - start) / R::from_usize(len - 1).unwrap(),
-            offset: start
+            offset: start,
         }
     }
 
@@ -366,7 +406,8 @@ where R: Real + FromPrimitive
 }
 
 impl<R> Generator<usize> for Equidistant<R>
-where R: Real + FromPrimitive
+where
+    R: Real + FromPrimitive,
 {
     type Output = R;
     fn gen(&self, input: usize) -> R {
@@ -375,7 +416,8 @@ where R: Real + FromPrimitive
 }
 
 impl<R> DiscreteGenerator for Equidistant<R>
-where R: Real + FromPrimitive
+where
+    R: Real + FromPrimitive,
 {
     fn len(&self) -> usize {
         self.len
@@ -383,7 +425,8 @@ where R: Real + FromPrimitive
 }
 
 impl<R> SortedGenerator for Equidistant<R>
-where R: Real + FromPrimitive
+where
+    R: Real + FromPrimitive,
 {
     /// Returns the smallest index for which the corresponding element is bigger then the input.
     /// If all elements are bigger, this function will return self.len().
@@ -398,7 +441,8 @@ where R: Real + FromPrimitive
     /// assert_eq!(equi.strict_upper_bound(20.0),11);
     /// ```
     fn strict_upper_bound(&self, element: Self::Output) -> usize
-    where Self::Output: PartialOrd + Copy
+    where
+        Self::Output: PartialOrd + Copy,
     {
         // extrapolation to the left
         if element < self.offset {
@@ -427,7 +471,8 @@ where R: Real + FromPrimitive
     /// assert_eq!(equi.strict_upper_bound_clamped(20.0,1,3),3);
     /// ```
     fn strict_upper_bound_clamped(&self, element: Self::Output, min: usize, max: usize) -> usize
-    where Self::Output: PartialOrd + Copy
+    where
+        Self::Output: PartialOrd + Copy,
     {
         // extrapolation to the left
         if element < self.gen(min) {
@@ -481,20 +526,22 @@ where R: Real + FromPrimitive
     ///     assert_f64_near!(utils::lerp(min,max,factor),value);
     /// }
     /// ```
-    fn upper_border(&self, element: R) -> (usize, usize, R)
-    {
-
+    fn upper_border(&self, element: R) -> (usize, usize, R) {
         let scaled = (element - self.offset) / self.step;
         // extrapolation to the left
         if element < self.offset {
-            return (0,1,scaled);
+            return (0, 1, scaled);
         }
         // now unrwapping is fine as we are above zero.
         let min_index = scaled.floor().to_usize().unwrap();
         let max_index = scaled.ceil().to_usize().unwrap();
         //extrapolation to the right
         if max_index >= self.len {
-            return (self.len - 2, self.len - 1, scaled - R::from_usize(self.len-2).unwrap());
+            return (
+                self.len - 2,
+                self.len - 1,
+                scaled - R::from_usize(self.len - 2).unwrap(),
+            );
         }
         let factor = scaled.fract();
         (min_index, max_index, factor)
@@ -512,10 +559,9 @@ where R: Real + FromPrimitive
 /// only represents knots in [0.0,1.0]. However as knot base for interpolations, it is more performant,
 /// as we have the knowledge of the domain.
 #[derive(Debug, Copy, Clone)]
-pub struct ConstEquidistant<R/* = f64*/,const N: usize>(PhantomData<*const R>);
+pub struct ConstEquidistant<R /* = f64*/, const N: usize>(PhantomData<*const R>);
 
-impl<R,const N: usize> ConstEquidistant<R,N>
-{
+impl<R, const N: usize> ConstEquidistant<R, N> {
     /// Create a list of equidistant real numbers.
     /// This struct should only be created in a constant context. Otherwise use Equidistant instead.
     pub const fn new() -> Self {
@@ -523,8 +569,9 @@ impl<R,const N: usize> ConstEquidistant<R,N>
     }
 }
 
-impl<R, const N: usize> Generator<usize> for ConstEquidistant<R,N>
-where R: Real + FromPrimitive
+impl<R, const N: usize> Generator<usize> for ConstEquidistant<R, N>
+where
+    R: Real + FromPrimitive,
 {
     type Output = R;
     fn gen(&self, input: usize) -> R {
@@ -532,16 +579,18 @@ where R: Real + FromPrimitive
     }
 }
 
-impl<R,const N: usize> DiscreteGenerator for ConstEquidistant<R,N>
-where R: Real + FromPrimitive
+impl<R, const N: usize> DiscreteGenerator for ConstEquidistant<R, N>
+where
+    R: Real + FromPrimitive,
 {
     fn len(&self) -> usize {
         N
     }
 }
 
-impl<R, const N: usize> SortedGenerator for ConstEquidistant<R,N>
-where R: Real + FromPrimitive
+impl<R, const N: usize> SortedGenerator for ConstEquidistant<R, N>
+where
+    R: Real + FromPrimitive,
 {
     /// Returns the smallest index for which the corresponding element is bigger then the input.
     /// If all elements are bigger, this function will return self.len().
@@ -561,13 +610,14 @@ where R: Real + FromPrimitive
     /// assert_eq!(equi.strict_upper_bound(20.0),11);
     /// ```
     fn strict_upper_bound(&self, element: Self::Output) -> usize
-    where Self::Output: PartialOrd + Copy
+    where
+        Self::Output: PartialOrd + Copy,
     {
         // extrapolation to the left
         if element < R::zero() {
             return 0;
         }
-        let scaled = element * R::from_usize(N-1).unwrap();
+        let scaled = element * R::from_usize(N - 1).unwrap();
         // now unrwapping is fine as we are above zero.
         let min_index = scaled.floor().to_usize().unwrap();
         self.len().min(min_index + 1)
@@ -590,13 +640,14 @@ where R: Real + FromPrimitive
     /// assert_eq!(equi.strict_upper_bound_clamped(20.0,1,3),3);
     /// ```
     fn strict_upper_bound_clamped(&self, element: Self::Output, min: usize, max: usize) -> usize
-    where Self::Output: PartialOrd + Copy
+    where
+        Self::Output: PartialOrd + Copy,
     {
         // extrapolation to the left
         if element < self.gen(min) {
             return min;
         }
-        let scaled = element * R::from_usize(N-1).unwrap();
+        let scaled = element * R::from_usize(N - 1).unwrap();
         // now unrwapping is fine as we are above zero.
         let min_index = scaled.floor().to_usize().unwrap();
         max.min(min_index + 1)
@@ -640,19 +691,19 @@ where R: Real + FromPrimitive
     /// ```
     fn upper_border(&self, element: R) -> (usize, usize, R)
     where
-        R: PartialOrd + Sub<Output = R> + Div<Output = R> + Copy + Debug
+        R: PartialOrd + Sub<Output = R> + Div<Output = R> + Copy + Debug,
     {
-        let scaled = element * R::from_usize(N-1).unwrap();
+        let scaled = element * R::from_usize(N - 1).unwrap();
         // extrapolation to the left
         if element < R::zero() {
-            return (0,1,scaled);
+            return (0, 1, scaled);
         }
         // now unrwapping is fine as we are above zero.
         let min_index = scaled.floor().to_usize().unwrap();
         let max_index = scaled.ceil().to_usize().unwrap();
         //extrapolation to the right
         if max_index >= N {
-            return (N - 2, N - 1, scaled - R::from_usize(N-2).unwrap());
+            return (N - 2, N - 1, scaled - R::from_usize(N - 2).unwrap());
         }
         let factor = scaled.fract();
         (min_index, max_index, factor)

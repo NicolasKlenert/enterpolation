@@ -1,20 +1,22 @@
-mod generator;
 mod adaptors;
+mod generator;
 mod list;
 mod space;
 
 // These get re-exported at the library level.
 #[allow(unreachable_pub)]
-pub use generator::{Generator, Curve, DiscreteGenerator, ConstDiscreteGenerator, Extract, Stepper, Take};
+pub use adaptors::{Clamp, Composite, Repeat, Slice, Stack, TransformInput, Wrap};
 #[allow(unreachable_pub)]
-pub use adaptors::{Composite, Stack, TransformInput, Slice, Repeat, Wrap, Clamp};
+pub use generator::{
+    ConstDiscreteGenerator, Curve, DiscreteGenerator, Extract, Generator, Stepper, Take,
+};
 #[allow(unreachable_pub)]
-pub use list::{Equidistant, ConstEquidistant, SortedGenerator, Sorted, NotSorted};
-#[allow(unreachable_pub)]
-pub use space::{Space, ConstSpace};
+pub use list::{ConstEquidistant, Equidistant, NotSorted, Sorted, SortedGenerator};
 #[allow(unreachable_pub)]
 #[cfg(feature = "std")]
 pub use space::DynSpace;
+#[allow(unreachable_pub)]
+pub use space::{ConstSpace, Space};
 
 #[cfg(feature = "std")]
 impl<T: Copy> Generator<usize> for Vec<T> {
@@ -41,20 +43,20 @@ impl<T: Copy> DiscreteGenerator for Vec<T> {
 //     }
 // }
 
-impl<T: Copy, const N: usize> Generator<usize> for [T;N] {
+impl<T: Copy, const N: usize> Generator<usize> for [T; N] {
     type Output = T;
     fn gen(&self, input: usize) -> Self::Output {
         self[input]
     }
 }
 
-impl<T: Copy, const N: usize> DiscreteGenerator for [T;N] {
+impl<T: Copy, const N: usize> DiscreteGenerator for [T; N] {
     fn len(&self) -> usize {
         N
     }
 }
 
-impl<T:Copy, const N: usize> ConstDiscreteGenerator<N> for [T;N] {}
+impl<T: Copy, const N: usize> ConstDiscreteGenerator<N> for [T; N] {}
 
 // /// A stack of values or generators
 // impl<G,I, const N: usize> Generator<(usize, I)> for [G;N]

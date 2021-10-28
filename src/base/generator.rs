@@ -1,11 +1,11 @@
 use num_traits::real::Real;
 use num_traits::FromPrimitive;
 
-use core::ops::RangeBounds;
 use core::iter::FusedIterator;
+use core::ops::RangeBounds;
 
 use super::Equidistant;
-use super::{Stack, Composite, Slice, Repeat, Clamp};
+use super::{Clamp, Composite, Repeat, Slice, Stack};
 
 /// Trait which symbolises the generation or copying of an element.
 ///
@@ -44,7 +44,7 @@ pub trait Generator<Input> {
     /// ```
     ///
     /// [`gen()`]: Self::gen()
-    fn extract<I,J>(self, iterator: I) -> Extract<Self, J>
+    fn extract<I, J>(self, iterator: I) -> Extract<Self, J>
     where
         Self: Sized,
         I: IntoIterator<IntoIter = J>,
@@ -78,10 +78,11 @@ pub trait Generator<Input> {
     /// #     Ok(())
     /// # }
     /// ```
-    fn stack<G>(self, gen: G) -> Stack<Self,G>
-    where Self: Sized
+    fn stack<G>(self, gen: G) -> Stack<Self, G>
+    where
+        Self: Sized,
     {
-        Stack::new(self,gen)
+        Stack::new(self, gen)
     }
     /// Takes two generators and creates a new generator pipelining both generators.
     ///
@@ -116,10 +117,11 @@ pub trait Generator<Input> {
     /// ```
     ///
     /// [`composite()`]: Self::composite()
-    fn composite<G>(self, gen: G) -> Composite<Self,G>
-    where Self: Sized
+    fn composite<G>(self, gen: G) -> Composite<Self, G>
+    where
+        Self: Sized,
     {
-        Composite::new(self,gen)
+        Composite::new(self, gen)
     }
     /// Get a reference of the generator.
     ///
@@ -157,7 +159,7 @@ pub trait Generator<Input> {
     /// ```
     ///
     /// [`gen()`]: Self::gen()
-    fn sample<I,J>(&self, iterator: I) -> Extract<&Self, J>
+    fn sample<I, J>(&self, iterator: I) -> Extract<&Self, J>
     where
         Self: Sized,
         I: IntoIterator<IntoIter = J>,
@@ -168,7 +170,7 @@ pub trait Generator<Input> {
 }
 
 // Make references of generators also generators
-impl<G: Generator<I> + ?Sized,I> Generator<I> for &G {
+impl<G: Generator<I> + ?Sized, I> Generator<I> for &G {
     type Output = G::Output;
     fn gen(&self, input: I) -> Self::Output {
         (**self).gen(input)
@@ -178,8 +180,9 @@ impl<G: Generator<I> + ?Sized,I> Generator<I> for &G {
 /// Specialized [`Generator`] which takes a real number as input.
 ///
 /// [`Generator`]: Generator
-pub trait Curve<R> : Generator<R>
-where R: Real
+pub trait Curve<R>: Generator<R>
+where
+    R: Real,
 {
     /// The domain in which the curve uses interpolation.
     ///
@@ -213,7 +216,7 @@ where R: Real
     fn take(self, samples: usize) -> Take<Self, R>
     where
         Self: Sized,
-        R: FromPrimitive
+        R: FromPrimitive,
     {
         let [start, end] = self.domain();
         Take(self.extract(Stepper::new(samples, start, end)))
@@ -242,7 +245,7 @@ where R: Real
     /// #     Ok(())
     /// # }
     /// ```
-    fn slice<B>(self, bounds: B) -> Slice<Self,R>
+    fn slice<B>(self, bounds: B) -> Slice<Self, R>
     where
         Self: Sized,
         B: RangeBounds<R>,
@@ -272,15 +275,17 @@ where R: Real
     /// # }
     /// ```
     fn clamp(self) -> Clamp<Self>
-    where Self: Sized,
+    where
+        Self: Sized,
     {
         Clamp::new(self)
     }
 }
 
 //Make references of curves also curves
-impl<C: Curve<R> + ?Sized,R> Curve<R> for &C
-where R: Real
+impl<C: Curve<R> + ?Sized, R> Curve<R> for &C
+where
+    R: Real,
 {
     fn domain(&self) -> [R; 2] {
         (**self).domain()
@@ -294,7 +299,7 @@ where R: Real
 ///
 /// [`Generator`]: Generator
 /// [`len()`]: DiscreteGenerator::len()
-pub trait DiscreteGenerator : Generator<usize> {
+pub trait DiscreteGenerator: Generator<usize> {
     /// Returns the minimum amount of elements the generator can create.
     ///
     /// The generator has to guarantee that every usize number
@@ -302,14 +307,14 @@ pub trait DiscreteGenerator : Generator<usize> {
     fn len(&self) -> usize;
     /// Returns the first element of the generator, or `None` if it is empty.
     fn first(&self) -> Option<Self::Output> {
-        if self.is_empty(){
+        if self.is_empty() {
             return None;
         }
         Some(self.gen(0))
     }
     /// Returns the last element of the generator, or `None` if it is empty.
     fn last(&self) -> Option<Self::Output> {
-        if self.is_empty(){
+        if self.is_empty() {
             return None;
         }
         Some(self.gen(self.len() - 1))
@@ -320,17 +325,19 @@ pub trait DiscreteGenerator : Generator<usize> {
     }
     /// Convert generator to an iterator which steps through all generatable values.
     fn into_iter(self) -> IntoIter<Self>
-    where Self: Sized,
+    where
+        Self: Sized,
     {
         IntoIter::new(self)
     }
     /// Create iterator which steps through all generatable values.
-    fn iter(&self) -> IntoIter<&Self>{
+    fn iter(&self) -> IntoIter<&Self> {
         IntoIter::new(self)
     }
     /// Transfrom generator to one which repeats its elements.
     fn repeat(self) -> Repeat<Self>
-    where Self: Sized,
+    where
+        Self: Sized,
     {
         Repeat::new(self)
     }
@@ -346,7 +353,7 @@ impl<G: DiscreteGenerator + ?Sized> DiscreteGenerator for &G {
 /// Trait for [`DiscreteGenerator`] where its length is knwon at compile-time.
 ///
 /// [`DiscreteGenerator`]: DiscreteGenerator
-pub trait ConstDiscreteGenerator<const N: usize> : DiscreteGenerator {
+pub trait ConstDiscreteGenerator<const N: usize>: DiscreteGenerator {
     /// Collect all elements generated into an array.
     ///
     /// This function may be useful if one wants to save intermediate steps instead of generating
@@ -354,11 +361,12 @@ pub trait ConstDiscreteGenerator<const N: usize> : DiscreteGenerator {
     ///
     /// If you want to transfrom a `DiscreteGenerator` to a collection,
     /// you may use `.iter().collect()` instead.
-    fn to_array(&self) -> [Self::Output;N]
-    where Self::Output: Copy + Default
+    fn to_array(&self) -> [Self::Output; N]
+    where
+        Self::Output: Copy + Default,
     {
-        let mut arr = [Default::default();N];
-        for (i,val) in arr.iter_mut().enumerate().take(N) {
+        let mut arr = [Default::default(); N];
+        for (i, val) in arr.iter_mut().enumerate().take(N) {
             *val = self.gen(i);
         }
         arr
@@ -369,15 +377,16 @@ pub trait ConstDiscreteGenerator<const N: usize> : DiscreteGenerator {
 impl<G: ConstDiscreteGenerator<N> + ?Sized, const N: usize> ConstDiscreteGenerator<N> for &G {}
 
 /// Iterator constructed by the `into_iter` and 'iter' method of generators.
-#[derive(Debug,Clone)]
-pub struct IntoIter<G>{
+#[derive(Debug, Clone)]
+pub struct IntoIter<G> {
     gen: G,
     front: usize,
     back: usize,
 }
 
 impl<G> IntoIter<G>
-where G: DiscreteGenerator,
+where
+    G: DiscreteGenerator,
 {
     pub fn new(gen: G) -> Self {
         IntoIter {
@@ -389,25 +398,26 @@ where G: DiscreteGenerator,
 }
 
 impl<G> Iterator for IntoIter<G>
-where G: DiscreteGenerator
+where
+    G: DiscreteGenerator,
 {
     type Item = G::Output;
     fn next(&mut self) -> Option<Self::Item> {
-        if self.front < self.back{
+        if self.front < self.back {
             let res = self.gen.gen(self.front);
             self.front += 1;
             return Some(res);
         }
         None
     }
-    fn size_hint(&self) -> (usize, Option<usize>){
+    fn size_hint(&self) -> (usize, Option<usize>) {
         let len = self.back - self.front;
         (len, Some(len))
     }
     fn count(self) -> usize {
         self.back - self.front
     }
-    fn nth(&mut self, n: usize) -> Option<Self::Item>{
+    fn nth(&mut self, n: usize) -> Option<Self::Item> {
         if n >= self.back - self.front {
             return None;
         }
@@ -416,26 +426,23 @@ where G: DiscreteGenerator
     }
 }
 
-impl<G> FusedIterator for IntoIter<G>
-where G: DiscreteGenerator
-{}
+impl<G> FusedIterator for IntoIter<G> where G: DiscreteGenerator {}
 
-impl<G> ExactSizeIterator for IntoIter<G>
-where G: DiscreteGenerator
-{}
+impl<G> ExactSizeIterator for IntoIter<G> where G: DiscreteGenerator {}
 
 impl<G> DoubleEndedIterator for IntoIter<G>
-where G: DiscreteGenerator
+where
+    G: DiscreteGenerator,
 {
-    fn next_back(&mut self) -> Option<Self::Item>{
-        if self.front < self.back{
+    fn next_back(&mut self) -> Option<Self::Item> {
+        if self.front < self.back {
             let res = self.gen.gen(self.back);
             self.back -= 1;
             return Some(res);
         }
         None
     }
-    fn nth_back(&mut self, n: usize) -> Option<Self::Item>{
+    fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
         if n >= self.back - self.front {
             return None;
         }
@@ -461,44 +468,46 @@ pub struct Extract<G, I> {
 impl<G, I> Iterator for Extract<G, I>
 where
     G: Generator<I::Item>,
-    I: Iterator
+    I: Iterator,
 {
     type Item = G::Output;
     fn next(&mut self) -> Option<Self::Item> {
         Some(self.generator.gen(self.iterator.next()?))
     }
-    fn size_hint(&self) -> (usize, Option<usize>){
+    fn size_hint(&self) -> (usize, Option<usize>) {
         self.iterator.size_hint()
     }
     fn count(self) -> usize {
         self.iterator.count()
     }
-    fn nth(&mut self, n: usize) -> Option<Self::Item>{
+    fn nth(&mut self, n: usize) -> Option<Self::Item> {
         Some(self.generator.gen(self.iterator.nth(n)?))
     }
 }
 
-impl<G,I> FusedIterator for Extract<G, I>
+impl<G, I> FusedIterator for Extract<G, I>
 where
     G: Generator<I::Item>,
-    I: FusedIterator
-{}
-
-impl<G,I> ExactSizeIterator for Extract<G, I>
-where
-    G: Generator<I::Item>,
-    I: ExactSizeIterator
-{}
-
-impl<G,I> DoubleEndedIterator for Extract<G, I>
-where
-    G: Generator<I::Item>,
-    I: DoubleEndedIterator
+    I: FusedIterator,
 {
-    fn next_back(&mut self) -> Option<Self::Item>{
+}
+
+impl<G, I> ExactSizeIterator for Extract<G, I>
+where
+    G: Generator<I::Item>,
+    I: ExactSizeIterator,
+{
+}
+
+impl<G, I> DoubleEndedIterator for Extract<G, I>
+where
+    G: Generator<I::Item>,
+    I: DoubleEndedIterator,
+{
+    fn next_back(&mut self) -> Option<Self::Item> {
         Some(self.generator.gen(self.iterator.next_back()?))
     }
-    fn nth_back(&mut self, n: usize) -> Option<Self::Item>{
+    fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
         Some(self.generator.gen(self.iterator.nth_back(n)?))
     }
 }
@@ -518,13 +527,13 @@ where
     fn next(&mut self) -> Option<Self::Item> {
         self.0.next()
     }
-    fn size_hint(&self) -> (usize, Option<usize>){
+    fn size_hint(&self) -> (usize, Option<usize>) {
         self.0.size_hint()
     }
     fn count(self) -> usize {
         self.0.count()
     }
-    fn nth(&mut self, n: usize) -> Option<Self::Item>{
+    fn nth(&mut self, n: usize) -> Option<Self::Item> {
         self.0.nth(n)
     }
 }
@@ -533,23 +542,25 @@ impl<C, R> FusedIterator for Take<C, R>
 where
     C: Curve<R>,
     R: Real + FromPrimitive,
-{}
+{
+}
 
 impl<C, R> ExactSizeIterator for Take<C, R>
 where
     C: Curve<R>,
     R: Real + FromPrimitive,
-{}
+{
+}
 
 impl<C, R> DoubleEndedIterator for Take<C, R>
 where
     C: Curve<R>,
     R: Real + FromPrimitive,
 {
-    fn next_back(&mut self) -> Option<Self::Item>{
+    fn next_back(&mut self) -> Option<Self::Item> {
         self.0.next_back()
     }
-    fn nth_back(&mut self, n: usize) -> Option<Self::Item>{
+    fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
         self.0.nth_back(n)
     }
 }
@@ -588,38 +599,36 @@ where
 }
 
 impl<R> Iterator for Stepper<R>
-where R: Real + FromPrimitive
+where
+    R: Real + FromPrimitive,
 {
     type Item = R;
     fn next(&mut self) -> Option<Self::Item> {
         self.0.next()
     }
-    fn size_hint(&self) -> (usize, Option<usize>){
+    fn size_hint(&self) -> (usize, Option<usize>) {
         self.0.size_hint()
     }
     fn count(self) -> usize {
         self.0.count()
     }
-    fn nth(&mut self, n: usize) -> Option<Self::Item>{
+    fn nth(&mut self, n: usize) -> Option<Self::Item> {
         self.0.nth(n)
     }
 }
 
-impl<R> FusedIterator for Stepper<R>
-where R: Real + FromPrimitive
-{}
+impl<R> FusedIterator for Stepper<R> where R: Real + FromPrimitive {}
 
-impl<R> ExactSizeIterator for Stepper<R>
-where R: Real + FromPrimitive
-{}
+impl<R> ExactSizeIterator for Stepper<R> where R: Real + FromPrimitive {}
 
 impl<R> DoubleEndedIterator for Stepper<R>
-where R: Real + FromPrimitive
+where
+    R: Real + FromPrimitive,
 {
-    fn next_back(&mut self) -> Option<Self::Item>{
+    fn next_back(&mut self) -> Option<Self::Item> {
         self.0.next_back()
     }
-    fn nth_back(&mut self, n: usize) -> Option<Self::Item>{
+    fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
         self.0.nth_back(n)
     }
 }
@@ -631,18 +640,17 @@ mod test {
     #[test]
     fn stepper() {
         let mut stepper = Stepper::normalized(11);
-        let res = [0.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0];
+        let res = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0];
         for i in 0..=10 {
             let val = stepper.next().unwrap();
-            assert_f64_near!(val,res[i]);
+            assert_f64_near!(val, res[i]);
         }
 
-        let mut stepper = Stepper::new(5,3.0,5.0);
-        let res = [3.0,3.5,4.0,4.5,5.0];
+        let mut stepper = Stepper::new(5, 3.0, 5.0);
+        let res = [3.0, 3.5, 4.0, 4.5, 5.0];
         for i in 0..5 {
             let val = stepper.next().unwrap();
             assert_f64_near!(val, res[i]);
         }
     }
-
 }
