@@ -26,7 +26,7 @@ pub trait Space<T> {
 /// Struct to handle a constant workspace.
 #[derive(Debug, Copy, Clone)]
 pub struct ConstSpace<T, const N: usize> {
-    _phantom: PhantomData<*const T>,
+    _phantom: PhantomData<fn() -> T>,
 }
 
 impl<T, const N: usize> Space<T> for ConstSpace<T, N>
@@ -62,7 +62,7 @@ impl<T, const N: usize> Default for ConstSpace<T, N> {
 #[derive(Debug, Copy, Clone)]
 pub struct DynSpace<T> {
     len: usize,
-    _phantom: PhantomData<*const T>,
+    _phantom: PhantomData<fn() -> T>,
 }
 
 #[cfg(feature = "std")]
