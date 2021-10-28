@@ -2,9 +2,9 @@ use core::marker::PhantomData;
 
 /// Trait for constant or dynamic workspace handling.
 ///
-/// We do want to generate workspaces every time the method is called as this allows for safe concurrency.
-/// This may impact performance as for DynSpace we always allocate memory. However as their is no alternative,
-/// this is accepted.
+/// The method [`workspace()`] is called every time a curve needs space to do calculations on.
+///
+/// [`workspace()`]: Space::workspace()
 pub trait Space<T> {
     // In the fututre with a more powerful type system
     // one may be able to put the definition of T from the trait to the function.
@@ -59,6 +59,11 @@ impl<T, const N: usize> Default for ConstSpace<T, N> {
 }
 
 /// Struct which handles workspace at run-time.
+///
+/// A new `Vec` is created every time [`workspace()`] is called. 
+/// This may impact performance as we always allocate memory. However this allows safe concurrency.
+///
+/// [`workspace()`]: DynSpace::workspace()
 #[cfg(feature = "std")]
 #[derive(Debug, Copy, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
