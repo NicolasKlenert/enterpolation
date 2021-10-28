@@ -1,8 +1,8 @@
 //! All error types for linear interpolation.
 
-pub use crate::NotSorted;
 pub use crate::builder::TooFewElements;
-use core::{fmt, convert::From};
+pub use crate::NotSorted;
+use core::{convert::From, fmt};
 
 #[cfg(feature = "std")]
 use std::error::Error;
@@ -60,7 +60,11 @@ pub struct KnotElementInequality {
 
 impl fmt::Display for KnotElementInequality {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "There has to be as many knots as elements, however we found {} elements and {} knots.", self.elements, self.knots)
+        write!(
+            f,
+            "There has to be as many knots as elements, however we found {} elements and {} knots.",
+            self.elements, self.knots
+        )
     }
 }
 
@@ -70,9 +74,6 @@ impl Error for KnotElementInequality {}
 impl KnotElementInequality {
     /// Create a new error with the number of elements and knots found.
     pub fn new(elements: usize, knots: usize) -> Self {
-        KnotElementInequality{
-            elements,
-            knots,
-        }
+        KnotElementInequality { elements, knots }
     }
 }

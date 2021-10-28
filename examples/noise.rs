@@ -3,8 +3,8 @@
 //! Enterpolation is written to be as generic as possible and using a generator
 //! instead of a collection allows to define a (nearly) infinite detail-rich interpolation.
 
-use enterpolation::{Generator, DiscreteGenerator, bspline::BSpline};
 use assert_float_eq::{afe_is_f64_near, afe_near_error_msg, assert_f64_near};
+use enterpolation::{bspline::BSpline, DiscreteGenerator, Generator};
 
 // We define our own value generator which will be the basis of our (nearly) infinite curve.
 struct ValueGenerator {}
@@ -26,10 +26,10 @@ impl DiscreteGenerator for ValueGenerator {
     }
 }
 
-fn main(){
+fn main() {
     let spline = BSpline::builder()
         .clamped()
-        .elements(ValueGenerator{})
+        .elements(ValueGenerator {})
         // we use equidistant as we don't want to save that many knots in a collection
         // as alternative one could also define a KnotGenerator
         .equidistant()
@@ -37,12 +37,13 @@ fn main(){
         // We want each knot to lie on an integer.
         .distance(0.0, 1.0)
         .constant::<4>()
-        .build().expect("As the curve is hardcoded, this should always work");
+        .build()
+        .expect("As the curve is hardcoded, this should always work");
     // As our ValueGenerator is so boring and we constructed the domain such that every knot
     // lands on an integer we know that values at x and x+10.0 are equal.
-    let samples = [3.3,157.23,989.98];
+    let samples = [3.3, 157.23, 989.98];
     for sample in samples.iter() {
-        assert_f64_near!(spline.gen(sample),spline.gen(sample+10.0),10);
+        assert_f64_near!(spline.gen(sample), spline.gen(sample + 10.0), 10);
     }
     println!("Nearly infinite long curve generated!");
 }

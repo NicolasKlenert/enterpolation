@@ -1,10 +1,10 @@
 //! All error types for bspline interpolation.
 #[allow(unreachable_pub)]
-pub use crate::NotSorted;
-#[allow(unreachable_pub)]
 pub use crate::builder::{TooFewElements, TooSmallWorkspace};
+#[allow(unreachable_pub)]
+pub use crate::NotSorted;
 
-use core::{fmt, convert::From};
+use core::{convert::From, fmt};
 #[cfg(feature = "std")]
 use std::error::Error;
 
@@ -69,16 +69,18 @@ pub struct InvalidDegree {
 impl InvalidDegree {
     /// Create a new error with the number of elements and knots found.
     pub fn new(degree: isize) -> Self {
-        InvalidDegree{
-            degree,
-        }
+        InvalidDegree { degree }
     }
 }
 
 impl fmt::Display for InvalidDegree {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "The degree of the resulting curve is {} and such not valid.
-            Only striclty positive degrees less than the number of elements are allowed.", self.degree)
+        write!(
+            f,
+            "The degree of the resulting curve is {} and such not valid.
+            Only striclty positive degrees less than the number of elements are allowed.",
+            self.degree
+        )
     }
 }
 

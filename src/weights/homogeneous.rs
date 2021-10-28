@@ -3,20 +3,21 @@
 //! be at infinity. In both cases one wants to use rational curves. This module
 //! gives you a wrapper at hand which transforms any interplation into a rational interpolation.
 
-use core::ops::{Add, Sub, Mul, Div};
-use num_traits::identities::{Zero, One};
+use core::ops::{Add, Div, Mul, Sub};
+use num_traits::identities::{One, Zero};
 
 /// Wrapper for elements to achieve weighted and rational curves.
 ///
 /// This wrapper allows for Homogeneous Coordinates.
 #[derive(PartialEq, Clone, Copy, Hash, Default, Debug)]
-pub struct Homogeneous<E,R> {
+pub struct Homogeneous<E, R> {
     element: E,
     rational: R,
 }
 
-impl<E,R> Homogeneous<E,R>
-where R: One
+impl<E, R> Homogeneous<E, R>
+where
+    R: One,
 {
     /// Lift your element to create a homogeneous coordinate.
     pub fn new(element: E) -> Self {
@@ -27,8 +28,9 @@ where R: One
     }
 }
 
-impl<E,R> Homogeneous<E,R>
-where R: Zero
+impl<E, R> Homogeneous<E, R>
+where
+    R: Zero,
 {
     /// Create a homogeneous coordinate which lies at infinity in the given direction.
     pub fn infinity(direction: E) -> Self {
@@ -39,8 +41,9 @@ where R: Zero
     }
 }
 
-impl<E,R> Homogeneous<E,R>
-where R: Zero + PartialEq
+impl<E, R> Homogeneous<E, R>
+where
+    R: Zero + PartialEq,
 {
     /// Returns true if value lies at infinity.
     pub fn is_infinite(&self) -> bool {
@@ -48,8 +51,9 @@ where R: Zero + PartialEq
     }
 }
 
-impl<E,R> Homogeneous<E,R>
-where E: Copy
+impl<E, R> Homogeneous<E, R>
+where
+    E: Copy,
 {
     /// Return direction of the coordinate.
     pub fn direction(&self) -> E {
@@ -57,10 +61,10 @@ where E: Copy
     }
 }
 
-impl<E,R> Homogeneous<E,R>
+impl<E, R> Homogeneous<E, R>
 where
     E: Mul<R, Output = E>,
-    R: Zero + Copy
+    R: Zero + Copy,
 {
     /// Create a homogeneous coordinate with the specified weight as long as the given weight is not zero.
     ///
@@ -83,10 +87,10 @@ where
     }
 }
 
-impl<E,R> Homogeneous<E,R>
+impl<E, R> Homogeneous<E, R>
 where
     E: Mul<R, Output = E>,
-    R: One + Zero + Copy
+    R: One + Zero + Copy,
 {
     /// Create a homogeneous coordinate with the specified weight as long as the given weight is not zero.
     /// Otherwise it falls back to the weight of one.
@@ -98,10 +102,10 @@ where
     }
 }
 
-impl<E,R> Homogeneous<E,R>
+impl<E, R> Homogeneous<E, R>
 where
     E: Mul<R, Output = E>,
-    R: Copy
+    R: Copy,
 {
     /// Create a homogeneous coordinate with the specified weight
     ///
@@ -119,8 +123,9 @@ where
     }
 }
 
-impl<E,R> Homogeneous<E,R>
-where E: Div<R, Output = E>
+impl<E, R> Homogeneous<E, R>
+where
+    E: Div<R, Output = E>,
 {
     /// Project the homogenous coordinate back to the element space.
     ///
@@ -130,13 +135,13 @@ where E: Div<R, Output = E>
     }
 }
 
-impl<E,R> Add for Homogeneous<E,R>
+impl<E, R> Add for Homogeneous<E, R>
 where
     E: Add<Output = E>,
-    R: Add<Output = R>
+    R: Add<Output = R>,
 {
-    type Output = Homogeneous<E,R>;
-    fn add(self, rhs: Homogeneous<E,R>) -> Self::Output {
+    type Output = Homogeneous<E, R>;
+    fn add(self, rhs: Homogeneous<E, R>) -> Self::Output {
         Homogeneous {
             element: self.element + rhs.element,
             rational: self.rational + rhs.rational,
@@ -144,13 +149,13 @@ where
     }
 }
 
-impl<E,R> Sub for Homogeneous<E,R>
+impl<E, R> Sub for Homogeneous<E, R>
 where
     E: Sub<Output = E>,
-    R: Sub<Output = R>
+    R: Sub<Output = R>,
 {
-    type Output = Homogeneous<E,R>;
-    fn sub(self, rhs: Homogeneous<E,R>) -> Self::Output {
+    type Output = Homogeneous<E, R>;
+    fn sub(self, rhs: Homogeneous<E, R>) -> Self::Output {
         Homogeneous {
             element: self.element - rhs.element,
             rational: self.rational - rhs.rational,
@@ -158,13 +163,13 @@ where
     }
 }
 
-impl<E,R> Mul for Homogeneous<E,R>
+impl<E, R> Mul for Homogeneous<E, R>
 where
     E: Mul<Output = E>,
-    R: Mul<Output = R>
+    R: Mul<Output = R>,
 {
-    type Output = Homogeneous<E,R>;
-    fn mul(self, rhs: Homogeneous<E,R>) -> Self::Output {
+    type Output = Homogeneous<E, R>;
+    fn mul(self, rhs: Homogeneous<E, R>) -> Self::Output {
         Homogeneous {
             element: self.element * rhs.element,
             rational: self.rational * rhs.rational,
@@ -172,13 +177,13 @@ where
     }
 }
 
-impl<E,R> Div for Homogeneous<E,R>
+impl<E, R> Div for Homogeneous<E, R>
 where
     E: Div<Output = E>,
-    R: Div<Output = R>
+    R: Div<Output = R>,
 {
-    type Output = Homogeneous<E,R>;
-    fn div(self, rhs: Homogeneous<E,R>) -> Self::Output {
+    type Output = Homogeneous<E, R>;
+    fn div(self, rhs: Homogeneous<E, R>) -> Self::Output {
         Homogeneous {
             element: self.element / rhs.element,
             rational: self.rational / rhs.rational,
@@ -186,12 +191,12 @@ where
     }
 }
 
-impl<E,R> Mul<R> for Homogeneous<E,R>
+impl<E, R> Mul<R> for Homogeneous<E, R>
 where
     E: Mul<R, Output = E>,
     R: Mul<Output = R> + Copy,
 {
-    type Output = Homogeneous<E,R>;
+    type Output = Homogeneous<E, R>;
     fn mul(self, rhs: R) -> Self::Output {
         Homogeneous {
             element: self.element * rhs,
@@ -200,12 +205,12 @@ where
     }
 }
 
-impl<E,R> Div<R> for Homogeneous<E,R>
+impl<E, R> Div<R> for Homogeneous<E, R>
 where
     E: Div<R, Output = E>,
     R: Div<Output = R> + Copy,
 {
-    type Output = Homogeneous<E,R>;
+    type Output = Homogeneous<E, R>;
     fn div(self, rhs: R) -> Self::Output {
         Homogeneous {
             element: self.element / rhs,

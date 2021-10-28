@@ -1,6 +1,5 @@
 #![doc = include_str!("../README.md")]
-#![ cfg_attr( not(feature = "std"), no_std ) ]
-
+#![cfg_attr(not(feature = "std"), no_std)]
 #![warn(
     anonymous_parameters,
     missing_copy_implementations,
@@ -25,15 +24,15 @@ compile_error!(
     "The enterpolation crate needs a library for floats. Please enable either \"std\" or \"libm\" as a feature."
 );
 
-#[cfg(feature = "linear")]
-pub mod linear;
 #[cfg(feature = "bezier")]
 pub mod bezier;
 #[cfg(feature = "bspline")]
 pub mod bspline;
-pub mod weights;
-pub mod utils;
 pub mod easing;
+#[cfg(feature = "linear")]
+pub mod linear;
+pub mod utils;
+pub mod weights;
 
 mod base;
 mod builder;
@@ -42,8 +41,10 @@ pub use topology_traits::Merge;
 
 #[cfg(feature = "std")]
 pub use base::DynSpace;
-pub use base::{Generator, Curve, Extract, Stepper, Space, ConstSpace,
-    DiscreteGenerator, ConstDiscreteGenerator, Equidistant, ConstEquidistant,
-    Sorted, SortedGenerator, NotSorted, TransformInput, Composite, Stack, Slice, Repeat, Wrap, Clamp};
-pub use easing::{Identity};
+pub use base::{
+    Clamp, Composite, ConstDiscreteGenerator, ConstEquidistant, ConstSpace, Curve,
+    DiscreteGenerator, Equidistant, Extract, Generator, NotSorted, Repeat, Slice, Sorted,
+    SortedGenerator, Space, Stack, Stepper, TransformInput, Wrap,
+};
+pub use easing::Identity;
 // pub use weights::{Homogeneous, Weighted, Weights, IntoWeight};
