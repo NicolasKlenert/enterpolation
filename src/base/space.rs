@@ -2,8 +2,8 @@ use core::marker::PhantomData;
 
 /// Trait for constant or dynamic workspace handling.
 ///
-/// We do want to generate workspaces every time the method is called as this allows as safe concurrency.
-/// This may impact performance as for DynSpace we always allocate memory. However as their is an alternative,
+/// We do want to generate workspaces every time the method is called as this allows for safe concurrency.
+/// This may impact performance as for DynSpace we always allocate memory. However as their is no alternative,
 /// this is accepted.
 pub trait Space<T> {
     // In the fututre with a more powerful type system
