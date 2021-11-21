@@ -166,7 +166,7 @@ where
 pub struct Composite<A, B>(A, B);
 
 impl<A, B> Composite<A, B> {
-    /// Creates a stacked generator, working similar like the `zip` method of iterators.
+    /// Creates a composite generator.
     pub fn new(first: A, second: B) -> Self {
         Composite(first, second)
     }

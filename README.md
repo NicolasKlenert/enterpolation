@@ -109,6 +109,30 @@ features = ["linear"]
 
 ## Details
 
+#### Difference to other Crates
+
+Enterpolation aims to be a crate which generalizes curves to an extend in which you will be able to change the type of curve without changing too much of your code. It provides a simple interface to take samples from your curve. Its focus on ease of use also differentiate itself from other crate:
+- Builder patterns check your input for you and return an error explaining what did not work.
+- A wide array of different input types are allowed, such no conversions are needed. It also allows to optimize the curve for your needs.
+- Everything which may be interpolated can be interpolated into a curve.
+- Each sampling input will return a value; no panics occur. Instead the curve will try to extrapolate (which may not be numerically stable). If one wants to clamp values instead, adaptors may be used.
+- Many adaptors allow further changes of the curve which would not be otherwise possible.
+
+This crate is _not_ a graphics library. Good crates which are used in the graphical context exist already. This crate aims to be more general to allow experimentations and cover edge cases for which these crates do not fit.
+
+#### Performance
+
+Measuring performance can be rather tricky and optimizations of the compiler can be rather chaotically (in the sense that performance of a function may change even if the function itself was not changed), such these measurements should be taken with a grain of salt. They are only here to guide a decision. Performance changes of +-15% are not rare, such in these regions we consider functions to be more or less equally fast.
+
+We compare dynamic bsplines with their equivalent bsplines in the crate `bspline` (v1.0.0). Other than that, we also compare bsplines with constant elements and knots, bsplines with shared elements and knots and bsplines with uniform knots (and constant elements). The bspline tested have 100 elements and degree 3.
+
+| BSplines            | dynamic   | constant  | static    | uniform   | crate bspline |
+| ------------------- | --------- | --------- | --------- | --------- | ------------- |
+| sampling 200 values | 23.160 us | 6.6834 us | 6.6521 us | 9.9186 us | 20.734 us     |
+| creation of curve   | 389.72 ns | 389.23 ns | 225.27 ns | 131.35 ns | 496.66 ns     |
+
+The sampling of uniform curves will be faster in comparison to other curves the more knots a curve has.
+
 #### Requirements for Elements
 
 If the elements you want to interpolate already implement [addition] with themselves and [multiplication] with a scalar, you should already be fine. If that is not the case, you may want to consider implementing these, as most interpolations will only work properly if the elements are living in a vector-space (and such addition and multiplication is defined for them).
