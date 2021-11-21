@@ -1,5 +1,7 @@
 //! Basis spline curves.
 //!
+//! BSpline support all flavours or B-Splines, such as uniform (equidistant) and non-uniform B-Splines
+//! as well as the most generalized version: NURBS (Non-Uniform Rational B-SPlines).
 //! The easist way to create a bspline is by using the builder pattern of [`BSplineBuilder`].
 //!
 //! ```rust
