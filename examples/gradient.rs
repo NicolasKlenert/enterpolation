@@ -1,6 +1,6 @@
 use enterpolation::{bspline::BSpline, Curve, Generator, Merge};
 use image::{ImageBuffer, Rgba};
-use palette::{Hsl, IntoColor, Mix, Pixel};
+use palette::{Hsl, IntoColor, Mix};
 
 // As HSL does neither implement multiplication with a scalar nor the merge trait in `topology-traits` crate,
 // we need to use a newtype pattern
@@ -48,13 +48,10 @@ fn main() {
     let mut imgbuf = ImageBuffer::new(width, height);
 
     for (x, _, pixel) in imgbuf.enumerate_pixels_mut() {
-        let raw: [u8; 3] = spline
-            .gen(remap(x as f32, 0.0, width as f32, dmin, dmax))
-            .0
-            .into_rgb::<palette::encoding::srgb::Srgb>()
-            .into_format()
-            .into_raw();
-        *pixel = Rgba([raw[0], raw[1], raw[2], 255]);
+        let hsl = spline.gen(remap(x as f32, 0.0, width as f32, dmin, dmax)).0;
+        let srgb: palette::Srgb = hsl.into_color();
+        let raw: (u8, u8, u8) = srgb.into_format().into_components();
+        *pixel = Rgba([raw.0, raw.1, raw.2, 255]);
     }
     match imgbuf.save("examples/images/gradient.png") {
         Ok(()) => println!("see 'examples/images/gradient.png' for the result"),

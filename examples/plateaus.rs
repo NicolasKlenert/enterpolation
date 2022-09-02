@@ -2,7 +2,7 @@
 //! to generate a color gradient to categorise values neatly.
 use enterpolation::{easing::Plateau, linear::Linear, Curve, Generator, Merge};
 use image::{ImageBuffer, Rgba};
-use palette::{Hsl, IntoColor, Mix, Pixel};
+use palette::{Hsl, IntoColor, Mix};
 
 // As HSL does neither implement multiplication with a scalar nor the merge trait in `topology-traits` crate,
 // we need to use a newtype pattern
@@ -11,10 +11,9 @@ struct CustomHsl(Hsl);
 
 impl CustomHsl {
     pub fn get_raw(&self) -> [u8; 3] {
-        self.0
-            .into_rgb::<palette::encoding::srgb::Srgb>()
-            .into_format()
-            .into_raw()
+        let srgb: palette::Srgb = self.0.into_color();
+        let raw: (u8, u8, u8) = srgb.into_format().into_components();
+        [raw.0, raw.1, raw.2]
     }
 }
 
