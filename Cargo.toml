@@ -2,7 +2,7 @@
 name = "enterpolation"
 authors = ["Nicolas Klenert <klenert.nicolas@gmail.com>"]
 exclude = ["examples/*", ".gitignore", "CHANGELOG.md", "CONTRIBUTING.md"]
-edition = "2018"
+edition = "2021"
 description = "A library for creating and computing interpolations, extrapolations and smoothing of generic data points."
 license = "MIT OR Apache-2.0"
 documentation = "https://docs.rs/enterpolation"
