@@ -19,8 +19,8 @@ num-traits = "0.2"
 
 [dev-dependencies]
 # we are using palette and image as dependency for our gradient example
-palette = "0.5"
-image = "0.23"
+palette = "0.6"
+image = "0.24"
 
 [features]
 default = ["std","linear","bezier","bspline"]
