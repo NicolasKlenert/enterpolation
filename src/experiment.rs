@@ -8,12 +8,12 @@ type InterScalar = f64;
 /// K are the knots, identifier for the rest
 /// E are the elements and weights identified by the knots
 /// I is the Interpolation itself (takes scalar, elements and weights and returns the output)
-pub struct InterpolationFrankenstein<S,K,E,I>
+pub struct InterpolationFrankenstein<S, K, E, I>
 where
     S: Scalar,
     K: Knots,
     E: Samples<Input = K::Output>,
-    I: InterpolationFunction<Construct = E>
+    I: InterpolationFunction<Construct = E>,
 {
     scalar: PhantomData<S>,
     knots: K,
@@ -28,9 +28,7 @@ pub trait InterpolationFunction {
     fn interpolate(elements: <Self::Construct as Samples>::Output) -> Self::Output;
 }
 
-pub trait Scalar {
-
-}
+pub trait Scalar {}
 
 pub trait Samples {
     type Input;

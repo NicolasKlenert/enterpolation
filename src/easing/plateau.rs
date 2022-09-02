@@ -1,7 +1,7 @@
+use crate::easing::smoothstep;
+use crate::{Curve, Generator};
 use num_traits::real::Real;
 use num_traits::FromPrimitive;
-use crate::{Generator,Curve};
-use crate::easing::smoothstep;
 
 /// Plateau is an easing curve which - therefore the name - create constant plateaus if given to
 /// an interpolation which works with factors for which an easing function gets applied.
@@ -12,7 +12,8 @@ pub struct Plateau<R> {
 }
 
 impl<R> Plateau<R>
-where R: Real + FromPrimitive
+where
+    R: Real + FromPrimitive,
 {
     /// Create a new Plateau Easing Curve with the given strength. A strength of 0.0 will be the same as
     /// the identity. A strength of 1.0 will only return 0.0 or 1.0 (depending which is nearer).
@@ -33,19 +34,21 @@ where R: Real + FromPrimitive
 /// 0.0. All values above a certain threshold will be clamped to 1.0. All other values are stretched
 /// such that they fill out the entire [0.0,1.0] area.
 fn over_clamp<R>(input: R, min: R, max: R) -> R
-where R: Real
+where
+    R: Real,
 {
     if input < min {
         R::zero()
-    }else if input > max {
+    } else if input > max {
         R::one()
-    }else{
+    } else {
         (input - min) / (max - min)
     }
 }
 
 impl<R> Generator<R> for Plateau<R>
-where R: Real + FromPrimitive
+where
+    R: Real + FromPrimitive,
 {
     type Output = R;
     fn gen(&self, input: R) -> R {
@@ -53,8 +56,11 @@ where R: Real + FromPrimitive
     }
 }
 
-impl<R> Curve<R> for Plateau<R> where R: Real + FromPrimitive {
-    fn domain(&self) -> [R;2] {
+impl<R> Curve<R> for Plateau<R>
+where
+    R: Real + FromPrimitive,
+{
+    fn domain(&self) -> [R; 2] {
         [R::zero(), R::one()]
     }
 }
