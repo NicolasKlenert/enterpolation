@@ -17,6 +17,9 @@ topology-traits = "0.1.1"
 assert_float_eq = "1"
 num-traits = "0.2"
 
+serde = { version = "1.0.144", optional = true, features = ["derive"] }
+
+
 [dev-dependencies]
 # we are using palette and image as dependency for our gradient example
 palette = "0.5"

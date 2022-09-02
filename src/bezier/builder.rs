@@ -59,6 +59,7 @@ use topology_traits::Merge;
 /// [`constant()`]: BezierBuilder::constant()
 /// [`workspace()`]: BezierBuilder::workspace()
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct BezierBuilder<I, E, S, W> {
     input: I,
     elements: E,

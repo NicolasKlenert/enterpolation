@@ -9,6 +9,7 @@ use std::error::Error;
 
 /// Errors which could occur when using or creating a linear interpolation.
 #[derive(Debug, Copy, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum LinearError {
     /// Error returned if the elements are to few for a linear interpolation.
     ToFewElements(TooFewElements),
@@ -51,6 +52,7 @@ impl Error for LinearError {}
 
 /// Error returned if the number of elements and the number of knots are not matching.
 #[derive(Debug, Copy, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct KnotElementInequality {
     /// The number of elements found.
     elements: usize,

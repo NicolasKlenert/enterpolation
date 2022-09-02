@@ -10,6 +10,7 @@ use num_traits::real::Real;
 ///
 /// [`clamp()`]: crate::Curve::clamp()
 #[derive(Clone, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Clamp<G>(G);
 
 impl<G> Clamp<G> {
@@ -50,6 +51,7 @@ where
 ///
 /// [`slice()`]: crate::Curve::slice()
 #[derive(Clone, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Slice<G, R>(TransformInput<G, R, R>);
 
 impl<G, R> Slice<G, R>
@@ -103,6 +105,7 @@ where
 ///
 /// Both addition and multiplication is done. In regards to math operation priorities, multiplication is done first.
 #[derive(Clone, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct TransformInput<G, A, M> {
     addition: A,
     multiplication: M,
@@ -163,6 +166,7 @@ where
 ///
 /// This `struct` is created by [`Generator::composite`]. See its documentation for more.
 #[derive(Clone, Copy, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Composite<A, B>(A, B);
 
 impl<A, B> Composite<A, B> {
@@ -200,6 +204,7 @@ where
 ///
 /// This `struct` is created by [`Generator::stack]. See its documentation for more.
 #[derive(Debug, Copy, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Stack<G, H>(G, H);
 
 impl<G, H> Stack<G, H> {
@@ -253,6 +258,7 @@ where
 
 /// DiscreteGenerator Adaptor which repeats the underlying elements.
 #[derive(Debug, Copy, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Repeat<G>(G);
 
 impl<G> Repeat<G> {
@@ -287,6 +293,7 @@ impl<G> ConstDiscreteGenerator<{ usize::MAX }> for Repeat<G> where G: DiscreteGe
 
 /// Generator adaptor which repeats a fixed amount of first elements.
 #[derive(Debug, Copy, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Wrap<G> {
     inner: G,
     n: usize,

@@ -16,6 +16,7 @@ use num_traits::real::Real;
 ///
 /// Weights given by the generator who equal `R::zero()` are considered to be at infinity.
 #[derive(Debug, Copy, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Weights<G> {
     gen: G,
 }

@@ -8,19 +8,23 @@ use std::error::Error;
 
 /// Struct indicator to mark that we don't use weights.
 #[derive(Debug, Copy, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct WithoutWeight;
 
 /// Struct indicator to mark that we use weights.
 #[derive(Debug, Copy, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct WithWeight;
 
 /// Struct indicator to mark information not yet given.
 #[derive(Debug, Copy, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Unknown;
 
 /// Struct to indicate to use normalized Input
 #[cfg(feature = "bezier")]
 #[derive(Debug, Copy, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct NormalizedInput<R = f64>(PhantomData<*const R>);
 
 #[cfg(feature = "bezier")]
@@ -33,6 +37,7 @@ impl<R> NormalizedInput<R> {
 /// Struct to indicate which input domain to use
 #[cfg(feature = "bezier")]
 #[derive(Debug, Copy, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct InputDomain<R = f64> {
     pub start: R,
     pub end: R,
@@ -48,6 +53,7 @@ impl<R> InputDomain<R> {
 /// Struct indicator to mark which type to use
 #[cfg(any(feature = "linear", feature = "bspline"))]
 #[derive(Debug, Copy, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Type<R = f64>(PhantomData<*const R>);
 
 #[cfg(any(feature = "linear", feature = "bspline"))]
@@ -60,6 +66,7 @@ impl<R> Type<R> {
 /// Error returned if if there are no elements.
 #[cfg(feature = "bezier")]
 #[derive(Debug, Copy, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Empty {}
 
 #[cfg(feature = "bezier")]
@@ -83,6 +90,7 @@ impl Error for Empty {}
 /// Error returned if the elements are to few for the specific interpolation.
 #[cfg(any(feature = "linear", feature = "bspline"))]
 #[derive(Debug, Copy, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct TooFewElements {
     /// The number of elements found.
     found: usize,
@@ -109,6 +117,7 @@ impl TooFewElements {
 /// Error returned if if there are no elements.
 #[cfg(any(feature = "bezier", feature = "bspline"))]
 #[derive(Debug, Copy, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct TooSmallWorkspace {
     found: usize,
     necessary: usize,

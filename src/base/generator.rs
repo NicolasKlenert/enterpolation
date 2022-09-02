@@ -378,6 +378,7 @@ impl<G: ConstDiscreteGenerator<N> + ?Sized, const N: usize> ConstDiscreteGenerat
 
 /// Iterator constructed by the `into_iter` and 'iter' method of generators.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct IntoIter<G> {
     gen: G,
     front: usize,
@@ -460,6 +461,7 @@ where
 /// [`extract()`]: crate::Generator::extract()
 /// [`Generator`]: crate::Generator
 #[derive(Debug, Clone)] // Iterators shouldn't be Copy -- see #27186
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Extract<G, I> {
     generator: G,
     iterator: I,
@@ -514,6 +516,7 @@ where
 
 /// Newtype Take to encapsulate implementation details of the curve method take
 #[derive(Debug, Clone)] // Iterators shouldn't be Copy -- see #27186
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Take<C, R>(Extract<C, Stepper<R>>)
 where
     R: Real;
@@ -571,6 +574,7 @@ where
 ///
 /// [`Range`]: core::ops::Range
 #[derive(Debug, Clone)] // Iterators shouldn't be Copy -- see #27186
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Stepper<R: Real = f64>(IntoIter<Equidistant<R>>);
 
 impl<R> Stepper<R>

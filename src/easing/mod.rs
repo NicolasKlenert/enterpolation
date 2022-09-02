@@ -14,6 +14,7 @@ pub use plateau::Plateau;
 ///
 /// We expect the domain to be normalized.
 #[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct FuncEase<F> {
     func: F,
 }
@@ -47,6 +48,7 @@ where
 
 /// Identity as Curve.
 #[derive(Debug, Copy, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Identity {}
 
 impl Identity {

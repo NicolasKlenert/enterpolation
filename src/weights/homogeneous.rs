@@ -10,6 +10,7 @@ use num_traits::identities::{One, Zero};
 ///
 /// This wrapper allows for Homogeneous Coordinates.
 #[derive(PartialEq, Clone, Copy, Hash, Default, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Homogeneous<E, R> {
     element: E,
     rational: R,

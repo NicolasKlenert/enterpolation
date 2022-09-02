@@ -251,6 +251,7 @@ pub trait SortedGenerator: DiscreteGenerator {
 
 /// Struct to represent a sorted collection/generator.
 #[derive(Debug, Copy, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Sorted<C>(C);
 
 impl<C> Sorted<C>
@@ -320,6 +321,7 @@ where
 
 /// Error returned if the given knots are not sorted.
 #[derive(Debug, Copy, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct NotSorted {
     index: usize,
 }
@@ -348,6 +350,7 @@ impl Error for NotSorted {}
 /// Struct used as a generator for equidistant elements.
 /// Acts like an array of knots.
 #[derive(Debug, Copy, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Equidistant<R = f64> {
     len: usize,
     step: R,
@@ -559,6 +562,7 @@ where
 /// only represents knots in [0.0,1.0]. However as knot base for interpolations, it is more performant,
 /// as we have the knowledge of the domain.
 #[derive(Debug, Copy, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct ConstEquidistant<R /* = f64*/, const N: usize>(PhantomData<*const R>);
 
 impl<R, const N: usize> ConstEquidistant<R, N> {

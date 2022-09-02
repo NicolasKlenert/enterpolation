@@ -62,6 +62,7 @@ use topology_traits::Merge;
 /// [`equidistant()`]: LinearDirector::equidistant()
 /// [`equidistant_unchecked()`]: super::Linear::equidistant_unchecked()
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct LinearDirector<K, E, F, W> {
     knots: K,
     elements: E,
@@ -117,6 +118,7 @@ pub struct LinearDirector<K, E, F, W> {
 /// [`equidistant()`]: LinearBuilder::equidistant()
 /// [`equidistant_unchecked()`]: super::Linear::equidistant_unchecked()
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct LinearBuilder<K, E, F, W> {
     inner: Result<LinearDirector<K, E, F, W>, LinearError>,
 }

@@ -53,6 +53,7 @@ use core::fmt::Debug;
 ///
 /// [bspline module]: self
 #[derive(Debug, Copy, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct BSpline<K, E, S> {
     elements: E,
     knots: K,

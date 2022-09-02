@@ -10,6 +10,7 @@ use std::error::Error;
 
 /// Errors which could occur when using or creating a linear interpolation.
 #[derive(Debug, Copy, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum BSplineError {
     /// Error returned if there are too few elements to generate a curve with the necessary degree.
     TooFewElements(TooFewElements),
@@ -61,6 +62,7 @@ impl Error for BSplineError {}
 
 /// Error returned if the number of elements and the number of knots are not matching.
 #[derive(Debug, Copy, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct InvalidDegree {
     /// The calculated degree
     degree: isize,

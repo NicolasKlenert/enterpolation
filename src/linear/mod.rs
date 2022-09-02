@@ -62,6 +62,7 @@ pub use error::{KnotElementInequality, LinearError, NotSorted, TooFewElements};
 ///
 /// [linear module]: self
 #[derive(Debug, Copy, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Linear<K, E, F> {
     elements: E,
     knots: K,

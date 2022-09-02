@@ -9,6 +9,7 @@ use num_traits::real::Real;
 ///
 /// This Adaptor is often appended to an interpolation with weighted elements to automatically unwrap them.
 #[derive(Debug, Copy, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Weighted<G> {
     inner: G,
 }

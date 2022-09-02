@@ -5,6 +5,7 @@ use num_traits::FromPrimitive;
 
 /// Plateau is an easing curve which - therefore the name - create constant plateaus if given to
 /// an interpolation which works with factors for which an easing function gets applied.
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Debug, Copy, Clone)]
 pub struct Plateau<R> {
     min: R,

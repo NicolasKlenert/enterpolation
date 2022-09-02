@@ -3,6 +3,7 @@ use crate::{DiscreteGenerator, Generator, SortedGenerator};
 
 /// DiscreteGenerator Adaptor which repeats its first and last element `n` more times.
 #[derive(Debug, Copy, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct BorderBuffer<G> {
     inner: G,
     n: usize,
@@ -89,6 +90,7 @@ where
 ///
 /// Using this Generator may cause a panic if the underlying generator has less than two elements.
 #[derive(Debug, Copy, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct BorderDeletion<G> {
     inner: G,
 }

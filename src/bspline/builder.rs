@@ -23,14 +23,18 @@ use topology_traits::Merge;
 
 /// Marker struct to signify the building of a closed curve.
 #[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Clamped;
 /// Marker struct to signify the building of an open or generic curve.
 #[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Open;
 /// Marker struct to signify the building of a curve with knots in the usual configuration.
 #[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Legacy;
 // #[derive(Debug, Clone, Copy)]
+// #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 // pub struct Closed;
 
 /// Marker Struct which saves data for equidistant.
@@ -39,6 +43,7 @@ pub struct Legacy;
 /// However the equation between these two variables changes, depending on the specifics of the curve.
 /// Such, both should be calculated.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct UnknownDomain<R> {
     _phantom: PhantomData<*const R>,
     len: usize,
@@ -91,6 +96,7 @@ impl<R> UnknownDomain<R> {
 /// [`clamped()`]: BSplineDirector::clamped()
 /// [`legacy()`]: BSplineDirector::legacy()
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct BSplineDirector<K, E, S, W, M> {
     elements: E,
     knots: K,
@@ -129,6 +135,7 @@ pub struct BSplineDirector<K, E, S, W, M> {
 /// [`clamped()`]: BSplineBuilder::clamped()
 /// [`legacy()`]: BSplineBuilder::legacy()
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct BSplineBuilder<K, E, S, W, M> {
     inner: Result<BSplineDirector<K, E, S, W, M>, BSplineError>,
 }

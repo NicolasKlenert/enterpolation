@@ -8,6 +8,7 @@ type InterScalar = f64;
 /// K are the knots, identifier for the rest
 /// E are the elements and weights identified by the knots
 /// I is the Interpolation itself (takes scalar, elements and weights and returns the output)
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct InterpolationFrankenstein<S, K, E, I>
 where
     S: Scalar,
