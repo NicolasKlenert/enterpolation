@@ -8,7 +8,7 @@ license = "MIT OR Apache-2.0"
 documentation = "https://docs.rs/enterpolation"
 repository = "https://github.com/NicolasKlenert/enterpolation"
 readme = "README.md"
-keywords = ["interpolation", "curve", "spline", "lerp"]
+keywords = ["interpolation", "curve", "spline", "bspline", "bezier"]
 categories = ["graphics", "mathematics", "no-std"]
 version = "0.1.1"
 
@@ -18,6 +18,7 @@ assert_float_eq = "1"
 num-traits = "0.2"
 
 [dev-dependencies]
+criterion = {version = "0.3", features = ["real_blackbox"]}
 # we are using palette and image as dependency for our gradient example
 palette = "0.6"
 image = "0.24"
@@ -29,3 +30,7 @@ libm = ["num-traits/libm"]
 linear = []
 bezier = []
 bspline = []
+
+[[bench]]
+name = "benches"
+harness = false

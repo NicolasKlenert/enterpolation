@@ -2,21 +2,23 @@
 //!
 //! Each interpolation has it's own builder module, which accumalates all methods to create their interpolation.
 
-use core::ops::{Mul, Div};
-use core::marker::PhantomData;
-use num_traits::real::Real;
-use num_traits::FromPrimitive;
-use num_traits::identities::Zero;
-use topology_traits::Merge;
+use super::adaptors::{BorderBuffer, BorderDeletion};
+use super::error::{BSplineError, InvalidDegree};
+use super::BSpline;
+use crate::builder::{Type, Unknown, WithWeight, WithoutWeight};
+use crate::weights::{Homogeneous, IntoWeight, Weighted, Weights};
 #[cfg(feature = "std")]
 use crate::DynSpace;
-use crate::{Generator, DiscreteGenerator, Space, ConstSpace, Sorted, NotSorted, SortedGenerator,
-    Equidistant};
-use crate::weights::{Weighted, Weights, IntoWeight, Homogeneous};
-use crate::builder::{WithWeight,WithoutWeight,Unknown, Type};
-use super::BSpline;
-use super::error::{BSplineError, InvalidDegree};
-use super::adaptors::{BorderBuffer, BorderDeletion};
+use crate::{
+    ConstSpace, DiscreteGenerator, Equidistant, Generator, NotSorted, Sorted, SortedGenerator,
+    Space,
+};
+use core::marker::PhantomData;
+use core::ops::{Div, Mul};
+use num_traits::identities::Zero;
+use num_traits::real::Real;
+use num_traits::FromPrimitive;
+use topology_traits::Merge;
 // use super::error::{LinearError, ToFewElements, KnotElementInequality};
 
 /// Marker struct to signify the building of a closed curve.
@@ -43,7 +45,7 @@ pub struct UnknownDomain<R> {
     deg: usize,
 }
 
-impl<R> UnknownDomain<R>{
+impl<R> UnknownDomain<R> {
     pub fn new(len: usize, deg: usize) -> Self {
         UnknownDomain {
             _phantom: PhantomData,
@@ -89,11 +91,11 @@ impl<R> UnknownDomain<R>{
 /// [`clamped()`]: BSplineDirector::clamped()
 /// [`legacy()`]: BSplineDirector::legacy()
 #[derive(Debug, Clone)]
-pub struct BSplineDirector<K,E,S,W,M> {
+pub struct BSplineDirector<K, E, S, W, M> {
     elements: E,
     knots: K,
     space: S,
-    _phantoms: (PhantomData<*const W>,PhantomData<*const M>),
+    _phantoms: (PhantomData<*const W>, PhantomData<*const M>),
 }
 
 /// Builder for bspline interpolation.
@@ -127,8 +129,8 @@ pub struct BSplineDirector<K,E,S,W,M> {
 /// [`clamped()`]: BSplineBuilder::clamped()
 /// [`legacy()`]: BSplineBuilder::legacy()
 #[derive(Debug, Clone)]
-pub struct BSplineBuilder<K,E,S,W,M> {
-    inner: Result<BSplineDirector<K,E,S,W,M>,BSplineError>,
+pub struct BSplineBuilder<K, E, S, W, M> {
+    inner: Result<BSplineDirector<K, E, S, W, M>, BSplineError>,
 }
 
 impl Default for BSplineDirector<Unknown, Unknown, Unknown, Unknown, Open> {
@@ -150,7 +152,7 @@ impl BSplineDirector<Unknown, Unknown, Unknown, Unknown, Open> {
             elements: Unknown,
             knots: Unknown,
             space: Unknown,
-            _phantoms: (PhantomData,PhantomData),
+            _phantoms: (PhantomData, PhantomData),
         }
     }
 }
@@ -159,20 +161,19 @@ impl BSplineBuilder<Unknown, Unknown, Unknown, Unknown, Open> {
     /// Create a new linear interpolation builder.
     pub const fn new() -> Self {
         BSplineBuilder {
-            inner: Ok(BSplineDirector::new())
+            inner: Ok(BSplineDirector::new()),
         }
     }
 }
 
 impl<M> BSplineDirector<Unknown, Unknown, Unknown, Unknown, M> {
-
     /// Change the mode to an open curve.
     pub fn open(self) -> BSplineDirector<Unknown, Unknown, Unknown, Unknown, Open> {
         BSplineDirector {
             knots: self.knots,
             space: self.space,
             elements: self.elements,
-            _phantoms: (self._phantoms.0,PhantomData),
+            _phantoms: (self._phantoms.0, PhantomData),
         }
     }
 
@@ -182,7 +183,7 @@ impl<M> BSplineDirector<Unknown, Unknown, Unknown, Unknown, M> {
             knots: self.knots,
             space: self.space,
             elements: self.elements,
-            _phantoms: (self._phantoms.0,PhantomData),
+            _phantoms: (self._phantoms.0, PhantomData),
         }
     }
 
@@ -197,7 +198,7 @@ impl<M> BSplineDirector<Unknown, Unknown, Unknown, Unknown, M> {
             knots: self.knots,
             space: self.space,
             elements: self.elements,
-            _phantoms: (self._phantoms.0,PhantomData),
+            _phantoms: (self._phantoms.0, PhantomData),
         }
     }
 
@@ -210,13 +211,14 @@ impl<M> BSplineDirector<Unknown, Unknown, Unknown, Unknown, M> {
 
     /// Set the elements of the bspline interpolation.
     pub fn elements<E>(self, elements: E) -> BSplineDirector<Unknown, E, Unknown, WithoutWeight, M>
-    where E: DiscreteGenerator,
+    where
+        E: DiscreteGenerator,
     {
         BSplineDirector {
             knots: self.knots,
             space: self.space,
             elements,
-            _phantoms: (PhantomData,self._phantoms.1),
+            _phantoms: (PhantomData, self._phantoms.1),
         }
     }
 
@@ -229,8 +231,10 @@ impl<M> BSplineDirector<Unknown, Unknown, Unknown, Unknown, M> {
     ///
     /// If you want to work with points at infinity,
     /// you may want to use homogeneous data itself without this wrapping mechanism.
-    pub fn elements_with_weights<G>(self, gen: G)
-        -> BSplineDirector<Unknown, Weights<G>,Unknown, WithWeight, M>
+    pub fn elements_with_weights<G>(
+        self,
+        gen: G,
+    ) -> BSplineDirector<Unknown, Weights<G>, Unknown, WithWeight, M>
     where
         G: DiscreteGenerator,
         G::Output: IntoWeight,
@@ -248,18 +252,17 @@ impl<M> BSplineDirector<Unknown, Unknown, Unknown, Unknown, M> {
 }
 
 impl<M> BSplineBuilder<Unknown, Unknown, Unknown, Unknown, M> {
-
     /// Change the mode to an open curve.
     pub fn open(self) -> BSplineBuilder<Unknown, Unknown, Unknown, Unknown, Open> {
         BSplineBuilder {
-            inner: self.inner.map(|director| director.open())
+            inner: self.inner.map(|director| director.open()),
         }
     }
 
     /// Change the mode to a clamped curve.
     pub fn clamped(self) -> BSplineBuilder<Unknown, Unknown, Unknown, Unknown, Clamped> {
         BSplineBuilder {
-            inner: self.inner.map(|director| director.clamped())
+            inner: self.inner.map(|director| director.clamped()),
         }
     }
 
@@ -271,7 +274,7 @@ impl<M> BSplineBuilder<Unknown, Unknown, Unknown, Unknown, M> {
     /// [main documentation]: crate
     pub fn legacy(self) -> BSplineBuilder<Unknown, Unknown, Unknown, Unknown, Legacy> {
         BSplineBuilder {
-            inner: self.inner.map(|director| director.legacy())
+            inner: self.inner.map(|director| director.legacy()),
         }
     }
 
@@ -284,10 +287,11 @@ impl<M> BSplineBuilder<Unknown, Unknown, Unknown, Unknown, M> {
 
     /// Set the elements of the bspline interpolation.
     pub fn elements<E>(self, elements: E) -> BSplineBuilder<Unknown, E, Unknown, WithoutWeight, M>
-    where E: DiscreteGenerator,
+    where
+        E: DiscreteGenerator,
     {
         BSplineBuilder {
-            inner: self.inner.map(|director| director.elements(elements))
+            inner: self.inner.map(|director| director.elements(elements)),
         }
     }
 
@@ -300,8 +304,10 @@ impl<M> BSplineBuilder<Unknown, Unknown, Unknown, Unknown, M> {
     ///
     /// If you want to work with points at infinity,
     /// you may want to use homogeneous data itself without this wrapping mechanism.
-    pub fn elements_with_weights<G>(self, gen: G)
-        -> BSplineBuilder<Unknown, Weights<G>,Unknown, WithWeight, M>
+    pub fn elements_with_weights<G>(
+        self,
+        gen: G,
+    ) -> BSplineBuilder<Unknown, Weights<G>, Unknown, WithWeight, M>
     where
         G: DiscreteGenerator,
         G::Output: IntoWeight,
@@ -310,13 +316,14 @@ impl<M> BSplineBuilder<Unknown, Unknown, Unknown, Unknown, M> {
         <G::Output as IntoWeight>::Weight: Zero + Copy,
     {
         BSplineBuilder {
-            inner: self.inner.map(|director| director.elements_with_weights(gen))
+            inner: self
+                .inner
+                .map(|director| director.elements_with_weights(gen)),
         }
     }
 }
 
-impl<E,W> BSplineDirector<Unknown, E, Unknown, W, Open>
-{
+impl<E, W> BSplineDirector<Unknown, E, Unknown, W, Open> {
     /// Set the knots of the interpolation.
     ///
     /// The degree of this bspline interplation is given by `knots.len() - elements.len() - 1`.
@@ -332,11 +339,14 @@ impl<E,W> BSplineDirector<Unknown, E, Unknown, W, Open>
     ///
     /// [`equidistant()`]: BSplineDirector::equidistant()
     /// [`NotSorted`]: super::error::BSplineError
-    pub fn knots<K>(self, knots: K) -> Result<BSplineDirector<Sorted<K>,E, Unknown, W, Open>, NotSorted>
+    pub fn knots<K>(
+        self,
+        knots: K,
+    ) -> Result<BSplineDirector<Sorted<K>, E, Unknown, W, Open>, NotSorted>
     where
         E: DiscreteGenerator,
         K: DiscreteGenerator,
-        K::Output: PartialOrd
+        K::Output: PartialOrd,
     {
         Ok(BSplineDirector {
             knots: Sorted::new(knots)?,
@@ -347,8 +357,7 @@ impl<E,W> BSplineDirector<Unknown, E, Unknown, W, Open>
     }
 }
 
-impl<E,W> BSplineBuilder<Unknown, E, Unknown, W, Open>
-{
+impl<E, W> BSplineBuilder<Unknown, E, Unknown, W, Open> {
     /// Set the knots of the interpolation.
     ///
     /// The degree of this bspline interplation is given by `knots.len() - elements.len() - 1`.
@@ -359,20 +368,21 @@ impl<E,W> BSplineBuilder<Unknown, E, Unknown, W, Open>
     /// knots, consider using [`equidistant()`] instead.
     ///
     /// [`equidistant()`]: BSplineBuilder::equidistant()
-    pub fn knots<K>(self, knots: K) -> BSplineBuilder<Sorted<K>,E, Unknown, W, Open>
+    pub fn knots<K>(self, knots: K) -> BSplineBuilder<Sorted<K>, E, Unknown, W, Open>
     where
         E: DiscreteGenerator,
         K: DiscreteGenerator,
-        K::Output: PartialOrd
+        K::Output: PartialOrd,
     {
         BSplineBuilder {
-            inner: self.inner.and_then(|director| director.knots(knots).map_err(|err| err.into()))
+            inner: self
+                .inner
+                .and_then(|director| director.knots(knots).map_err(|err| err.into())),
         }
     }
 }
 
-impl<E,W> BSplineDirector<Unknown, E, Unknown, W, Clamped>
-{
+impl<E, W> BSplineDirector<Unknown, E, Unknown, W, Clamped> {
     /// Set the knots of the interpolation.
     ///
     /// The degree of this bspline interplation is given by `knots.len() - elements.len() - 1`.
@@ -390,16 +400,19 @@ impl<E,W> BSplineDirector<Unknown, E, Unknown, W, Clamped>
     /// [`equidistant()`]: BSplineDirector::equidistant()
     /// [`NotSorted`]: super::BSplineError
     /// [`InvalidDegree`]: super::BSplineError
-    pub fn knots<K>(self, knots: K) -> Result<ClampedBSplineDirector<K,E,W>, BSplineError>
+    pub fn knots<K>(self, knots: K) -> Result<ClampedBSplineDirector<K, E, W>, BSplineError>
     where
         E: DiscreteGenerator,
         K: DiscreteGenerator,
-        K::Output: PartialOrd
+        K::Output: PartialOrd,
     {
         if self.elements.len() < knots.len() {
-            return Err(InvalidDegree::new(self.elements.len() as isize - knots.len() as isize +1).into());
+            return Err(InvalidDegree::new(
+                self.elements.len() as isize - knots.len() as isize + 1,
+            )
+            .into());
         }
-        let duplicate = self.elements.len() - knots.len();  //deg-1
+        let duplicate = self.elements.len() - knots.len(); //deg-1
         Ok(BSplineDirector {
             knots: BorderBuffer::new(Sorted::new(knots)?, duplicate),
             elements: self.elements,
@@ -409,8 +422,7 @@ impl<E,W> BSplineDirector<Unknown, E, Unknown, W, Clamped>
     }
 }
 
-impl<E,W> BSplineBuilder<Unknown, E, Unknown, W, Clamped>
-{
+impl<E, W> BSplineBuilder<Unknown, E, Unknown, W, Clamped> {
     /// Set the knots of the interpolation.
     ///
     /// The degree of this bspline interplation is given by `knots.len() - elements.len() - 1`.
@@ -421,20 +433,19 @@ impl<E,W> BSplineBuilder<Unknown, E, Unknown, W, Clamped>
     /// knots, consider using [`equidistant()`] instead.
     ///
     /// [`equidistant()`]: BSplineBuilder::equidistant()
-    pub fn knots<K>(self, knots: K) -> ClampedBSplineBuilder<K,E,W>
+    pub fn knots<K>(self, knots: K) -> ClampedBSplineBuilder<K, E, W>
     where
         E: DiscreteGenerator,
         K: DiscreteGenerator,
-        K::Output: PartialOrd
+        K::Output: PartialOrd,
     {
         BSplineBuilder {
-            inner: self.inner.and_then(|director| director.knots(knots))
+            inner: self.inner.and_then(|director| director.knots(knots)),
         }
     }
 }
 
-impl<E,W> BSplineDirector<Unknown, E, Unknown, W, Legacy>
-{
+impl<E, W> BSplineDirector<Unknown, E, Unknown, W, Legacy> {
     /// Set the knots of the interpolation.
     ///
     /// The degree of this bspline interplation is given by `knots.len() - elements.len() - 1`.
@@ -452,11 +463,11 @@ impl<E,W> BSplineDirector<Unknown, E, Unknown, W, Legacy>
     /// [`equidistant()`]: BSplineDirector::equidistant()
     /// [`NotSorted`]: super::error::BSplineError
     /// [`TooFewElements`]: super::error::BSplineError
-    pub fn knots<K>(self, knots: K) -> Result<LegacyBSplineDirector<K,E,W>, BSplineError>
+    pub fn knots<K>(self, knots: K) -> Result<LegacyBSplineDirector<K, E, W>, BSplineError>
     where
         E: DiscreteGenerator,
         K: DiscreteGenerator,
-        K::Output: PartialOrd
+        K::Output: PartialOrd,
     {
         Ok(BSplineDirector {
             knots: BorderDeletion::new(Sorted::new(knots)?)?,
@@ -467,8 +478,7 @@ impl<E,W> BSplineDirector<Unknown, E, Unknown, W, Legacy>
     }
 }
 
-impl<E,W> BSplineBuilder<Unknown, E, Unknown, W, Legacy>
-{
+impl<E, W> BSplineBuilder<Unknown, E, Unknown, W, Legacy> {
     /// Set the knots of the interpolation.
     ///
     /// The degree of this bspline interplation is given by `knots.len() - elements.len() - 1`.
@@ -479,20 +489,19 @@ impl<E,W> BSplineBuilder<Unknown, E, Unknown, W, Legacy>
     /// knots, consider using [`equidistant()`] instead.
     ///
     /// [`equidistant()`]: BSplineBuilder::equidistant()
-    pub fn knots<K>(self, knots: K) -> LegacyBSplineBuilder<K,E,W>
+    pub fn knots<K>(self, knots: K) -> LegacyBSplineBuilder<K, E, W>
     where
         E: DiscreteGenerator,
         K: DiscreteGenerator,
-        K::Output: PartialOrd
+        K::Output: PartialOrd,
     {
         BSplineBuilder {
-            inner: self.inner.and_then(|director| director.knots(knots))
+            inner: self.inner.and_then(|director| director.knots(knots)),
         }
     }
 }
 
-impl<E,W,M> BSplineDirector<Unknown, E, Unknown, W, M>
-{
+impl<E, W, M> BSplineDirector<Unknown, E, Unknown, W, M> {
     /// Build an interpolation with equidistant knots.
     ///
     /// This method takes `R` as a generic parameter. `R` has to be the type you want the knots to be.
@@ -508,7 +517,7 @@ impl<E,W,M> BSplineDirector<Unknown, E, Unknown, W, M>
     ///
     /// [`degree()`]: BSplineDirector::domain()
     /// [`quantity()`]: BSplineDirector::normalized()
-    pub fn equidistant<R>(self) -> BSplineDirector<Type<R>,E, Unknown, W, M>{
+    pub fn equidistant<R>(self) -> BSplineDirector<Type<R>, E, Unknown, W, M> {
         BSplineDirector {
             knots: Type::new(),
             elements: self.elements,
@@ -518,8 +527,7 @@ impl<E,W,M> BSplineDirector<Unknown, E, Unknown, W, M>
     }
 }
 
-impl<E,W,M> BSplineBuilder<Unknown, E, Unknown, W, M>
-{
+impl<E, W, M> BSplineBuilder<Unknown, E, Unknown, W, M> {
     /// Build an interpolation with equidistant knots.
     ///
     /// This method takes `R` as a generic parameter. `R` has to be the type you want the knots to be.
@@ -535,14 +543,14 @@ impl<E,W,M> BSplineBuilder<Unknown, E, Unknown, W, M>
     ///
     /// [`degree()`]: BSplineBuilder::domain()
     /// [`quantity()`]: BSplineBuilder::normalized()
-    pub fn equidistant<R>(self) -> BSplineBuilder<Type<R>,E, Unknown, W, M>{
+    pub fn equidistant<R>(self) -> BSplineBuilder<Type<R>, E, Unknown, W, M> {
         BSplineBuilder {
-            inner: self.inner.map(|director| director.equidistant())
+            inner: self.inner.map(|director| director.equidistant()),
         }
     }
 }
 
-impl<R,E,W> BSplineDirector<Type<R>, E, Unknown, W, Open>
+impl<R, E, W> BSplineDirector<Type<R>, E, Unknown, W, Open>
 where
     E: DiscreteGenerator,
 {
@@ -564,8 +572,8 @@ where
     /// [`domain()`]: BSplineDirector::domain()
     /// [`normalized()`]: BSplineDirector::normalized()
     /// [`distance()`]: BSplineDirector::distance()
-    pub fn degree(self, degree: usize) -> BSplineDirector<UnknownDomain<R>,E,Unknown,W, Open>{
-        BSplineDirector{
+    pub fn degree(self, degree: usize) -> BSplineDirector<UnknownDomain<R>, E, Unknown, W, Open> {
+        BSplineDirector {
             knots: UnknownDomain::new(self.elements.len() - 1 + degree, degree),
             elements: self.elements,
             space: self.space,
@@ -593,9 +601,12 @@ where
     /// [`domain()`]: BSplineDirector::domain()
     /// [`normalized()`]: BSplineDirector::normalized()
     /// [`distance()`]: BSplineDirector::distance()
-    pub fn quantity(self, quantity: usize) -> BSplineDirector<UnknownDomain<R>,E,Unknown,W, Open>{
-        BSplineDirector{
-            knots: UnknownDomain::new(quantity, quantity - self.elements.len() +1),
+    pub fn quantity(
+        self,
+        quantity: usize,
+    ) -> BSplineDirector<UnknownDomain<R>, E, Unknown, W, Open> {
+        BSplineDirector {
+            knots: UnknownDomain::new(quantity, quantity - self.elements.len() + 1),
             elements: self.elements,
             space: self.space,
             _phantoms: self._phantoms,
@@ -603,7 +614,7 @@ where
     }
 }
 
-impl<R,E,W> BSplineBuilder<Type<R>, E, Unknown, W, Open>
+impl<R, E, W> BSplineBuilder<Type<R>, E, Unknown, W, Open>
 where
     E: DiscreteGenerator,
 {
@@ -625,9 +636,9 @@ where
     /// [`domain()`]: BSplineBuilder::domain()
     /// [`normalized()`]: BSplineBuilder::normalized()
     /// [`distance()`]: BSplineBuilder::distance()
-    pub fn degree(self, degree: usize) -> BSplineBuilder<UnknownDomain<R>,E,Unknown,W, Open>{
+    pub fn degree(self, degree: usize) -> BSplineBuilder<UnknownDomain<R>, E, Unknown, W, Open> {
         BSplineBuilder {
-            inner: self.inner.map(|director| director.degree(degree))
+            inner: self.inner.map(|director| director.degree(degree)),
         }
     }
 
@@ -651,14 +662,17 @@ where
     /// [`domain()`]: BSplineBuilder::domain()
     /// [`normalized()`]: BSplineBuilder::normalized()
     /// [`distance()`]: BSplineBuilder::distance()
-    pub fn quantity(self, quantity: usize) -> BSplineBuilder<UnknownDomain<R>,E,Unknown,W, Open>{
+    pub fn quantity(
+        self,
+        quantity: usize,
+    ) -> BSplineBuilder<UnknownDomain<R>, E, Unknown, W, Open> {
         BSplineBuilder {
-            inner: self.inner.map(|director| director.quantity(quantity))
+            inner: self.inner.map(|director| director.quantity(quantity)),
         }
     }
 }
 
-impl<R,E,W> BSplineDirector<Type<R>, E, Unknown, W, Clamped>
+impl<R, E, W> BSplineDirector<Type<R>, E, Unknown, W, Clamped>
 where
     E: DiscreteGenerator,
 {
@@ -680,8 +694,11 @@ where
     /// [`domain()`]: BSplineDirector::domain()
     /// [`normalized()`]: BSplineDirector::normalized()
     /// [`distance()`]: BSplineDirector::distance()
-    pub fn degree(self, degree: usize) -> BSplineDirector<UnknownDomain<R>,E,Unknown,W, Clamped>{
-        BSplineDirector{
+    pub fn degree(
+        self,
+        degree: usize,
+    ) -> BSplineDirector<UnknownDomain<R>, E, Unknown, W, Clamped> {
+        BSplineDirector {
             knots: UnknownDomain::new(self.elements.len() - degree + 1, degree),
             elements: self.elements,
             space: self.space,
@@ -709,8 +726,11 @@ where
     /// [`domain()`]: BSplineDirector::domain()
     /// [`normalized()`]: BSplineDirector::normalized()
     /// [`distance()`]: BSplineDirector::distance()
-    pub fn quantity(self, quantity: usize) -> BSplineDirector<UnknownDomain<R>,E,Unknown,W, Clamped>{
-        BSplineDirector{
+    pub fn quantity(
+        self,
+        quantity: usize,
+    ) -> BSplineDirector<UnknownDomain<R>, E, Unknown, W, Clamped> {
+        BSplineDirector {
             knots: UnknownDomain::new(quantity, self.elements.len() - quantity + 1),
             elements: self.elements,
             space: self.space,
@@ -719,7 +739,7 @@ where
     }
 }
 
-impl<R,E,W> BSplineBuilder<Type<R>, E, Unknown, W, Clamped>
+impl<R, E, W> BSplineBuilder<Type<R>, E, Unknown, W, Clamped>
 where
     E: DiscreteGenerator,
 {
@@ -741,9 +761,9 @@ where
     /// [`domain()`]: BSplineBuilder::domain()
     /// [`normalized()`]: BSplineBuilder::normalized()
     /// [`distance()`]: BSplineBuilder::distance()
-    pub fn degree(self, degree: usize) -> BSplineBuilder<UnknownDomain<R>,E,Unknown,W, Clamped>{
-        BSplineBuilder{
-            inner: self.inner.map(|director| director.degree(degree))
+    pub fn degree(self, degree: usize) -> BSplineBuilder<UnknownDomain<R>, E, Unknown, W, Clamped> {
+        BSplineBuilder {
+            inner: self.inner.map(|director| director.degree(degree)),
         }
     }
 
@@ -767,20 +787,23 @@ where
     /// [`domain()`]: BSplineBuilder::domain()
     /// [`normalized()`]: BSplineBuilder::normalized()
     /// [`distance()`]: BSplineBuilder::distance()
-    pub fn quantity(self, quantity: usize) -> BSplineBuilder<UnknownDomain<R>,E,Unknown,W, Clamped>{
-        BSplineBuilder{
-            inner: self.inner.map(|director| director.quantity(quantity))
+    pub fn quantity(
+        self,
+        quantity: usize,
+    ) -> BSplineBuilder<UnknownDomain<R>, E, Unknown, W, Clamped> {
+        BSplineBuilder {
+            inner: self.inner.map(|director| director.quantity(quantity)),
         }
     }
 }
 
-impl<R,E,W> BSplineDirector<UnknownDomain<R>, E, Unknown, W,Open>
+impl<R, E, W> BSplineDirector<UnknownDomain<R>, E, Unknown, W, Open>
 where
     E: DiscreteGenerator,
     R: Real + FromPrimitive,
 {
     /// Set the domain of the interpolation.
-    pub fn domain(self, start: R, end: R) -> BSplineDirector<Equidistant<R>,E,Unknown,W,Open>{
+    pub fn domain(self, start: R, end: R) -> BSplineDirector<Equidistant<R>, E, Unknown, W, Open> {
         BSplineDirector {
             knots: Equidistant::new(self.knots.len(), start, end),
             elements: self.elements,
@@ -790,7 +813,7 @@ where
     }
 
     /// Set the domain of the interpolation to be [0.0,1.0].
-    pub fn normalized(self) -> BSplineDirector<Equidistant<R>,E,Unknown,W,Open>{
+    pub fn normalized(self) -> BSplineDirector<Equidistant<R>, E, Unknown, W, Open> {
         BSplineDirector {
             knots: Equidistant::normalized(self.knots.len()),
             elements: self.elements,
@@ -799,7 +822,11 @@ where
         }
     }
     /// Set the domain of the interpolation by defining the distance between the knots.
-    pub fn distance(self, start: R, step: R) -> BSplineDirector<Equidistant<R>,E,Unknown,W,Open>{
+    pub fn distance(
+        self,
+        start: R,
+        step: R,
+    ) -> BSplineDirector<Equidistant<R>, E, Unknown, W, Open> {
         BSplineDirector {
             knots: Equidistant::step(self.knots.len(), start, step),
             elements: self.elements,
@@ -809,41 +836,52 @@ where
     }
 }
 
-impl<R,E,W> BSplineBuilder<UnknownDomain<R>, E, Unknown, W,Open>
+impl<R, E, W> BSplineBuilder<UnknownDomain<R>, E, Unknown, W, Open>
 where
     E: DiscreteGenerator,
     R: Real + FromPrimitive,
 {
     /// Set the domain of the interpolation.
-    pub fn domain(self, start: R, end: R) -> BSplineBuilder<Equidistant<R>,E,Unknown,W,Open>{
+    pub fn domain(self, start: R, end: R) -> BSplineBuilder<Equidistant<R>, E, Unknown, W, Open> {
         BSplineBuilder {
-            inner: self.inner.map(|director| director.domain(start, end))
+            inner: self.inner.map(|director| director.domain(start, end)),
         }
     }
 
     /// Set the domain of the interpolation to be [0.0,1.0].
-    pub fn normalized(self) -> BSplineBuilder<Equidistant<R>,E,Unknown,W,Open>{
+    pub fn normalized(self) -> BSplineBuilder<Equidistant<R>, E, Unknown, W, Open> {
         BSplineBuilder {
-            inner: self.inner.map(|director| director.normalized())
+            inner: self.inner.map(|director| director.normalized()),
         }
     }
     /// Set the domain of the interpolation by defining the distance between the knots.
-    pub fn distance(self, start: R, step: R) -> BSplineBuilder<Equidistant<R>,E,Unknown,W,Open>{
+    pub fn distance(
+        self,
+        start: R,
+        step: R,
+    ) -> BSplineBuilder<Equidistant<R>, E, Unknown, W, Open> {
         BSplineBuilder {
-            inner: self.inner.map(|director| director.distance(start, step))
+            inner: self.inner.map(|director| director.distance(start, step)),
         }
     }
 }
 
-impl<R,E,W> BSplineDirector<UnknownDomain<R>, E, Unknown, W, Clamped>
+impl<R, E, W> BSplineDirector<UnknownDomain<R>, E, Unknown, W, Clamped>
 where
     E: DiscreteGenerator,
     R: Real + FromPrimitive,
 {
     /// Set the domain of the interpolation.
-    pub fn domain(self, start: R, end: R) -> BSplineDirector<BorderBuffer<Equidistant<R>>,E,Unknown,W,Clamped>{
+    pub fn domain(
+        self,
+        start: R,
+        end: R,
+    ) -> BSplineDirector<BorderBuffer<Equidistant<R>>, E, Unknown, W, Clamped> {
         BSplineDirector {
-            knots: BorderBuffer::new(Equidistant::new(self.knots.len(), start, end), self.knots.deg()-1),
+            knots: BorderBuffer::new(
+                Equidistant::new(self.knots.len(), start, end),
+                self.knots.deg() - 1,
+            ),
             elements: self.elements,
             space: self.space,
             _phantoms: self._phantoms,
@@ -851,18 +889,30 @@ where
     }
 
     /// Set the domain of the interpolation to be [0.0,1.0].
-    pub fn normalized(self) -> BSplineDirector<BorderBuffer<Equidistant<R>>,E,Unknown,W,Clamped>{
+    pub fn normalized(
+        self,
+    ) -> BSplineDirector<BorderBuffer<Equidistant<R>>, E, Unknown, W, Clamped> {
         BSplineDirector {
-            knots: BorderBuffer::new(Equidistant::normalized(self.knots.len()), self.knots.deg()-1),
+            knots: BorderBuffer::new(
+                Equidistant::normalized(self.knots.len()),
+                self.knots.deg() - 1,
+            ),
             elements: self.elements,
             space: self.space,
             _phantoms: self._phantoms,
         }
     }
     /// Set the domain of the interpolation by defining the distance between the knots.
-    pub fn distance(self, start: R, step: R) -> BSplineDirector<BorderBuffer<Equidistant<R>>,E,Unknown,W,Clamped>{
+    pub fn distance(
+        self,
+        start: R,
+        step: R,
+    ) -> BSplineDirector<BorderBuffer<Equidistant<R>>, E, Unknown, W, Clamped> {
         BSplineDirector {
-            knots: BorderBuffer::new(Equidistant::step(self.knots.len(), start, step), self.knots.deg()-1),
+            knots: BorderBuffer::new(
+                Equidistant::step(self.knots.len(), start, step),
+                self.knots.deg() - 1,
+            ),
             elements: self.elements,
             space: self.space,
             _phantoms: self._phantoms,
@@ -870,33 +920,43 @@ where
     }
 }
 
-impl<R,E,W> BSplineBuilder<UnknownDomain<R>, E, Unknown, W, Clamped>
+impl<R, E, W> BSplineBuilder<UnknownDomain<R>, E, Unknown, W, Clamped>
 where
     E: DiscreteGenerator,
     R: Real + FromPrimitive,
 {
     /// Set the domain of the interpolation.
-    pub fn domain(self, start: R, end: R) -> BSplineBuilder<BorderBuffer<Equidistant<R>>,E,Unknown,W,Clamped>{
+    pub fn domain(
+        self,
+        start: R,
+        end: R,
+    ) -> BSplineBuilder<BorderBuffer<Equidistant<R>>, E, Unknown, W, Clamped> {
         BSplineBuilder {
-            inner: self.inner.map(|director| director.domain(start, end))
+            inner: self.inner.map(|director| director.domain(start, end)),
         }
     }
 
     /// Set the domain of the interpolation to be [0.0,1.0].
-    pub fn normalized(self) -> BSplineBuilder<BorderBuffer<Equidistant<R>>,E,Unknown,W,Clamped>{
+    pub fn normalized(
+        self,
+    ) -> BSplineBuilder<BorderBuffer<Equidistant<R>>, E, Unknown, W, Clamped> {
         BSplineBuilder {
-            inner: self.inner.map(|director| director.normalized())
+            inner: self.inner.map(|director| director.normalized()),
         }
     }
     /// Set the domain of the interpolation by defining the distance between the knots.
-    pub fn distance(self, start: R, step: R) -> BSplineBuilder<BorderBuffer<Equidistant<R>>,E,Unknown,W,Clamped>{
+    pub fn distance(
+        self,
+        start: R,
+        step: R,
+    ) -> BSplineBuilder<BorderBuffer<Equidistant<R>>, E, Unknown, W, Clamped> {
         BSplineBuilder {
-            inner: self.inner.map(|director| director.distance(start, step))
+            inner: self.inner.map(|director| director.distance(start, step)),
         }
     }
 }
 
-impl<K,E,W,M> BSplineDirector<K,E, Unknown, W,M>
+impl<K, E, W, M> BSplineDirector<K, E, Unknown, W, M>
 where
     E: DiscreteGenerator,
     K: DiscreteGenerator,
@@ -911,8 +971,8 @@ where
     ///
     /// [`constant()`]: BSplineDirector::constant()
     #[cfg(feature = "std")]
-    pub fn dynamic(self) -> BSplineDirector<K,E,DynSpace<E::Output>,W,M>{
-        BSplineDirector{
+    pub fn dynamic(self) -> BSplineDirector<K, E, DynSpace<E::Output>, W, M> {
+        BSplineDirector {
             space: DynSpace::new(self.knots.len() - self.elements.len() + 2),
             knots: self.knots,
             elements: self.elements,
@@ -926,9 +986,8 @@ where
     /// when interpolating.
     ///
     /// The size needed is `degree + 1` and/or `knots.len() - elements.len()`.
-    pub fn constant<const N: usize>(self) -> BSplineDirector<K,E,ConstSpace<E::Output,N>,W,M>
-    {
-        BSplineDirector{
+    pub fn constant<const N: usize>(self) -> BSplineDirector<K, E, ConstSpace<E::Output, N>, W, M> {
+        BSplineDirector {
             knots: self.knots,
             space: ConstSpace::new(),
             elements: self.elements,
@@ -945,10 +1004,11 @@ where
     ///
     /// [`constant()`]: BSplineDirector::constant()
     /// [`Space`]: crate::base::Space
-    pub fn workspace<S>(self, space: S) -> BSplineDirector<K,E,S,W,M>
-    where S: Space<E::Output>
+    pub fn workspace<S>(self, space: S) -> BSplineDirector<K, E, S, W, M>
+    where
+        S: Space<E::Output>,
     {
-        BSplineDirector{
+        BSplineDirector {
             knots: self.knots,
             space,
             elements: self.elements,
@@ -957,7 +1017,7 @@ where
     }
 }
 
-impl<K,E,W,M> BSplineBuilder<K,E, Unknown, W,M>
+impl<K, E, W, M> BSplineBuilder<K, E, Unknown, W, M>
 where
     E: DiscreteGenerator,
     K: DiscreteGenerator,
@@ -972,9 +1032,9 @@ where
     ///
     /// [`constant()`]: BSplineBuilder::constant()
     #[cfg(feature = "std")]
-    pub fn dynamic(self) -> BSplineBuilder<K,E,DynSpace<E::Output>,W,M>{
+    pub fn dynamic(self) -> BSplineBuilder<K, E, DynSpace<E::Output>, W, M> {
         BSplineBuilder {
-            inner: self.inner.map(|director| director.dynamic())
+            inner: self.inner.map(|director| director.dynamic()),
         }
     }
 
@@ -984,10 +1044,9 @@ where
     /// when interpolating.
     ///
     /// The size needed is `degree + 1` and/or `knots.len() - elements.len()`.
-    pub fn constant<const N: usize>(self) -> BSplineBuilder<K,E,ConstSpace<E::Output,N>,W,M>
-    {
+    pub fn constant<const N: usize>(self) -> BSplineBuilder<K, E, ConstSpace<E::Output, N>, W, M> {
         BSplineBuilder {
-            inner: self.inner.map(|director| director.constant())
+            inner: self.inner.map(|director| director.constant()),
         }
     }
 
@@ -1000,16 +1059,17 @@ where
     ///
     /// [`constant()`]: BSplineBuilder::constant()
     /// [`Space`]: crate::base::Space
-    pub fn workspace<S>(self, space: S) -> BSplineBuilder<K,E,S,W,M>
-    where S: Space<E::Output>
+    pub fn workspace<S>(self, space: S) -> BSplineBuilder<K, E, S, W, M>
+    where
+        S: Space<E::Output>,
     {
         BSplineBuilder {
-            inner: self.inner.map(|director| director.workspace(space))
+            inner: self.inner.map(|director| director.workspace(space)),
         }
     }
 }
 
-impl<K,E,S,M> BSplineDirector<K,E,S, WithoutWeight,M>
+impl<K, E, S, M> BSplineDirector<K, E, S, WithoutWeight, M>
 where
     K: SortedGenerator,
     E: DiscreteGenerator,
@@ -1027,12 +1087,12 @@ where
     /// [`TooFewElements`]: super::BSplineError
     /// [`InvalidDegree`]: super::BSplineError
     /// [`TooSmallWorkspace`]: super::BSplineError
-    pub fn build(self) -> Result<BSpline<K,E,S>, BSplineError>{
+    pub fn build(self) -> Result<BSpline<K, E, S>, BSplineError> {
         BSpline::new(self.elements, self.knots, self.space)
     }
 }
 
-impl<K,E,S,M> BSplineBuilder<K,E,S, WithoutWeight,M>
+impl<K, E, S, M> BSplineBuilder<K, E, S, WithoutWeight, M>
 where
     K: SortedGenerator,
     E: DiscreteGenerator,
@@ -1053,22 +1113,23 @@ where
     /// [`TooSmallWorkspace`]: super::BSplineError
     /// [`NotSorted`]: super::BSplineError
     /// [`knots()`]: BSplineBuilder::knots()
-    pub fn build(self) -> Result<BSpline<K,E,S>, BSplineError>{
+    pub fn build(self) -> Result<BSpline<K, E, S>, BSplineError> {
         match self.inner {
             Err(err) => Err(err),
-            Ok(director) => director.build()
+            Ok(director) => director.build(),
         }
     }
 }
 
-impl<K,G,S,M> BSplineDirector<K,Weights<G>,S,WithWeight,M>
+impl<K, G, S, M> BSplineDirector<K, Weights<G>, S, WithWeight, M>
 where
     G: DiscreteGenerator,
     G::Output: IntoWeight,
     K: SortedGenerator,
     S: Space<Homogeneous<<G::Output as IntoWeight>::Element, <G::Output as IntoWeight>::Weight>>,
     <Weights<G> as Generator<usize>>::Output: Merge<K::Output> + Copy,
-    <G::Output as IntoWeight>::Element: Div<<G::Output as IntoWeight>::Weight, Output = <G::Output as IntoWeight>::Element>,
+    <G::Output as IntoWeight>::Element:
+        Div<<G::Output as IntoWeight>::Weight, Output = <G::Output as IntoWeight>::Element>,
 {
     /// Build a bezier interpolation.
     ///
@@ -1081,20 +1142,24 @@ where
     /// [`TooFewElements`]: super::BSplineError
     /// [`InvalidDegree`]: super::BSplineError
     /// [`TooSmallWorkspace`]: super::BSplineError
-    pub fn build(self) -> Result<WeightedBSpline<K,G,S>, BSplineError>
-    {
-        Ok(Weighted::new(BSpline::new(self.elements, self.knots, self.space)?))
+    pub fn build(self) -> Result<WeightedBSpline<K, G, S>, BSplineError> {
+        Ok(Weighted::new(BSpline::new(
+            self.elements,
+            self.knots,
+            self.space,
+        )?))
     }
 }
 
-impl<K,G,S,M> BSplineBuilder<K,Weights<G>,S,WithWeight,M>
+impl<K, G, S, M> BSplineBuilder<K, Weights<G>, S, WithWeight, M>
 where
     G: DiscreteGenerator,
     G::Output: IntoWeight,
     K: SortedGenerator,
     S: Space<Homogeneous<<G::Output as IntoWeight>::Element, <G::Output as IntoWeight>::Weight>>,
     <Weights<G> as Generator<usize>>::Output: Merge<K::Output> + Copy,
-    <G::Output as IntoWeight>::Element: Div<<G::Output as IntoWeight>::Weight, Output = <G::Output as IntoWeight>::Element>,
+    <G::Output as IntoWeight>::Element:
+        Div<<G::Output as IntoWeight>::Weight, Output = <G::Output as IntoWeight>::Element>,
 {
     /// Build a bezier interpolation.
     ///
@@ -1110,98 +1175,121 @@ where
     /// [`TooSmallWorkspace`]: super::BSplineError
     /// [`NotSorted`]: super::BSplineError
     /// [`knots()`]: BSplineBuilder::knots()
-    pub fn build(self) -> Result<WeightedBSpline<K,G,S>, BSplineError>
-    {
+    pub fn build(self) -> Result<WeightedBSpline<K, G, S>, BSplineError> {
         match self.inner {
             Err(err) => Err(err),
-            Ok(director) => director.build()
+            Ok(director) => director.build(),
         }
     }
 }
 
 /// Type alias for weighted bsplines.
-type WeightedBSpline<K,G,S> = Weighted<BSpline<K,Weights<G>,S>>;
+type WeightedBSpline<K, G, S> = Weighted<BSpline<K, Weights<G>, S>>;
 /// Type alias for ClampedBuilder
-type ClampedBSplineBuilder<K,E,W> = BSplineBuilder<BorderBuffer<Sorted<K>>,E,Unknown,W,Clamped>;
+type ClampedBSplineBuilder<K, E, W> =
+    BSplineBuilder<BorderBuffer<Sorted<K>>, E, Unknown, W, Clamped>;
 /// Type alias for ClampedDirector
-type ClampedBSplineDirector<K,E,W> = BSplineDirector<BorderBuffer<Sorted<K>>,E,Unknown,W,Clamped>;
+type ClampedBSplineDirector<K, E, W> =
+    BSplineDirector<BorderBuffer<Sorted<K>>, E, Unknown, W, Clamped>;
 ///Type alias for LegacyBuilder
-type LegacyBSplineBuilder<K,E,W> = BSplineBuilder<BorderDeletion<Sorted<K>>,E,Unknown,W,Legacy>;
+type LegacyBSplineBuilder<K, E, W> =
+    BSplineBuilder<BorderDeletion<Sorted<K>>, E, Unknown, W, Legacy>;
 ///Type alias for LegacyDirector
-type LegacyBSplineDirector<K,E,W> = BSplineDirector<BorderDeletion<Sorted<K>>,E,Unknown,W,Legacy>;
+type LegacyBSplineDirector<K, E, W> =
+    BSplineDirector<BorderDeletion<Sorted<K>>, E, Unknown, W, Legacy>;
 
 #[cfg(test)]
 mod test {
     use super::BSplineBuilder;
     // Homogeneous for creating Homogeneous, Generator for using .stack()
-    use crate::{weights::Homogeneous, Generator, Curve};
+    use crate::{weights::Homogeneous, Curve, Generator};
 
     #[test]
     fn degenerate_creations() {
-        let empty : [f64;0] = [];
-        assert!(BSplineBuilder::new().elements(empty).knots(empty).constant::<1>().build().is_err());
-        assert!(BSplineBuilder::new().elements([1.0]).knots([1.0]).constant::<2>().build().is_err());
+        let empty: [f64; 0] = [];
+        assert!(BSplineBuilder::new()
+            .elements(empty)
+            .knots(empty)
+            .constant::<1>()
+            .build()
+            .is_err());
+        assert!(BSplineBuilder::new()
+            .elements([1.0])
+            .knots([1.0])
+            .constant::<2>()
+            .build()
+            .is_err());
     }
 
     #[test]
     fn mode_equality() {
-        let elements = [1.0,3.0,7.0];
+        let elements = [1.0, 3.0, 7.0];
         let open = BSplineBuilder::new()
             .elements(elements)
-            .knots([0.0,0.0,1.0,1.0])
+            .knots([0.0, 0.0, 1.0, 1.0])
             .constant::<3>()
-            .build().unwrap();
+            .build()
+            .unwrap();
         let clamped = BSplineBuilder::new()
             .clamped()
             .elements(elements)
-            .knots([0.0,1.0])
+            .knots([0.0, 1.0])
             .constant::<3>()
-            .build().unwrap();
+            .build()
+            .unwrap();
         let legacy = BSplineBuilder::new()
             .legacy()
             .elements(elements)
-            .knots([0.0,0.0,0.0,1.0,1.0,1.0])
+            .knots([0.0, 0.0, 0.0, 1.0, 1.0, 1.0])
             .constant::<3>()
-            .build().unwrap();
-            for (a,b,c) in open.take(10)
+            .build()
+            .unwrap();
+        for (a, b, c) in open
+            .take(10)
             .zip(clamped.take(10))
             .zip(legacy.take(10))
-            .map(|((a,b),c)| (a,b,c)) {
-              assert_f64_near!(a,b);
-              assert_f64_near!(b,c);
-            }
+            .map(|((a, b), c)| (a, b, c))
+        {
+            assert_f64_near!(a, b);
+            assert_f64_near!(b, c);
+        }
     }
 
     #[test]
     fn elements_with_weights() {
         BSplineBuilder::new()
-            .elements_with_weights([(1.0,1.0),(2.0,2.0),(3.0,0.0)])
+            .elements_with_weights([(1.0, 1.0), (2.0, 2.0), (3.0, 0.0)])
             .equidistant::<f64>()
             .degree(2)
-            .domain(0.0,5.0)
+            .domain(0.0, 5.0)
             .constant::<3>()
-            .build().unwrap();
+            .build()
+            .unwrap();
         BSplineBuilder::new()
-            .elements_with_weights([1.0,2.0,3.0].stack([1.0,2.0,0.0]))
+            .elements_with_weights([1.0, 2.0, 3.0].stack([1.0, 2.0, 0.0]))
             .equidistant::<f64>()
             .degree(1)
             .normalized()
             .constant::<2>()
-            .build().unwrap();
+            .build()
+            .unwrap();
         BSplineBuilder::new()
             .elements_with_weights([
                 Homogeneous::new(1.0),
                 Homogeneous::weighted_unchecked(2.0, 2.0),
-                Homogeneous::infinity(3.0)])
-            .knots([1.0,2.0,3.0])
+                Homogeneous::infinity(3.0),
+            ])
+            .knots([1.0, 2.0, 3.0])
             .constant::<2>()
-            .build().unwrap();
+            .build()
+            .unwrap();
         BSplineBuilder::new()
-            .elements([0.1,0.2,0.3])
+            .elements([0.1, 0.2, 0.3])
             .equidistant::<f64>()
             .degree(1)
             .normalized()
             .constant::<2>()
-            .build().unwrap();
+            .build()
+            .unwrap();
     }
 }

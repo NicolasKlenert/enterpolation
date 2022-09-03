@@ -2,9 +2,9 @@ use core::marker::PhantomData;
 
 /// Trait for constant or dynamic workspace handling.
 ///
-/// We do want to generate workspaces every time the method is called as this allows as safe concurrency.
-/// This may impact performance as for DynSpace we always allocate memory. However as their is an alternative,
-/// this is accepted.
+/// The method [`workspace()`] is called every time a curve needs space to do calculations on.
+///
+/// [`workspace()`]: Space::workspace()
 pub trait Space<T> {
     // In the fututre with a more powerful type system
     // one may be able to put the definition of T from the trait to the function.
@@ -12,7 +12,7 @@ pub trait Space<T> {
     // "we will output an array of (any) T", which is not yet easily possible.
 
     /// The workspace given, this should be an array or a vector (`AsMut<[T]>`)
-    type Output : AsMut<[T]>;
+    type Output: AsMut<[T]>;
     /// Returns the length of the workspace given.
     fn len(&self) -> usize;
     /// Returns true if the workspace is empty.
@@ -25,14 +25,15 @@ pub trait Space<T> {
 
 /// Struct to handle a constant workspace.
 #[derive(Debug, Copy, Clone)]
-pub struct ConstSpace<T,const N: usize>{
-    _phantom: PhantomData<*const T>,
+pub struct ConstSpace<T, const N: usize> {
+    _phantom: PhantomData<fn() -> T>,
 }
 
-impl<T,const N: usize> Space<T> for ConstSpace<T,N>
-where T: Default + Copy
+impl<T, const N: usize> Space<T> for ConstSpace<T, N>
+where
+    T: Default + Copy,
 {
-    type Output = [T;N];
+    type Output = [T; N];
     fn len(&self) -> usize {
         N
     }
@@ -41,32 +42,38 @@ where T: Default + Copy
     }
 }
 
-impl<T, const N: usize> ConstSpace<T,N>{
+impl<T, const N: usize> ConstSpace<T, N> {
     /// Create a constant worksprace at compile-time.
     pub fn new() -> Self {
         ConstSpace {
-            _phantom: PhantomData
+            _phantom: PhantomData,
         }
     }
 }
 
-impl<T,const N: usize> Default for ConstSpace<T,N>{
+impl<T, const N: usize> Default for ConstSpace<T, N> {
     fn default() -> Self {
         Self::new()
     }
 }
 
 /// Struct which handles workspace at run-time.
+///
+/// A new `Vec` is created every time [`workspace()`] is called. 
+/// This may impact performance as we always allocate memory. However this allows safe concurrency.
+///
+/// [`workspace()`]: DynSpace::workspace()
 #[cfg(feature = "std")]
 #[derive(Debug, Copy, Clone)]
-pub struct DynSpace<T>{
+pub struct DynSpace<T> {
     len: usize,
-    _phantom: PhantomData<*const T>
+    _phantom: PhantomData<fn() -> T>,
 }
 
 #[cfg(feature = "std")]
 impl<T> Space<T> for DynSpace<T>
-where T: Default + Copy
+where
+    T: Default + Copy,
 {
     type Output = Vec<T>;
     fn len(&self) -> usize {
@@ -78,12 +85,12 @@ where T: Default + Copy
 }
 
 #[cfg(feature = "std")]
-impl<T> DynSpace<T>{
+impl<T> DynSpace<T> {
     /// Create a workspace with given length at run-time.
     pub fn new(len: usize) -> Self {
-        DynSpace{
+        DynSpace {
             len,
-            _phantom: PhantomData
+            _phantom: PhantomData,
         }
     }
 }

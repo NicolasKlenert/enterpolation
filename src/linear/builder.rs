@@ -1,16 +1,18 @@
 //! Builder module for linear interpolations.
 
-use core::ops::Mul;
+use super::error::LinearError;
+use super::Linear;
+use crate::builder::{Type, Unknown, WithWeight, WithoutWeight};
+use crate::weights::{IntoWeight, Weighted, Weights};
+use crate::{
+    DiscreteGenerator, Equidistant, Generator, Identity, NotSorted, Sorted, SortedGenerator,
+};
 use core::marker::PhantomData;
+use core::ops::Mul;
+use num_traits::identities::Zero;
 use num_traits::real::Real;
 use num_traits::FromPrimitive;
-use num_traits::identities::Zero;
 use topology_traits::Merge;
-use crate::{Generator, DiscreteGenerator, SortedGenerator, Sorted, NotSorted, Equidistant, Identity};
-use crate::weights::{Weighted, Weights, IntoWeight};
-use crate::builder::{WithWeight,WithoutWeight, Type, Unknown};
-use super::Linear;
-use super::error::LinearError;
 
 /// Builder for linear interpolation.
 ///
@@ -60,7 +62,7 @@ use super::error::LinearError;
 /// [`equidistant()`]: LinearDirector::equidistant()
 /// [`equidistant_unchecked()`]: super::Linear::equidistant_unchecked()
 #[derive(Debug, Clone)]
-pub struct LinearDirector<K,E,F,W> {
+pub struct LinearDirector<K, E, F, W> {
     knots: K,
     elements: E,
     easing: F,
@@ -115,8 +117,8 @@ pub struct LinearDirector<K,E,F,W> {
 /// [`equidistant()`]: LinearBuilder::equidistant()
 /// [`equidistant_unchecked()`]: super::Linear::equidistant_unchecked()
 #[derive(Debug, Clone)]
-pub struct LinearBuilder<K,E,F,W> {
-    inner: Result<LinearDirector<K,E,F,W>,LinearError>,
+pub struct LinearBuilder<K, E, F, W> {
+    inner: Result<LinearDirector<K, E, F, W>, LinearError>,
 }
 
 impl Default for LinearDirector<Unknown, Unknown, Identity, Unknown> {
@@ -147,7 +149,7 @@ impl LinearBuilder<Unknown, Unknown, Identity, Unknown> {
     /// Create a new linear interpolation builder.
     pub const fn new() -> Self {
         LinearBuilder {
-            inner: Ok(LinearDirector::new())
+            inner: Ok(LinearDirector::new()),
         }
     }
 }
@@ -155,7 +157,8 @@ impl LinearBuilder<Unknown, Unknown, Identity, Unknown> {
 impl<F> LinearDirector<Unknown, Unknown, F, Unknown> {
     /// Set the elements of the linear interpolation.
     pub fn elements<E>(self, elements: E) -> LinearDirector<Unknown, E, F, WithoutWeight>
-    where E: DiscreteGenerator,
+    where
+        E: DiscreteGenerator,
     {
         LinearDirector {
             knots: self.knots,
@@ -195,7 +198,10 @@ impl<F> LinearDirector<Unknown, Unknown, F, Unknown> {
     /// #     Ok(())
     /// # }
     /// ```
-    pub fn elements_with_weights<G>(self, gen: G) -> LinearDirector<Unknown, Weights<G>, F, WithWeight>
+    pub fn elements_with_weights<G>(
+        self,
+        gen: G,
+    ) -> LinearDirector<Unknown, Weights<G>, F, WithWeight>
     where
         G: DiscreteGenerator,
         G::Output: IntoWeight,
@@ -215,10 +221,11 @@ impl<F> LinearDirector<Unknown, Unknown, F, Unknown> {
 impl<F> LinearBuilder<Unknown, Unknown, F, Unknown> {
     /// Set the elements of the linear interpolation.
     pub fn elements<E>(self, elements: E) -> LinearBuilder<Unknown, E, F, WithoutWeight>
-    where E: DiscreteGenerator,
+    where
+        E: DiscreteGenerator,
     {
         LinearBuilder {
-            inner: self.inner.map(|director| director.elements(elements))
+            inner: self.inner.map(|director| director.elements(elements)),
         }
     }
 
@@ -252,7 +259,10 @@ impl<F> LinearBuilder<Unknown, Unknown, F, Unknown> {
     /// #     Ok(())
     /// # }
     /// ```
-    pub fn elements_with_weights<G>(self, gen: G) -> LinearBuilder<Unknown, Weights<G>, F, WithWeight>
+    pub fn elements_with_weights<G>(
+        self,
+        gen: G,
+    ) -> LinearBuilder<Unknown, Weights<G>, F, WithWeight>
     where
         G: DiscreteGenerator,
         G::Output: IntoWeight,
@@ -261,13 +271,14 @@ impl<F> LinearBuilder<Unknown, Unknown, F, Unknown> {
         <G::Output as IntoWeight>::Weight: Zero + Copy,
     {
         LinearBuilder {
-            inner: self.inner.map(|director| director.elements_with_weights(gen))
+            inner: self
+                .inner
+                .map(|director| director.elements_with_weights(gen)),
         }
     }
 }
 
-impl<E,F,W> LinearDirector<Unknown, E, F, W>
-{
+impl<E, F, W> LinearDirector<Unknown, E, F, W> {
     /// Set the knots of the interpolation.
     ///
     /// The amount of knots must be equal to the amount of elements.
@@ -278,11 +289,11 @@ impl<E,F,W> LinearDirector<Unknown, E, F, W>
     /// knots, consider using [`equidistant()`] instead.
     ///
     /// [`equidistant()`]: LinearDirector::equidistant()
-    pub fn knots<K>(self, knots: K) -> Result<LinearDirector<Sorted<K>,E, F, W>, NotSorted>
+    pub fn knots<K>(self, knots: K) -> Result<LinearDirector<Sorted<K>, E, F, W>, NotSorted>
     where
         E: DiscreteGenerator,
         K: DiscreteGenerator,
-        K::Output: PartialOrd
+        K::Output: PartialOrd,
     {
         Ok(LinearDirector {
             knots: Sorted::new(knots)?,
@@ -312,7 +323,7 @@ impl<E,F,W> LinearDirector<Unknown, E, F, W>
     /// [`domain()`]: LinearDirector::domain()
     /// [`normalized()`]: LinearDirector::normalized()
     /// [`distance()`]: LinearDirector::distance()
-    pub fn equidistant<R>(self) -> LinearDirector<Type<R>,E,F,W>{
+    pub fn equidistant<R>(self) -> LinearDirector<Type<R>, E, F, W> {
         LinearDirector {
             knots: Type::new(),
             elements: self.elements,
@@ -322,8 +333,7 @@ impl<E,F,W> LinearDirector<Unknown, E, F, W>
     }
 }
 
-impl<E,F,W> LinearBuilder<Unknown, E, F, W>
-{
+impl<E, F, W> LinearBuilder<Unknown, E, F, W> {
     /// Set the knots of the interpolation.
     ///
     /// The amount of knots must be equal to the amount of elements.
@@ -334,14 +344,16 @@ impl<E,F,W> LinearBuilder<Unknown, E, F, W>
     /// knots, consider using [`equidistant()`] instead.
     ///
     /// [`equidistant()`]: LinearBuilder::equidistant()
-    pub fn knots<K>(self, knots: K) -> LinearBuilder<Sorted<K>,E, F, W>
+    pub fn knots<K>(self, knots: K) -> LinearBuilder<Sorted<K>, E, F, W>
     where
         E: DiscreteGenerator,
         K: DiscreteGenerator,
-        K::Output: PartialOrd
+        K::Output: PartialOrd,
     {
         LinearBuilder {
-            inner: self.inner.and_then(|director| director.knots(knots).map_err(|err| err.into()))
+            inner: self
+                .inner
+                .and_then(|director| director.knots(knots).map_err(|err| err.into())),
         }
     }
 
@@ -365,20 +377,20 @@ impl<E,F,W> LinearBuilder<Unknown, E, F, W>
     /// [`domain()`]: LinearBuilder::domain()
     /// [`normalized()`]: LinearBuilder::normalized()
     /// [`distance()`]: LinearBuilder::distance()
-    pub fn equidistant<R>(self) -> LinearBuilder<Type<R>,E,F,W>{
+    pub fn equidistant<R>(self) -> LinearBuilder<Type<R>, E, F, W> {
         LinearBuilder {
-            inner: self.inner.map(|director| director.equidistant())
+            inner: self.inner.map(|director| director.equidistant()),
         }
     }
 }
 
-impl<R,E,F,W> LinearDirector<Type<R>,E,F,W>
+impl<R, E, F, W> LinearDirector<Type<R>, E, F, W>
 where
     E: DiscreteGenerator,
     R: Real + FromPrimitive,
 {
     /// Set the domain of the interpolation.
-    pub fn domain(self, start: R, end: R) -> LinearDirector<Equidistant<R>,E,F,W>{
+    pub fn domain(self, start: R, end: R) -> LinearDirector<Equidistant<R>, E, F, W> {
         LinearDirector {
             knots: Equidistant::new(self.elements.len(), start, end),
             elements: self.elements,
@@ -388,7 +400,7 @@ where
     }
 
     /// Set the domain of the interpolation to be [0.0,1.0].
-    pub fn normalized(self) -> LinearDirector<Equidistant<R>,E,F,W>{
+    pub fn normalized(self) -> LinearDirector<Equidistant<R>, E, F, W> {
         LinearDirector {
             knots: Equidistant::normalized(self.elements.len()),
             elements: self.elements,
@@ -397,7 +409,7 @@ where
         }
     }
     /// Set the domain of the interpolation by defining the distance between the knots
-    pub fn distance(self, start: R, step: R) -> LinearDirector<Equidistant<R>,E,F,W>{
+    pub fn distance(self, start: R, step: R) -> LinearDirector<Equidistant<R>, E, F, W> {
         LinearDirector {
             knots: Equidistant::step(self.elements.len(), start, step),
             elements: self.elements,
@@ -407,35 +419,35 @@ where
     }
 }
 
-impl<R,E,F,W> LinearBuilder<Type<R>,E,F,W>
+impl<R, E, F, W> LinearBuilder<Type<R>, E, F, W>
 where
     E: DiscreteGenerator,
     R: Real + FromPrimitive,
 {
     /// Set the domain of the interpolation.
-    pub fn domain(self, start: R, end: R) -> LinearBuilder<Equidistant<R>,E,F,W>{
+    pub fn domain(self, start: R, end: R) -> LinearBuilder<Equidistant<R>, E, F, W> {
         LinearBuilder {
-            inner: self.inner.map(|director| director.domain(start,end))
+            inner: self.inner.map(|director| director.domain(start, end)),
         }
     }
 
     /// Set the domain of the interpolation to be [0.0,1.0].
-    pub fn normalized(self) -> LinearBuilder<Equidistant<R>,E,F,W>{
+    pub fn normalized(self) -> LinearBuilder<Equidistant<R>, E, F, W> {
         LinearBuilder {
-            inner: self.inner.map(|director| director.normalized())
+            inner: self.inner.map(|director| director.normalized()),
         }
     }
     /// Set the domain of the interpolation by defining the distance between the knots
-    pub fn distance(self, start: R, step: R) -> LinearBuilder<Equidistant<R>,E,F,W>{
+    pub fn distance(self, start: R, step: R) -> LinearBuilder<Equidistant<R>, E, F, W> {
         LinearBuilder {
-            inner: self.inner.map(|director| director.distance(start,step))
+            inner: self.inner.map(|director| director.distance(start, step)),
         }
     }
 }
 
-impl<K,E,F,W> LinearDirector<K,E,F,W>
+impl<K, E, F, W> LinearDirector<K, E, F, W>
 where
-    K: SortedGenerator
+    K: SortedGenerator,
 {
     /// Sets an easing function.
     ///
@@ -447,7 +459,7 @@ where
     /// See the [plateau example] for more information.
     ///
     /// [plateau example]: https://github.com/NicolasKlenert/enterpolation/blob/main/examples/plateaus.rs
-    pub fn easing<FF>(self, easing: FF) -> LinearDirector<K,E,FF,W>{
+    pub fn easing<FF>(self, easing: FF) -> LinearDirector<K, E, FF, W> {
         LinearDirector {
             knots: self.knots,
             elements: self.elements,
@@ -457,9 +469,9 @@ where
     }
 }
 
-impl<K,E,F,W> LinearBuilder<K,E,F,W>
+impl<K, E, F, W> LinearBuilder<K, E, F, W>
 where
-    K: SortedGenerator
+    K: SortedGenerator,
 {
     /// Sets an easing function.
     ///
@@ -471,43 +483,43 @@ where
     /// See the [plateau example] for more information.
     ///
     /// [plateau example]: https://github.com/NicolasKlenert/enterpolation/blob/main/examples/plateaus.rs
-    pub fn easing<FF>(self, easing: FF) -> LinearBuilder<K,E,FF,W>{
+    pub fn easing<FF>(self, easing: FF) -> LinearBuilder<K, E, FF, W> {
         LinearBuilder {
-            inner: self.inner.map(|director| director.easing(easing))
+            inner: self.inner.map(|director| director.easing(easing)),
         }
     }
 }
 
-impl<K,E,F> LinearDirector<K,E,F,WithoutWeight>
+impl<K, E, F> LinearDirector<K, E, F, WithoutWeight>
 where
     E: DiscreteGenerator,
     K: SortedGenerator,
     E::Output: Merge<K::Output>,
-    K::Output: Real
+    K::Output: Real,
 {
     /// Build a linear interpolation.
-    pub fn build(self) -> Result<Linear<K,E,F>,LinearError>{
+    pub fn build(self) -> Result<Linear<K, E, F>, LinearError> {
         Linear::new(self.elements, self.knots, self.easing)
     }
 }
 
-impl<K,E,F> LinearBuilder<K,E,F,WithoutWeight>
+impl<K, E, F> LinearBuilder<K, E, F, WithoutWeight>
 where
     E: DiscreteGenerator,
     K: SortedGenerator,
     E::Output: Merge<K::Output>,
-    K::Output: Real
+    K::Output: Real,
 {
     /// Build a linear interpolation.
-    pub fn build(self) -> Result<Linear<K,E,F>,LinearError>{
+    pub fn build(self) -> Result<Linear<K, E, F>, LinearError> {
         match self.inner {
-            Err(err)=> Err(err),
-            Ok(director) => director.build()
+            Err(err) => Err(err),
+            Ok(director) => director.build(),
         }
     }
 }
 
-impl<K,G,F> LinearDirector<K,Weights<G>,F,WithWeight>
+impl<K, G, F> LinearDirector<K, Weights<G>, F, WithWeight>
 where
     K: SortedGenerator,
     K::Output: Real + Copy,
@@ -516,13 +528,16 @@ where
     <Weights<G> as Generator<usize>>::Output: Merge<K::Output>,
 {
     /// Build a weighted linear interpolation.
-    pub fn build(self) -> Result<WeightedLinear<K,G,F>, LinearError>
-    {
-        Ok(Weighted::new(Linear::new(self.elements, self.knots, self.easing)?))
+    pub fn build(self) -> Result<WeightedLinear<K, G, F>, LinearError> {
+        Ok(Weighted::new(Linear::new(
+            self.elements,
+            self.knots,
+            self.easing,
+        )?))
     }
 }
 
-impl<K,G,F> LinearBuilder<K,Weights<G>,F,WithWeight>
+impl<K, G, F> LinearBuilder<K, Weights<G>, F, WithWeight>
 where
     K: SortedGenerator,
     K::Output: Real + Copy,
@@ -531,17 +546,16 @@ where
     <Weights<G> as Generator<usize>>::Output: Merge<K::Output>,
 {
     /// Build a weighted linear interpolation.
-    pub fn build(self) -> Result<WeightedLinear<K,G,F>, LinearError>
-    {
+    pub fn build(self) -> Result<WeightedLinear<K, G, F>, LinearError> {
         match self.inner {
-            Err(err)=> Err(err),
-            Ok(director) => director.build()
+            Err(err) => Err(err),
+            Ok(director) => director.build(),
         }
     }
 }
 
 /// Type alias for weighted linear interpolations
-type WeightedLinear<K,G,F> = Weighted<Linear<K,Weights<G>,F>>;
+type WeightedLinear<K, G, F> = Weighted<Linear<K, Weights<G>, F>>;
 
 #[cfg(test)]
 mod test {
@@ -551,29 +565,46 @@ mod test {
     #[test]
     fn building_weights() {
         LinearBuilder::new()
-            .elements_with_weights([(1.0,1.0),(2.0,2.0),(3.0,0.0)])
+            .elements_with_weights([(1.0, 1.0), (2.0, 2.0), (3.0, 0.0)])
             .equidistant::<f64>()
             .normalized()
-            .build().unwrap();
+            .build()
+            .unwrap();
         LinearBuilder::new()
-            .elements_with_weights([1.0,2.0,3.0].stack([1.0,2.0,0.0]))
+            .elements_with_weights([1.0, 2.0, 3.0].stack([1.0, 2.0, 0.0]))
             .equidistant::<f64>()
             .normalized()
-            .build().unwrap();
+            .build()
+            .unwrap();
         LinearBuilder::new()
             .elements_with_weights([
                 Homogeneous::new(1.0),
                 Homogeneous::weighted_unchecked(2.0, 2.0),
-                Homogeneous::infinity(3.0)])
-            .knots([1.0,2.0,3.0])
-            .build().unwrap();
+                Homogeneous::infinity(3.0),
+            ])
+            .knots([1.0, 2.0, 3.0])
+            .build()
+            .unwrap();
         LinearBuilder::new()
-            .elements([0.1,0.2,0.3])
+            .elements([0.1, 0.2, 0.3])
             .equidistant::<f64>()
             .normalized()
-            .build().unwrap();
-        assert!(LinearBuilder::new().elements::<[f64;0]>([]).knots::<[f64;0]>([]).build().is_err());
-        assert!(LinearBuilder::new().elements([1.0]).knots([1.0]).build().is_err());
-        assert!(LinearBuilder::new().elements([1.0,2.0]).knots([1.0,2.0,3.0]).build().is_err());
+            .build()
+            .unwrap();
+        assert!(LinearBuilder::new()
+            .elements::<[f64; 0]>([])
+            .knots::<[f64; 0]>([])
+            .build()
+            .is_err());
+        assert!(LinearBuilder::new()
+            .elements([1.0])
+            .knots([1.0])
+            .build()
+            .is_err());
+        assert!(LinearBuilder::new()
+            .elements([1.0, 2.0])
+            .knots([1.0, 2.0, 3.0])
+            .build()
+            .is_err());
     }
 }
