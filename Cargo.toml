@@ -21,7 +21,8 @@ serde = { version = "1.0.144", optional = true, features = ["derive"] }
 
 
 [dev-dependencies]
-criterion = {version = "0.3", features = ["real_blackbox"]}
+# real black box in necessary for accurate benches, but is only available in rust-nightly
+criterion = {version = "0.3"}#, features = ["real_blackbox"]}
 # we are using palette and image as dependency for our gradient example
 palette = "0.6"
 image = "0.24"
