@@ -3,15 +3,14 @@
 //! Each interpolation has it's own builder module, which accumalates all methods to create their interpolation.
 
 use super::adaptors::{BorderBuffer, BorderDeletion};
-use super::error::{BSplineError, InvalidDegree};
-use super::BSpline;
+use super::error::{BSplineError, IncongruousParams, InvalidDegree, TooFewKnots};
+use super::{BSpline, TooFewElements, TooSmallWorkspace};
 use crate::builder::{Type, Unknown, WithWeight, WithoutWeight};
 use crate::weights::{Homogeneous, IntoWeight, Weighted, Weights};
 #[cfg(feature = "std")]
 use crate::DynSpace;
 use crate::{
-    ConstSpace, DiscreteGenerator, Equidistant, Generator, NotSorted, Sorted, SortedGenerator,
-    Space,
+    ConstSpace, DiscreteGenerator, Equidistant, Generator, Sorted, SortedGenerator, Space,
 };
 use core::marker::PhantomData;
 use core::ops::{Div, Mul};
@@ -217,16 +216,28 @@ impl<M> BSplineDirector<Unknown, Unknown, Unknown, Unknown, M> {
     // }
 
     /// Set the elements of the bspline interpolation.
-    pub fn elements<E>(self, elements: E) -> BSplineDirector<Unknown, E, Unknown, WithoutWeight, M>
+    ///
+    /// # Errors
+    ///
+    /// Returns [`TooFewElements`] if not at least 2 elements are given.
+    ///
+    /// [`TooFewElements`]: super::error::BSplineError
+    pub fn elements<E>(
+        self,
+        elements: E,
+    ) -> Result<BSplineDirector<Unknown, E, Unknown, WithoutWeight, M>, TooFewElements>
     where
         E: DiscreteGenerator,
     {
-        BSplineDirector {
+        if elements.len() < 2 {
+            return Err(TooFewElements::new(elements.len()));
+        }
+        Ok(BSplineDirector {
             knots: self.knots,
             space: self.space,
             elements,
             _phantoms: (PhantomData, self._phantoms.1),
-        }
+        })
     }
 
     /// Set the elements and their weights for this interpolation.
@@ -238,10 +249,16 @@ impl<M> BSplineDirector<Unknown, Unknown, Unknown, Unknown, M> {
     ///
     /// If you want to work with points at infinity,
     /// you may want to use homogeneous data itself without this wrapping mechanism.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`TooFewElements`] if not at least 2 elements are given.
+    ///
+    /// [`TooFewElements`]: super::error::BSplineError
     pub fn elements_with_weights<G>(
         self,
         gen: G,
-    ) -> BSplineDirector<Unknown, Weights<G>, Unknown, WithWeight, M>
+    ) -> Result<BSplineDirector<Unknown, Weights<G>, Unknown, WithWeight, M>, TooFewElements>
     where
         G: DiscreteGenerator,
         G::Output: IntoWeight,
@@ -249,12 +266,15 @@ impl<M> BSplineDirector<Unknown, Unknown, Unknown, Unknown, M> {
             Mul<<G::Output as IntoWeight>::Weight, Output = <G::Output as IntoWeight>::Element>,
         <G::Output as IntoWeight>::Weight: Zero + Copy,
     {
-        BSplineDirector {
+        if gen.len() < 2 {
+            return Err(TooFewElements::new(gen.len()));
+        }
+        Ok(BSplineDirector {
             space: self.space,
             knots: self.knots,
             elements: Weights::new(gen),
             _phantoms: (PhantomData, self._phantoms.1),
-        }
+        })
     }
 }
 
@@ -298,7 +318,9 @@ impl<M> BSplineBuilder<Unknown, Unknown, Unknown, Unknown, M> {
         E: DiscreteGenerator,
     {
         BSplineBuilder {
-            inner: self.inner.map(|director| director.elements(elements)),
+            inner: self
+                .inner
+                .and_then(|director| director.elements(elements).map_err(|err| err.into())),
         }
     }
 
@@ -323,9 +345,11 @@ impl<M> BSplineBuilder<Unknown, Unknown, Unknown, Unknown, M> {
         <G::Output as IntoWeight>::Weight: Zero + Copy,
     {
         BSplineBuilder {
-            inner: self
-                .inner
-                .map(|director| director.elements_with_weights(gen)),
+            inner: self.inner.and_then(|director| {
+                director
+                    .elements_with_weights(gen)
+                    .map_err(|err| err.into())
+            }),
         }
     }
 }
@@ -338,6 +362,8 @@ impl<E, W> BSplineDirector<Unknown, E, Unknown, W, Open> {
     /// # Errors
     ///
     /// Returns [`NotSorted`] if a knot is not greater or equal then the knot before him.
+    /// Returns [`TooFewKnots`] if not at least 2 knots are given.
+    /// Returns [`IncongruousParams`] if the calculated degree would not be strictly positive.
     ///
     /// # Performance
     ///
@@ -346,15 +372,28 @@ impl<E, W> BSplineDirector<Unknown, E, Unknown, W, Open> {
     ///
     /// [`equidistant()`]: BSplineDirector::equidistant()
     /// [`NotSorted`]: super::error::BSplineError
+    /// [`TooFewKnots`]: super::error::BSplineError
+    /// [`IncongruousParams`]: super::error::BSplineError
     pub fn knots<K>(
         self,
         knots: K,
-    ) -> Result<BSplineDirector<Sorted<K>, E, Unknown, W, Open>, NotSorted>
+    ) -> Result<BSplineDirector<Sorted<K>, E, Unknown, W, Open>, BSplineError>
     where
         E: DiscreteGenerator,
         K: DiscreteGenerator,
         K::Output: PartialOrd,
     {
+        if knots.len() < 2 {
+            return Err(TooFewKnots::new(knots.len()).into());
+        }
+        if knots.len() < self.elements.len() {
+            return Err(IncongruousParams::open(
+                self.elements.len(),
+                knots.len() as isize,
+                knots.len() as isize - self.elements.len() as isize + 1,
+            )
+            .into());
+        }
         Ok(BSplineDirector {
             knots: Sorted::new(knots)?,
             elements: self.elements,
@@ -397,7 +436,8 @@ impl<E, W> BSplineDirector<Unknown, E, Unknown, W, Clamped> {
     /// # Errors
     ///
     /// Returns [`NotSorted`] if a knot is not greater or equal then the knot before him.
-    /// Returns [`InvalidDegree`] if the number of knots is biggere than the number of elements.
+    /// Returns [`TooFewKnots`] if not at least 2 knots are given.
+    /// Returns [`IncongruousParams`] if the calculated degree would not be strictly positive.
     ///
     /// # Performance
     ///
@@ -406,16 +446,22 @@ impl<E, W> BSplineDirector<Unknown, E, Unknown, W, Clamped> {
     ///
     /// [`equidistant()`]: BSplineDirector::equidistant()
     /// [`NotSorted`]: super::BSplineError
-    /// [`InvalidDegree`]: super::BSplineError
+    /// [`TooFewKnots`]: super::error::BSplineError
+    /// [`IncongruousParams`]: super::error::BSplineError
     pub fn knots<K>(self, knots: K) -> Result<ClampedBSplineDirector<K, E, W>, BSplineError>
     where
         E: DiscreteGenerator,
         K: DiscreteGenerator,
         K::Output: PartialOrd,
     {
+        if knots.len() < 2 {
+            return Err(TooFewKnots::new(knots.len()).into());
+        }
         if self.elements.len() < knots.len() {
-            return Err(InvalidDegree::new(
-                self.elements.len() as isize - knots.len() as isize + 1,
+            return Err(IncongruousParams::clamped(
+                self.elements.len(),
+                knots.len() as isize,
+                knots.len() as isize - self.elements.len() as isize + 1,
             )
             .into());
         }
@@ -460,24 +506,37 @@ impl<E, W> BSplineDirector<Unknown, E, Unknown, W, Legacy> {
     /// # Errors
     ///
     /// Returns [`NotSorted`] if a knot is not greater or equal then the knot before him.
-    /// Returns [`TooFewElements`] if there are not at least *two* elements.
+    /// Returns [`TooFewKnots`] if not at least 2 knots are given.
+    /// Returns [`IncongruousParams`] if the calculated degree would not be strictly positive.
     ///
     /// # Performance
     ///
     /// If you have equidistant knots, near equidistant knots are you do not really care about
     /// knots, consider using [`equidistant()`] instead.
     ///
-    /// [`equidistant()`]: BSplineDirector::equidistant()
     /// [`NotSorted`]: super::error::BSplineError
-    /// [`TooFewElements`]: super::error::BSplineError
+    /// [`TooFewKnots`]: super::error::BSplineError
+    /// [`IncongruousParams`]: super::error::BSplineError
     pub fn knots<K>(self, knots: K) -> Result<LegacyBSplineDirector<K, E, W>, BSplineError>
     where
         E: DiscreteGenerator,
         K: DiscreteGenerator,
         K::Output: PartialOrd,
     {
+        if knots.len() < 2 {
+            return Err(TooFewKnots::new(knots.len()).into());
+        }
+        if knots.len() <= self.elements.len() + 1 {
+            return Err(IncongruousParams::legacy(
+                self.elements.len(),
+                knots.len() as isize,
+                knots.len() as isize - self.elements.len() as isize - 1,
+            )
+            .into());
+        }
         Ok(BSplineDirector {
-            knots: BorderDeletion::new(Sorted::new(knots)?)?,
+            // unwrap is fine as we checked beforehand
+            knots: BorderDeletion::new(Sorted::new(knots).unwrap())?,
             elements: self.elements,
             space: self.space,
             _phantoms: self._phantoms,
@@ -572,20 +631,27 @@ where
     ///
     /// which all define the domain of the interpolation and the spacing of the knots.
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// Panics if the number of elements is zero.
+    /// Returns [`InvalidDegree`] if given degree is not at least 1.
     ///
+    /// [`InvalidDegree`]: super::error::BSplineError
     /// [`domain()`]: BSplineDirector::domain()
     /// [`normalized()`]: BSplineDirector::normalized()
     /// [`distance()`]: BSplineDirector::distance()
-    pub fn degree(self, degree: usize) -> BSplineDirector<UnknownDomain<R>, E, Unknown, W, Open> {
-        BSplineDirector {
+    pub fn degree(
+        self,
+        degree: usize,
+    ) -> Result<BSplineDirector<UnknownDomain<R>, E, Unknown, W, Open>, InvalidDegree> {
+        if degree < 1 {
+            return Err(InvalidDegree::new(degree));
+        }
+        Ok(BSplineDirector {
             knots: UnknownDomain::new(self.elements.len() - 1 + degree, degree),
             elements: self.elements,
             space: self.space,
             _phantoms: self._phantoms,
-        }
+        })
     }
 
     /// Set the number of knots.
@@ -600,24 +666,37 @@ where
     ///
     /// which all define the domain of the interpolation and the spacing of the knots.
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// Panics if given quantity is less than the number of elements.
-    /// May also panic if the number of elements is zero.
+    /// Returns [`TooFewKnots`] if not at least 2 knots are given.
+    /// Returns [`IncongruousParams`] if the calculated degree would not be strictly positive.
     ///
+    /// [`TooFewKnots`]: super::error::BSplineError
+    /// [`IncongruousParams`]: super::error::BSplineError
     /// [`domain()`]: BSplineDirector::domain()
     /// [`normalized()`]: BSplineDirector::normalized()
     /// [`distance()`]: BSplineDirector::distance()
     pub fn quantity(
         self,
         quantity: usize,
-    ) -> BSplineDirector<UnknownDomain<R>, E, Unknown, W, Open> {
-        BSplineDirector {
+    ) -> Result<BSplineDirector<UnknownDomain<R>, E, Unknown, W, Open>, BSplineError> {
+        if quantity < 2 {
+            return Err(TooFewKnots::new(quantity).into());
+        }
+        if quantity < self.elements.len() {
+            return Err(IncongruousParams::legacy(
+                self.elements.len(),
+                quantity as isize,
+                quantity as isize - self.elements.len() as isize - 1,
+            )
+            .into());
+        }
+        Ok(BSplineDirector {
             knots: UnknownDomain::new(quantity, quantity - self.elements.len() + 1),
             elements: self.elements,
             space: self.space,
             _phantoms: self._phantoms,
-        }
+        })
     }
 }
 
@@ -645,7 +724,9 @@ where
     /// [`distance()`]: BSplineBuilder::distance()
     pub fn degree(self, degree: usize) -> BSplineBuilder<UnknownDomain<R>, E, Unknown, W, Open> {
         BSplineBuilder {
-            inner: self.inner.map(|director| director.degree(degree)),
+            inner: self
+                .inner
+                .and_then(|director| director.degree(degree).map_err(|err| err.into())),
         }
     }
 
@@ -674,7 +755,9 @@ where
         quantity: usize,
     ) -> BSplineBuilder<UnknownDomain<R>, E, Unknown, W, Open> {
         BSplineBuilder {
-            inner: self.inner.map(|director| director.quantity(quantity)),
+            inner: self
+                .inner
+                .and_then(|director| director.quantity(quantity).map_err(|err| err.into())),
         }
     }
 }
@@ -694,23 +777,39 @@ where
     ///
     /// which all define the domain of the interpolation and the spacing of the knots.
     ///
-    /// # Panics
     ///
-    /// Panics if the number of elements is zero.
+    /// # Errors
     ///
+    /// Returns [`InvalidDegree`] if given degree is 0.
+    /// Returns [`IncongruousParams`] if the the calculated amount of knots would be less than 2.
+    ///
+    /// [`InvalidDegree`]: super::error::BSplineError
+    /// [`IncongruousParams`]: super::error::BSplineError
     /// [`domain()`]: BSplineDirector::domain()
     /// [`normalized()`]: BSplineDirector::normalized()
     /// [`distance()`]: BSplineDirector::distance()
+    /// [`domain()`]: BSplineDirector::domain()
     pub fn degree(
         self,
         degree: usize,
-    ) -> BSplineDirector<UnknownDomain<R>, E, Unknown, W, Clamped> {
-        BSplineDirector {
+    ) -> Result<BSplineDirector<UnknownDomain<R>, E, Unknown, W, Clamped>, BSplineError> {
+        if degree < 1 {
+            return Err(InvalidDegree::new(degree).into());
+        }
+        if self.elements.len() <= degree {
+            return Err(IncongruousParams::clamped(
+                self.elements.len(),
+                self.elements.len() as isize - degree as isize + 1,
+                degree as isize,
+            )
+            .into());
+        }
+        Ok(BSplineDirector {
             knots: UnknownDomain::new(self.elements.len() - degree + 1, degree),
             elements: self.elements,
             space: self.space,
             _phantoms: self._phantoms,
-        }
+        })
     }
 
     /// Set the number of knots.
@@ -725,24 +824,37 @@ where
     ///
     /// which all define the domain of the interpolation and the spacing of the knots.
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// Panics if given quantity is less than the number of elements.
-    /// May also panic if the number of elements is zero.
+    /// Returns [`TooFewKnots`] if given quantity is less than 2.
+    /// Returns [`IncongruousParams`] if the the calculated degree would not strictly positive.
     ///
+    /// [`TooFewKnots`]: super::error::BSplineError
+    /// [`IncongruousParams`]: super::error::BSplineError
     /// [`domain()`]: BSplineDirector::domain()
     /// [`normalized()`]: BSplineDirector::normalized()
     /// [`distance()`]: BSplineDirector::distance()
     pub fn quantity(
         self,
         quantity: usize,
-    ) -> BSplineDirector<UnknownDomain<R>, E, Unknown, W, Clamped> {
-        BSplineDirector {
+    ) -> Result<BSplineDirector<UnknownDomain<R>, E, Unknown, W, Clamped>, BSplineError> {
+        if quantity < 2 {
+            return Err(TooFewKnots::new(quantity).into());
+        }
+        if self.elements.len() < quantity {
+            return Err(IncongruousParams::clamped(
+                self.elements.len(),
+                quantity as isize,
+                self.elements.len() as isize - quantity as isize + 1,
+            )
+            .into());
+        }
+        Ok(BSplineDirector {
             knots: UnknownDomain::new(quantity, self.elements.len() - quantity + 1),
             elements: self.elements,
             space: self.space,
             _phantoms: self._phantoms,
-        }
+        })
     }
 }
 
@@ -770,7 +882,9 @@ where
     /// [`distance()`]: BSplineBuilder::distance()
     pub fn degree(self, degree: usize) -> BSplineBuilder<UnknownDomain<R>, E, Unknown, W, Clamped> {
         BSplineBuilder {
-            inner: self.inner.map(|director| director.degree(degree)),
+            inner: self
+                .inner
+                .and_then(|director| director.degree(degree).map_err(|err| err.into())),
         }
     }
 
@@ -799,7 +913,7 @@ where
         quantity: usize,
     ) -> BSplineBuilder<UnknownDomain<R>, E, Unknown, W, Clamped> {
         BSplineBuilder {
-            inner: self.inner.map(|director| director.quantity(quantity)),
+            inner: self.inner.and_then(|director| director.quantity(quantity)),
         }
     }
 }
@@ -993,13 +1107,21 @@ where
     /// when interpolating.
     ///
     /// The size needed is `degree + 1` and/or `knots.len() - elements.len()`.
-    pub fn constant<const N: usize>(self) -> BSplineDirector<K, E, ConstSpace<E::Output, N>, W, M> {
-        BSplineDirector {
+    pub fn constant<const N: usize>(
+        self,
+    ) -> Result<BSplineDirector<K, E, ConstSpace<E::Output, N>, W, M>, TooSmallWorkspace> {
+        // This calculation won't panic as we checked before if the degree is not strictly positive.
+        if N <= self.knots.len() - self.elements.len() + 1 {
+            return Err(
+                TooSmallWorkspace::new(N, self.knots.len() - self.elements.len() + 1).into(),
+            );
+        }
+        Ok(BSplineDirector {
             knots: self.knots,
             space: ConstSpace::new(),
             elements: self.elements,
             _phantoms: self._phantoms,
-        }
+        })
     }
 
     /// Set the workspace which the interpolation uses.
@@ -1011,16 +1133,23 @@ where
     ///
     /// [`constant()`]: BSplineDirector::constant()
     /// [`Space`]: crate::base::Space
-    pub fn workspace<S>(self, space: S) -> BSplineDirector<K, E, S, W, M>
+    pub fn workspace<S>(self, space: S) -> Result<BSplineDirector<K, E, S, W, M>, TooSmallWorkspace>
     where
         S: Space<E::Output>,
     {
-        BSplineDirector {
+        if space.len() <= self.knots.len() - self.elements.len() + 1 {
+            return Err(TooSmallWorkspace::new(
+                space.len(),
+                self.knots.len() - self.elements.len() + 1,
+            )
+            .into());
+        }
+        Ok(BSplineDirector {
             knots: self.knots,
             space,
             elements: self.elements,
             _phantoms: self._phantoms,
-        }
+        })
     }
 }
 
@@ -1053,7 +1182,9 @@ where
     /// The size needed is `degree + 1` and/or `knots.len() - elements.len()`.
     pub fn constant<const N: usize>(self) -> BSplineBuilder<K, E, ConstSpace<E::Output, N>, W, M> {
         BSplineBuilder {
-            inner: self.inner.map(|director| director.constant()),
+            inner: self
+                .inner
+                .and_then(|director| director.constant().map_err(|err| err.into())),
         }
     }
 
@@ -1071,7 +1202,9 @@ where
         S: Space<E::Output>,
     {
         BSplineBuilder {
-            inner: self.inner.map(|director| director.workspace(space)),
+            inner: self
+                .inner
+                .and_then(|director| director.workspace(space).map_err(|err| err.into())),
         }
     }
 }
@@ -1094,8 +1227,8 @@ where
     /// [`TooFewElements`]: super::BSplineError
     /// [`InvalidDegree`]: super::BSplineError
     /// [`TooSmallWorkspace`]: super::BSplineError
-    pub fn build(self) -> Result<BSpline<K, E, S>, BSplineError> {
-        BSpline::new(self.elements, self.knots, self.space)
+    pub fn build(self) -> BSpline<K, E, S> {
+        BSpline::new_unchecked(self.elements, self.knots, self.space)
     }
 }
 
@@ -1123,7 +1256,7 @@ where
     pub fn build(self) -> Result<BSpline<K, E, S>, BSplineError> {
         match self.inner {
             Err(err) => Err(err),
-            Ok(director) => director.build(),
+            Ok(director) => Ok(director.build()),
         }
     }
 }
@@ -1149,12 +1282,12 @@ where
     /// [`TooFewElements`]: super::BSplineError
     /// [`InvalidDegree`]: super::BSplineError
     /// [`TooSmallWorkspace`]: super::BSplineError
-    pub fn build(self) -> Result<WeightedBSpline<K, G, S>, BSplineError> {
-        Ok(Weighted::new(BSpline::new(
+    pub fn build(self) -> WeightedBSpline<K, G, S> {
+        Weighted::new(BSpline::new_unchecked(
             self.elements,
             self.knots,
             self.space,
-        )?))
+        ))
     }
 }
 
@@ -1185,7 +1318,7 @@ where
     pub fn build(self) -> Result<WeightedBSpline<K, G, S>, BSplineError> {
         match self.inner {
             Err(err) => Err(err),
-            Ok(director) => director.build(),
+            Ok(director) => Ok(director.build()),
         }
     }
 }
@@ -1298,5 +1431,19 @@ mod test {
             .constant::<2>()
             .build()
             .unwrap();
+    }
+
+    #[test]
+    fn clamped_error_too_few_elements() {
+        let error = BSplineBuilder::new()
+            .clamped()
+            .elements([0.0, 1.0, 2.0])
+            .equidistant::<f32>() // equidistant knots
+            .degree(3)
+            .normalized() // domain 0.0..=1.0
+            .constant::<4>() // degree + 1
+            .build();
+
+        assert!(error.is_err());
     }
 }

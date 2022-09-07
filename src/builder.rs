@@ -114,7 +114,34 @@ impl TooFewElements {
     }
 }
 
-/// Error returned if if there are no elements.
+/// Error returned when the number of knots are too few.
+#[cfg(feature = "bspline")]
+#[derive(Debug, Copy, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct TooFewKnots {
+    /// The number of knots found.
+    found: usize,
+}
+
+#[cfg(feature = "bspline")]
+impl fmt::Display for TooFewKnots {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "To few knots given for the interpolation. {} knots were given, but at least 2 are necessary.", self.found)
+    }
+}
+
+#[cfg(all(feature = "std", feature = "bspline"))]
+impl Error for TooFewKnots {}
+
+#[cfg(feature = "bspline")]
+impl TooFewKnots {
+    /// Create a new error and document the number of knots found.
+    pub fn new(found: usize) -> Self {
+        TooFewKnots { found }
+    }
+}
+
+/// Error returned when the workspace is too small.
 #[cfg(any(feature = "bezier", feature = "bspline"))]
 #[derive(Debug, Copy, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]

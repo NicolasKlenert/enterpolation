@@ -1,6 +1,6 @@
 //! All error types for bspline interpolation.
 #[allow(unreachable_pub)]
-pub use crate::builder::{TooFewElements, TooSmallWorkspace};
+pub use crate::builder::{TooFewElements, TooFewKnots, TooSmallWorkspace};
 #[allow(unreachable_pub)]
 pub use crate::NotSorted;
 
@@ -8,18 +8,24 @@ use core::{convert::From, fmt};
 #[cfg(feature = "std")]
 use std::error::Error;
 
+// use super::BSpline;
+
 /// Errors which could occur when using or creating a linear interpolation.
 #[derive(Debug, Copy, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum BSplineError {
-    /// Error returned if there are too few elements to generate a curve with the necessary degree.
+    /// Error returned if there are too few elements.
     TooFewElements(TooFewElements),
+    /// Error returned if there are too few knots.
+    TooFewKnots(TooFewKnots),
     /// Error returned if the workspace is not big enough.
     TooSmallWorkspace(TooSmallWorkspace),
-    /// Error returned if the number of knots and elements would need a degree which is 0 or smaller.
+    /// Error returned when the degree is 0 or smaller.
     InvalidDegree(InvalidDegree),
     /// Error returned if knots are not sorted.
     NotSorted(NotSorted),
+    /// Error returned when the number of elements, knots and degree are incongruous.
+    IncongruousParams(IncongruousParams),
 }
 
 impl fmt::Display for BSplineError {
@@ -29,6 +35,8 @@ impl fmt::Display for BSplineError {
             BSplineError::NotSorted(inner) => inner.fmt(f),
             BSplineError::InvalidDegree(inner) => inner.fmt(f),
             BSplineError::TooSmallWorkspace(inner) => inner.fmt(f),
+            BSplineError::TooFewKnots(inner) => inner.fmt(f),
+            BSplineError::IncongruousParams(inner) => inner.fmt(f),
         }
     }
 }
@@ -36,6 +44,12 @@ impl fmt::Display for BSplineError {
 impl From<TooFewElements> for BSplineError {
     fn from(from: TooFewElements) -> Self {
         BSplineError::TooFewElements(from)
+    }
+}
+
+impl From<TooFewKnots> for BSplineError {
+    fn from(from: TooFewKnots) -> Self {
+        BSplineError::TooFewKnots(from)
     }
 }
 
@@ -57,6 +71,12 @@ impl From<TooSmallWorkspace> for BSplineError {
     }
 }
 
+impl From<IncongruousParams> for BSplineError {
+    fn from(from: IncongruousParams) -> Self {
+        BSplineError::IncongruousParams(from)
+    }
+}
+
 #[cfg(feature = "std")]
 impl Error for BSplineError {}
 
@@ -65,12 +85,12 @@ impl Error for BSplineError {}
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct InvalidDegree {
     /// The calculated degree
-    degree: isize,
+    degree: usize,
 }
 
 impl InvalidDegree {
     /// Create a new error with the number of elements and knots found.
-    pub fn new(degree: isize) -> Self {
+    pub fn new(degree: usize) -> Self {
         InvalidDegree { degree }
     }
 }
@@ -88,3 +108,90 @@ impl fmt::Display for InvalidDegree {
 
 #[cfg(feature = "std")]
 impl Error for InvalidDegree {}
+
+#[derive(Debug, Copy, Clone)]
+enum BSplineBuildMode {
+    Open,
+    Clamped,
+    Legacy,
+}
+
+/// Error returned when the number of elements, knots and the degree are not matching.
+#[derive(Debug, Copy, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct IncongruousParams {
+    elements: usize,
+    knots: isize,
+    degree: isize,
+    mode: BSplineBuildMode,
+}
+
+impl IncongruousParams {
+    /// Invalid values for an open bspline
+    pub fn open(elements: usize, knots: isize, degree: isize) -> Self {
+        IncongruousParams {
+            elements,
+            knots,
+            degree,
+            mode: BSplineBuildMode::Open,
+        }
+    }
+    /// Invalid values for a clamped bspline
+    pub fn clamped(elements: usize, knots: isize, degree: isize) -> Self {
+        IncongruousParams {
+            elements,
+            knots,
+            degree,
+            mode: BSplineBuildMode::Clamped,
+        }
+    }
+    /// Invalid values for a legacy bspline
+    pub fn legacy(elements: usize, knots: isize, degree: isize) -> Self {
+        IncongruousParams {
+            elements,
+            knots,
+            degree,
+            mode: BSplineBuildMode::Legacy,
+        }
+    }
+}
+
+impl fmt::Display for IncongruousParams {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.mode {
+            BSplineBuildMode::Open => {
+                write!(
+                    f,
+                    "Found {} elements, {} knots and a degree of {}. 
+                    However, the formula for an open bspline is 
+                    #knots = #elements + degree - 1 or
+                    degree = #knots - #elements + 1.",
+                    self.elements, self.knots, self.degree
+                )
+            }
+            BSplineBuildMode::Clamped => {
+                write!(
+                    f,
+                    "Found {} elements, {} knots and a degree of {}. 
+                    However, the formula for a clamped bspline is 
+                    #knots = #elements - degree + 1 or
+                    degree = #elements - #knots + 1.",
+                    self.elements, self.knots, self.degree
+                )
+            }
+            BSplineBuildMode::Legacy => {
+                write!(
+                    f,
+                    "Found {} elements, {} knots and a degree of {}. 
+                    However, the formula for a legacy bspline is 
+                    #knots = #elements + degree + 1 or
+                    degree = #knots - #elements - 1.",
+                    self.elements, self.knots, self.degree
+                )
+            }
+        }
+    }
+}
+
+#[cfg(feature = "std")]
+impl Error for IncongruousParams {}

@@ -39,7 +39,9 @@ mod error;
 
 pub use adaptors::{BorderBuffer, BorderDeletion};
 pub use builder::{BSplineBuilder, BSplineDirector};
-pub use error::{BSplineError, InvalidDegree, NotSorted, TooFewElements, TooSmallWorkspace};
+pub use error::{
+    BSplineError, IncongruousParams, InvalidDegree, NotSorted, TooFewElements, TooSmallWorkspace,
+};
 
 use crate::builder::Unknown;
 use crate::{Curve, DiscreteGenerator, Generator, SortedGenerator, Space};
@@ -208,15 +210,21 @@ where
         }
         // Test if degree is strict positive
         if knots.len() < elements.len() {
-            return Err(
-                InvalidDegree::new(knots.len() as isize - elements.len() as isize + 1).into(),
-            );
+            return Err(IncongruousParams::open(
+                elements.len(),
+                knots.len() as isize,
+                knots.len() as isize - elements.len() as isize + 1,
+            )
+            .into());
         }
         // Test if we have enough elements for the degree
         if elements.len() < knots.len() - elements.len() {
-            return Err(
-                InvalidDegree::new(knots.len() as isize - elements.len() as isize + 1).into(),
-            );
+            return Err(IncongruousParams::open(
+                elements.len(),
+                knots.len() as isize,
+                knots.len() as isize - elements.len() as isize + 1,
+            )
+            .into());
         }
         let degree = knots.len() - elements.len() + 1;
         if space.len() <= degree {
