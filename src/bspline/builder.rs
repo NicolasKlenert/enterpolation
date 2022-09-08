@@ -523,7 +523,7 @@ impl<E, W> BSplineDirector<Unknown, E, Unknown, W, Legacy> {
         K: DiscreteGenerator,
         K::Output: PartialOrd,
     {
-        if knots.len() < 2 {
+        if knots.len() < 4 {
             return Err(TooFewKnots::new(knots.len()).into());
         }
         if knots.len() <= self.elements.len() + 1 {
@@ -1342,7 +1342,7 @@ type LegacyBSplineDirector<K, E, W> =
 mod test {
     use super::BSplineBuilder;
     // Homogeneous for creating Homogeneous, Generator for using .stack()
-    use crate::{weights::Homogeneous, Curve, Generator};
+    use crate::{bspline::BSplineDirector, weights::Homogeneous, Curve, Generator};
 
     #[test]
     fn degenerate_creations() {
@@ -1434,16 +1434,185 @@ mod test {
     }
 
     #[test]
-    fn clamped_error_too_few_elements() {
-        let error = BSplineBuilder::new()
+    fn clamped_errors() {
+        // too few elements
+        assert!(BSplineDirector::new().clamped().elements([0.0]).is_err());
+
+        // too few knots
+        assert!(BSplineDirector::new()
+            .clamped()
+            .elements([0.0, 1.0, 2.0, 3.0])
+            .unwrap()
+            .knots([0.0])
+            .is_err());
+
+        assert!(BSplineDirector::new()
+            .clamped()
+            .elements([0.0, 1.0, 2.0, 3.0])
+            .unwrap()
+            .equidistant::<f32>()
+            .quantity(1)
+            .is_err());
+
+        // invalid degree
+        assert!(BSplineDirector::new()
+            .clamped()
+            .elements([0.0, 1.0, 2.0, 3.0])
+            .unwrap()
+            .equidistant::<f32>()
+            .degree(0)
+            .is_err());
+
+        // too small of a workspace
+        assert!(BSplineDirector::new()
+            .clamped()
+            .elements([0.0, 1.0, 2.0, 3.0])
+            .unwrap()
+            .equidistant::<f32>()
+            .degree(2)
+            .unwrap()
+            .domain(0.0, 1.0)
+            .constant::<2>()
+            .is_err());
+
+        // incongruous
+        assert!(BSplineDirector::new()
             .clamped()
             .elements([0.0, 1.0, 2.0])
-            .equidistant::<f32>() // equidistant knots
+            .unwrap()
+            .equidistant::<f32>()
             .degree(3)
-            .normalized() // domain 0.0..=1.0
-            .constant::<4>() // degree + 1
-            .build();
+            .is_err());
 
-        assert!(error.is_err());
+        assert!(BSplineDirector::new()
+            .clamped()
+            .elements([0.0, 1.0, 2.0, 3.0])
+            .unwrap()
+            .equidistant::<f32>()
+            .degree(3)
+            .is_ok());
+
+        assert!(BSplineDirector::new()
+            .clamped()
+            .elements([0.0, 1.0, 2.0])
+            .unwrap()
+            .equidistant::<f32>()
+            .quantity(4)
+            .is_err());
+
+        assert!(BSplineDirector::new()
+            .clamped()
+            .elements([0.0, 1.0, 2.0])
+            .unwrap()
+            .equidistant::<f32>()
+            .quantity(3)
+            .is_ok());
+    }
+
+    #[test]
+    fn open_errors() {
+        // too few elements
+        assert!(BSplineDirector::new().open().elements([0.0]).is_err());
+
+        // too few knots
+        assert!(BSplineDirector::new()
+            .open()
+            .elements([0.0, 1.0, 2.0, 3.0])
+            .unwrap()
+            .knots([0.0])
+            .is_err());
+
+        assert!(BSplineDirector::new()
+            .open()
+            .elements([0.0, 1.0, 2.0, 3.0])
+            .unwrap()
+            .equidistant::<f32>()
+            .quantity(1)
+            .is_err());
+
+        // invalid degree
+        assert!(BSplineDirector::new()
+            .open()
+            .elements([0.0, 1.0, 2.0, 3.0])
+            .unwrap()
+            .equidistant::<f32>()
+            .degree(0)
+            .is_err());
+
+        // too small of a workspace
+        assert!(BSplineDirector::new()
+            .open()
+            .elements([0.0, 1.0, 2.0, 3.0])
+            .unwrap()
+            .equidistant::<f32>()
+            .degree(2)
+            .unwrap()
+            .domain(0.0, 1.0)
+            .constant::<2>()
+            .is_err());
+
+        // incongruous
+        assert!(BSplineDirector::new()
+            .open()
+            .elements([0.0, 1.0])
+            .unwrap()
+            .equidistant::<f32>()
+            .degree(1)
+            .is_ok());
+
+        assert!(BSplineDirector::new()
+            .open()
+            .elements([0.0, 1.0, 2.0])
+            .unwrap()
+            .equidistant::<f32>()
+            .quantity(2)
+            .is_err());
+
+        assert!(BSplineDirector::new()
+            .open()
+            .elements([0.0, 1.0, 2.0])
+            .unwrap()
+            .equidistant::<f32>()
+            .quantity(3)
+            .is_ok());
+    }
+
+    #[test]
+    fn legacy_errors() {
+        // too few elements
+        assert!(BSplineDirector::new().legacy().elements([0.0]).is_err());
+
+        // too few knots
+        assert!(BSplineDirector::new()
+            .legacy()
+            .elements([0.0, 1.0, 2.0, 3.0])
+            .unwrap()
+            .knots([0.0, 1.0, 2.0])
+            .is_err());
+
+        // too small of a workspace
+        assert!(BSplineDirector::new()
+            .legacy()
+            .elements([0.0, 1.0])
+            .unwrap()
+            .knots([0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .unwrap()
+            .constant::<4>()
+            .is_err());
+
+        // incongruous
+        assert!(BSplineDirector::new()
+            .legacy()
+            .elements([0.0, 1.0, 3.0])
+            .unwrap()
+            .knots([0.0, 1.0, 2.0, 3.0])
+            .is_err());
+
+        assert!(BSplineDirector::new()
+            .legacy()
+            .elements([0.0, 1.0, 3.0])
+            .unwrap()
+            .knots([0.0, 1.0, 2.0, 3.0, 4.0])
+            .is_ok());
     }
 }
