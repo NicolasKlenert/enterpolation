@@ -1,12 +1,10 @@
 //! Builder module for linear interpolations.
 
 use super::error::LinearError;
-use super::Linear;
+use super::{KnotElementInequality, Linear, TooFewElements};
 use crate::builder::{Type, Unknown, WithWeight, WithoutWeight};
 use crate::weights::{IntoWeight, Weighted, Weights};
-use crate::{
-    DiscreteGenerator, Equidistant, Generator, Identity, NotSorted, Sorted, SortedGenerator,
-};
+use crate::{DiscreteGenerator, Equidistant, Generator, Identity, Sorted, SortedGenerator};
 use core::marker::PhantomData;
 use core::ops::Mul;
 use num_traits::identities::Zero;
@@ -158,16 +156,28 @@ impl LinearBuilder<Unknown, Unknown, Identity, Unknown> {
 
 impl<F> LinearDirector<Unknown, Unknown, F, Unknown> {
     /// Set the elements of the linear interpolation.
-    pub fn elements<E>(self, elements: E) -> LinearDirector<Unknown, E, F, WithoutWeight>
+    ///
+    /// # Errors
+    ///
+    /// Returns [`TooFewElements`] if not at least 2 elements are given.
+    ///
+    /// [`TooFewElements`]: super::error::LinearError
+    pub fn elements<E>(
+        self,
+        elements: E,
+    ) -> Result<LinearDirector<Unknown, E, F, WithoutWeight>, TooFewElements>
     where
         E: DiscreteGenerator,
     {
-        LinearDirector {
+        if elements.len() < 2 {
+            return Err(TooFewElements::new(elements.len()));
+        }
+        Ok(LinearDirector {
             knots: self.knots,
             elements,
             easing: self.easing,
             _phantom: PhantomData,
-        }
+        })
     }
 
     /// Set the elements and their weights for this interpolation.
@@ -200,10 +210,16 @@ impl<F> LinearDirector<Unknown, Unknown, F, Unknown> {
     /// #     Ok(())
     /// # }
     /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns [`TooFewElements`] if not at least 2 elements are given.
+    ///
+    /// [`TooFewElements`]: super::error::LinearError
     pub fn elements_with_weights<G>(
         self,
         gen: G,
-    ) -> LinearDirector<Unknown, Weights<G>, F, WithWeight>
+    ) -> Result<LinearDirector<Unknown, Weights<G>, F, WithWeight>, TooFewElements>
     where
         G: DiscreteGenerator,
         G::Output: IntoWeight,
@@ -211,12 +227,15 @@ impl<F> LinearDirector<Unknown, Unknown, F, Unknown> {
             Mul<<G::Output as IntoWeight>::Weight, Output = <G::Output as IntoWeight>::Element>,
         <G::Output as IntoWeight>::Weight: Zero + Copy,
     {
-        LinearDirector {
+        if gen.len() < 2 {
+            return Err(TooFewElements::new(gen.len()));
+        }
+        Ok(LinearDirector {
             knots: self.knots,
             elements: Weights::new(gen),
             easing: self.easing,
             _phantom: PhantomData,
-        }
+        })
     }
 }
 
@@ -227,7 +246,9 @@ impl<F> LinearBuilder<Unknown, Unknown, F, Unknown> {
         E: DiscreteGenerator,
     {
         LinearBuilder {
-            inner: self.inner.map(|director| director.elements(elements)),
+            inner: self
+                .inner
+                .and_then(|director| director.elements(elements).map_err(|err| err.into())),
         }
     }
 
@@ -273,9 +294,11 @@ impl<F> LinearBuilder<Unknown, Unknown, F, Unknown> {
         <G::Output as IntoWeight>::Weight: Zero + Copy,
     {
         LinearBuilder {
-            inner: self
-                .inner
-                .map(|director| director.elements_with_weights(gen)),
+            inner: self.inner.and_then(|director| {
+                director
+                    .elements_with_weights(gen)
+                    .map_err(|err| err.into())
+            }),
         }
     }
 }
@@ -291,12 +314,23 @@ impl<E, F, W> LinearDirector<Unknown, E, F, W> {
     /// knots, consider using [`equidistant()`] instead.
     ///
     /// [`equidistant()`]: LinearDirector::equidistant()
-    pub fn knots<K>(self, knots: K) -> Result<LinearDirector<Sorted<K>, E, F, W>, NotSorted>
+    ///
+    /// # Errors
+    ///
+    /// Returns [`KnotElementInequality`] if the number of knots is not equal to the number of elements.
+    /// Returns [`NotSorted`] if the knots are not sorted such that they are increasing.
+    ///
+    /// [`KnotElementInequality`]: super::error::LinearError
+    /// [`NotSorted`]:  super::error::LinearError
+    pub fn knots<K>(self, knots: K) -> Result<LinearDirector<Sorted<K>, E, F, W>, LinearError>
     where
         E: DiscreteGenerator,
         K: DiscreteGenerator,
         K::Output: PartialOrd,
     {
+        if self.elements.len() != knots.len() {
+            return Err(KnotElementInequality::new(self.elements.len(), knots.len()).into());
+        }
         Ok(LinearDirector {
             knots: Sorted::new(knots)?,
             elements: self.elements,
@@ -353,9 +387,7 @@ impl<E, F, W> LinearBuilder<Unknown, E, F, W> {
         K::Output: PartialOrd,
     {
         LinearBuilder {
-            inner: self
-                .inner
-                .and_then(|director| director.knots(knots).map_err(|err| err.into())),
+            inner: self.inner.and_then(|director| director.knots(knots)),
         }
     }
 
@@ -500,8 +532,8 @@ where
     K::Output: Real,
 {
     /// Build a linear interpolation.
-    pub fn build(self) -> Result<Linear<K, E, F>, LinearError> {
-        Linear::new(self.elements, self.knots, self.easing)
+    pub fn build(self) -> Linear<K, E, F> {
+        Linear::new_unchecked(self.elements, self.knots, self.easing)
     }
 }
 
@@ -516,7 +548,7 @@ where
     pub fn build(self) -> Result<Linear<K, E, F>, LinearError> {
         match self.inner {
             Err(err) => Err(err),
-            Ok(director) => director.build(),
+            Ok(director) => Ok(director.build()),
         }
     }
 }
@@ -530,12 +562,12 @@ where
     <Weights<G> as Generator<usize>>::Output: Merge<K::Output>,
 {
     /// Build a weighted linear interpolation.
-    pub fn build(self) -> Result<WeightedLinear<K, G, F>, LinearError> {
-        Ok(Weighted::new(Linear::new(
+    pub fn build(self) -> WeightedLinear<K, G, F> {
+        Weighted::new(Linear::new_unchecked(
             self.elements,
             self.knots,
             self.easing,
-        )?))
+        ))
     }
 }
 
@@ -551,7 +583,7 @@ where
     pub fn build(self) -> Result<WeightedLinear<K, G, F>, LinearError> {
         match self.inner {
             Err(err) => Err(err),
-            Ok(director) => director.build(),
+            Ok(director) => Ok(director.build()),
         }
     }
 }
@@ -563,7 +595,7 @@ type WeightedLinear<K, G, F> = Weighted<Linear<K, Weights<G>, F>>;
 mod test {
     use super::LinearBuilder;
     // Homogeneous for creating Homogeneous, Generator for using .stack()
-    use crate::{weights::Homogeneous, Generator};
+    use crate::{linear::LinearDirector, weights::Homogeneous, Generator};
     #[test]
     fn building_weights() {
         LinearBuilder::new()
@@ -593,6 +625,10 @@ mod test {
             .normalized()
             .build()
             .unwrap();
+    }
+
+    #[test]
+    fn builder_errors() {
         assert!(LinearBuilder::new()
             .elements::<[f64; 0]>([])
             .knots::<[f64; 0]>([])
@@ -608,5 +644,25 @@ mod test {
             .knots([1.0, 2.0, 3.0])
             .build()
             .is_err());
+    }
+
+    #[test]
+    fn director_errors() {
+        assert!(LinearDirector::new().elements([0.0]).is_err());
+        assert!(LinearDirector::new()
+            .elements([0.0, 1.0])
+            .unwrap()
+            .knots([1.0])
+            .is_err());
+        assert!(LinearDirector::new()
+            .elements([1.0, 2.0])
+            .unwrap()
+            .knots([1.0, 2.0, 3.0])
+            .is_err());
+        assert!(LinearDirector::new()
+            .elements([1.0, 2.0])
+            .unwrap()
+            .knots([1.0, 2.0])
+            .is_ok());
     }
 }

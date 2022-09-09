@@ -12,7 +12,7 @@ use std::error::Error;
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum LinearError {
     /// Error returned if the elements are to few for a linear interpolation.
-    ToFewElements(TooFewElements),
+    TooFewElements(TooFewElements),
     /// Error returned if the number of knots and elements are not equal.
     KnotElementInequality(KnotElementInequality),
     /// Error returned if knots are not sorted.
@@ -22,7 +22,7 @@ pub enum LinearError {
 impl fmt::Display for LinearError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            LinearError::ToFewElements(inner) => inner.fmt(f),
+            LinearError::TooFewElements(inner) => inner.fmt(f),
             LinearError::NotSorted(inner) => inner.fmt(f),
             LinearError::KnotElementInequality(inner) => inner.fmt(f),
         }
@@ -31,7 +31,7 @@ impl fmt::Display for LinearError {
 
 impl From<TooFewElements> for LinearError {
     fn from(from: TooFewElements) -> Self {
-        LinearError::ToFewElements(from)
+        LinearError::TooFewElements(from)
     }
 }
 
