@@ -34,7 +34,7 @@ use num_traits::real::Real;
 use topology_traits::Merge;
 
 mod builder;
-pub use builder::BezierBuilder;
+pub use builder::{BezierBuilder, BezierDirector};
 mod error;
 pub use error::{BezierError, Empty, TooSmallWorkspace};
 

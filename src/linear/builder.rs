@@ -29,10 +29,10 @@ use topology_traits::Merge;
 /// #
 /// # fn main() -> Result<(), LinearError> {
 /// let linear = LinearDirector::new()
-///                 .elements([1.0,5.0,100.0])
+///                 .elements([1.0,5.0,100.0])?
 ///                 .equidistant::<f64>()
 ///                 .normalized()
-///                 .build()?;
+///                 .build();
 /// let results = [1.0,3.0,5.0,52.5,100.0];
 /// for (value,result) in linear.take(5).zip(results.iter().copied()){
 ///     assert_f64_near!(value, result);
