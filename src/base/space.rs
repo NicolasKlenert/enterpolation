@@ -60,7 +60,7 @@ impl<T, const N: usize> Default for ConstSpace<T, N> {
 
 /// Struct which handles workspace at run-time.
 ///
-/// A new `Vec` is created every time [`workspace()`] is called. 
+/// A new `Vec` is created every time [`workspace()`] is called.
 /// This may impact performance as we always allocate memory. However this allows safe concurrency.
 ///
 /// [`workspace()`]: DynSpace::workspace()

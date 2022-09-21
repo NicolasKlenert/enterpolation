@@ -24,7 +24,8 @@ pub trait Generator<Input> {
     ///
     /// # Examples
     ///
-    /// ```rust
+    #[cfg_attr(feature = "linear", doc = "```rust")]
+    #[cfg_attr(not(feature = "linear"), doc = "```ignore")]
     /// # use enterpolation::{linear::{Linear, LinearError}, Generator};
     /// # use assert_float_eq::{afe_is_f64_near, afe_near_error_msg, assert_f64_near};
     /// #
@@ -61,7 +62,8 @@ pub trait Generator<Input> {
     ///
     /// # Examples
     ///
-    /// ```rust
+    #[cfg_attr(feature = "linear", doc = "```rust")]
+    #[cfg_attr(not(feature = "linear"), doc = "```ignore")]
     /// # use enterpolation::{linear::{Linear, LinearError}, Generator};
     /// # use assert_float_eq::{afe_is_f64_near, afe_near_error_msg, assert_f64_near};
     /// #
@@ -93,7 +95,8 @@ pub trait Generator<Input> {
     ///
     /// # Examples
     ///
-    /// ```rust
+    #[cfg_attr(feature = "bezier", doc = "```rust")]
+    #[cfg_attr(not(feature = "bezier"), doc = "```ignore")]
     /// # use enterpolation::{bezier::{Bezier, BezierError}, easing::{FuncEase, smoothstep}, Generator};
     /// # use assert_float_eq::{afe_is_f64_near, afe_near_error_msg, assert_f64_near};
     /// #
@@ -138,7 +141,8 @@ pub trait Generator<Input> {
     ///
     /// # Examples
     ///
-    /// ```rust
+    #[cfg_attr(feature = "linear", doc = "```rust")]
+    #[cfg_attr(not(feature = "linear"), doc = "```ignore")]
     /// # use enterpolation::{linear::{Linear, LinearError}, Generator};
     /// # use assert_float_eq::{afe_is_f64_near, afe_near_error_msg, assert_f64_near};
     /// #
@@ -192,7 +196,8 @@ where
     ///
     /// # Examples
     ///
-    /// ```rust
+    #[cfg_attr(feature = "linear", doc = "```rust")]
+    #[cfg_attr(not(feature = "linear"), doc = "```ignore")]
     /// # use enterpolation::{linear::{Linear, LinearError}, Curve};
     /// # use assert_float_eq::{afe_is_f64_near, afe_near_error_msg, assert_f64_near};
     /// #
@@ -227,7 +232,8 @@ where
     ///
     /// # Examples
     ///
-    /// ```rust
+    #[cfg_attr(feature = "linear", doc = "```rust")]
+    #[cfg_attr(not(feature = "linear"), doc = "```ignore")]
     /// # use enterpolation::{linear::{Linear, LinearError}, Curve};
     /// # use assert_float_eq::{afe_is_f64_near, afe_near_error_msg, assert_f64_near};
     /// #
@@ -256,7 +262,8 @@ where
     ///
     /// # Examples
     ///
-    /// ```rust
+    #[cfg_attr(feature = "linear", doc = "```rust")]
+    #[cfg_attr(not(feature = "linear"), doc = "```ignore")]
     /// # use enterpolation::{linear::{Linear, LinearError}, Generator, Curve};
     /// # use assert_float_eq::{afe_is_f64_near, afe_near_error_msg, assert_f64_near};
     /// #

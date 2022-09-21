@@ -78,14 +78,17 @@ impl BSpline<Unknown, Unknown, Unknown> {
     ///
     /// ```rust
     /// # use std::error::Error;
-    /// # use enterpolation::{bezier::{Bezier, BezierError}, Generator, Curve};
+    /// # use enterpolation::{bspline::{BSpline, BSplineError}, Generator, Curve};
     /// # use assert_float_eq::{afe_is_f64_near, afe_near_error_msg, assert_f64_near};
     /// #
-    /// # fn main() -> Result<(), BezierError> {
-    /// let bez = Bezier::builder()
+    /// # fn main() -> Result<(), BSplineError> {
+    /// let bez = BSpline::builder()
+    ///     .clamped()
     ///     .elements([20.0,100.0,0.0,200.0])
-    ///     .normalized::<f64>()
-    ///     .constant()
+    ///     .equidistant::<f64>()
+    ///     .degree(3)
+    ///     .normalized()
+    ///     .constant::<4>()    // degree + 1
     ///     .build()?;
     /// let mut iter = bez.take(5);
     /// let expected = [20.0,53.75,65.0,98.75,200.0];

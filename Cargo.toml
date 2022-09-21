@@ -10,7 +10,7 @@ repository = "https://github.com/NicolasKlenert/enterpolation"
 readme = "README.md"
 keywords = ["interpolation", "curve", "spline", "bspline", "bezier"]
 categories = ["graphics", "mathematics", "no-std"]
-version = "0.1.1"
+version = "0.2.0"
 
 [dependencies]
 topology-traits = "0.1.1"
@@ -38,3 +38,30 @@ bspline = []
 [[bench]]
 name = "benches"
 harness = false
+
+[[example]]
+name = "bspline_reasoning"
+required-features = ["linear","bezier","bspline"]
+
+[[example]]
+name = "gradient"
+required-features = ["bspline"]
+
+[[example]]
+name = "linear"
+required-features = ["std","linear"]
+
+[[example]]
+name = "noise"
+required-features = ["bspline"]
+
+[[example]]
+name = "nurbs"
+required-features = ["bspline"]
+
+[[example]]
+name = "plateaus"
+required-features = ["linear"]
+
+[badges.maintenance]
+status = "actively-developed"

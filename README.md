@@ -1,5 +1,9 @@
 # Enterpolation
 
+![Maintenance](https://img.shields.io/badge/maintenance-actively--developed-brightgreen.svg)
+[![crates-io](https://img.shields.io/crates/v/enterpolation.svg)](https://crates.io/crates/enterpolation)
+[![api-docs](https://docs.rs/enterpolation/badge.svg)](https://docs.rs/enterpolation)
+
 A library for creating and computing interpolations, extrapolations and smoothing of generic data points.
 
 Enterpolation is a library to generate and use different interpolation and extrapolation methods. This includes linear interpolation, bezier curves, B-spline and their weighted and non-uniform counterparts like NURBS. This library aims to be as generic as possible to allow interpolating elements of any vector space. Also building and using different interpolations should create as less friction as possible such that one may experiment with different methods to find the interpolation which best fits their needs. To achieve this, Enterpolation heavily uses consistent builder options to allow customization and minimise the need to change code while experimenting.
@@ -17,7 +21,7 @@ Enterpolation is a library to generate and use different interpolation and extra
 Add this to your `Cargo.toml`:
 ```toml
 [dependencies]
-enterpolation = "0.1.1"
+enterpolation = "0.2.0"
 ```
 
 Here is a simple example creating a linear interpolation of `f64` and extracting 21 values from start to end. This library supports all elements which can be added together and multiplied with a scalar (in our case also `f64`). Instead of interpolating floats, one could interpolate coordinates, rotations, transformations, velocities, geometries, sound, colors and so on.
@@ -95,7 +99,7 @@ This crate comes with a feature for every different interpolation method, such a
 If one wants to only enable specific crate features, they have to use the following `Cargo.toml` dependency configuration:
 ```toml
 [dependencies.enterpolation]
-version = "0.1"
+version = "0.2"
 default-features = false
 # re-enable all wanted features
 features = ["linear"]

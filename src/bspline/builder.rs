@@ -421,9 +421,7 @@ impl<E, W> BSplineBuilder<Unknown, E, Unknown, W, Open> {
         K::Output: PartialOrd,
     {
         BSplineBuilder {
-            inner: self
-                .inner
-                .and_then(|director| director.knots(knots).map_err(|err| err.into())),
+            inner: self.inner.and_then(|director| director.knots(knots)),
         }
     }
 }
@@ -517,6 +515,7 @@ impl<E, W> BSplineDirector<Unknown, E, Unknown, W, Legacy> {
     /// [`NotSorted`]: super::error::BSplineError
     /// [`TooFewKnots`]: super::error::BSplineError
     /// [`IncongruousParams`]: super::error::BSplineError
+    /// [`equidistant()`]: BSplineDirector::equidistant()
     pub fn knots<K>(self, knots: K) -> Result<LegacyBSplineDirector<K, E, W>, BSplineError>
     where
         E: DiscreteGenerator,
@@ -755,9 +754,7 @@ where
         quantity: usize,
     ) -> BSplineBuilder<UnknownDomain<R>, E, Unknown, W, Open> {
         BSplineBuilder {
-            inner: self
-                .inner
-                .and_then(|director| director.quantity(quantity).map_err(|err| err.into())),
+            inner: self.inner.and_then(|director| director.quantity(quantity)),
         }
     }
 }
@@ -882,9 +879,7 @@ where
     /// [`distance()`]: BSplineBuilder::distance()
     pub fn degree(self, degree: usize) -> BSplineBuilder<UnknownDomain<R>, E, Unknown, W, Clamped> {
         BSplineBuilder {
-            inner: self
-                .inner
-                .and_then(|director| director.degree(degree).map_err(|err| err.into())),
+            inner: self.inner.and_then(|director| director.degree(degree)),
         }
     }
 
@@ -1107,14 +1102,16 @@ where
     /// when interpolating.
     ///
     /// The size needed is `degree + 1` and/or `knots.len() - elements.len()`.
+    #[allow(clippy::type_complexity)]
     pub fn constant<const N: usize>(
         self,
     ) -> Result<BSplineDirector<K, E, ConstSpace<E::Output, N>, W, M>, TooSmallWorkspace> {
         // This calculation won't panic as we checked before if the degree is not strictly positive.
         if N <= self.knots.len() - self.elements.len() + 1 {
-            return Err(
-                TooSmallWorkspace::new(N, self.knots.len() - self.elements.len() + 1).into(),
-            );
+            return Err(TooSmallWorkspace::new(
+                N,
+                self.knots.len() - self.elements.len() + 1,
+            ));
         }
         Ok(BSplineDirector {
             knots: self.knots,
@@ -1141,8 +1138,7 @@ where
             return Err(TooSmallWorkspace::new(
                 space.len(),
                 self.knots.len() - self.elements.len() + 1,
-            )
-            .into());
+            ));
         }
         Ok(BSplineDirector {
             knots: self.knots,

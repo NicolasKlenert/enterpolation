@@ -1,22 +1,30 @@
 //! Module with structures, utilities and errors used in many builders
 
+#[cfg(any(feature = "linear", feature = "bezier", feature = "bspline"))]
 use core::fmt;
+#[cfg(any(feature = "linear", feature = "bezier", feature = "bspline"))]
 use core::marker::PhantomData;
 
-#[cfg(feature = "std")]
+#[cfg(all(
+    feature = "std",
+    any(feature = "linear", feature = "bezier", feature = "bspline")
+))]
 use std::error::Error;
 
 /// Struct indicator to mark that we don't use weights.
+#[cfg(any(feature = "linear", feature = "bezier", feature = "bspline"))]
 #[derive(Debug, Copy, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct WithoutWeight;
 
 /// Struct indicator to mark that we use weights.
+#[cfg(any(feature = "linear", feature = "bezier", feature = "bspline"))]
 #[derive(Debug, Copy, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct WithWeight;
 
 /// Struct indicator to mark information not yet given.
+#[cfg(any(feature = "linear", feature = "bezier", feature = "bspline"))]
 #[derive(Debug, Copy, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Unknown;

@@ -30,7 +30,7 @@ use topology_traits::Merge;
 /// [`build()`]: BezierDirector::build()
 /// [`BezierBuilder`]: BezierBuilder
 /// [`elements()`]: BezierDirector::elements()
-/// [`elements_with_weights`()]: BezierDirector::elements_with_weights()
+/// [`elements_with_weights()`]: BezierDirector::elements_with_weights()
 /// [`normalized()`]: BezierDirector::normalized()
 /// [`domain()`]: BezierDirector::domain()
 /// [`constant()`]: BezierDirector::constant()
