@@ -3,7 +3,9 @@
 //! Each interpolation has it's own builder module, which accumalates all methods to create their interpolation.
 
 use super::adaptors::{BorderBuffer, BorderDeletion};
-use super::error::{BSplineError, IncongruousParams, InvalidDegree, TooFewKnots};
+use super::error::{
+    BSplineError, IncongruousElementsDegree, IncongruousElementsKnots, InvalidDegree, TooFewKnots,
+};
 use super::{BSpline, TooFewElements, TooSmallWorkspace};
 use crate::builder::{Type, Unknown, WithWeight, WithoutWeight};
 use crate::weights::{Homogeneous, IntoWeight, Weighted, Weights};
@@ -363,7 +365,7 @@ impl<E, W> BSplineDirector<Unknown, E, Unknown, W, Open> {
     ///
     /// Returns [`NotSorted`] if a knot is not greater or equal then the knot before him.
     /// Returns [`TooFewKnots`] if not at least 2 knots are given.
-    /// Returns [`IncongruousParams`] if the calculated degree would not be strictly positive.
+    /// Returns [`IncongruousElementsKnots`] if less knots than elements or more knots than twice as many elements are given.
     ///
     /// # Performance
     ///
@@ -373,7 +375,7 @@ impl<E, W> BSplineDirector<Unknown, E, Unknown, W, Open> {
     /// [`equidistant()`]: BSplineDirector::equidistant()
     /// [`NotSorted`]: super::error::BSplineError
     /// [`TooFewKnots`]: super::error::BSplineError
-    /// [`IncongruousParams`]: super::error::BSplineError
+    /// [`IncongruousElementsKnots`]: super::error::BSplineError
     pub fn knots<K>(
         self,
         knots: K,
@@ -387,12 +389,10 @@ impl<E, W> BSplineDirector<Unknown, E, Unknown, W, Open> {
             return Err(TooFewKnots::new(knots.len()).into());
         }
         if knots.len() < self.elements.len() {
-            return Err(IncongruousParams::open(
-                self.elements.len(),
-                knots.len() as isize,
-                knots.len() as isize - self.elements.len() as isize + 1,
-            )
-            .into());
+            return Err(IncongruousElementsKnots::open(self.elements.len(), knots.len()).into());
+        }
+        if self.elements.len() <= knots.len() - self.elements.len() + 1 {
+            return Err(IncongruousElementsKnots::open(self.elements.len(), knots.len()).into());
         }
         Ok(BSplineDirector {
             knots: Sorted::new(knots)?,
@@ -435,7 +435,7 @@ impl<E, W> BSplineDirector<Unknown, E, Unknown, W, Clamped> {
     ///
     /// Returns [`NotSorted`] if a knot is not greater or equal then the knot before him.
     /// Returns [`TooFewKnots`] if not at least 2 knots are given.
-    /// Returns [`IncongruousParams`] if the calculated degree would not be strictly positive.
+    /// Returns [`IncongruousElementsKnots`] if less elements than knots are given.
     ///
     /// # Performance
     ///
@@ -445,7 +445,7 @@ impl<E, W> BSplineDirector<Unknown, E, Unknown, W, Clamped> {
     /// [`equidistant()`]: BSplineDirector::equidistant()
     /// [`NotSorted`]: super::BSplineError
     /// [`TooFewKnots`]: super::error::BSplineError
-    /// [`IncongruousParams`]: super::error::BSplineError
+    /// [`IncongruousElementsKnots`]: super::error::BSplineError
     pub fn knots<K>(self, knots: K) -> Result<ClampedBSplineDirector<K, E, W>, BSplineError>
     where
         E: DiscreteGenerator,
@@ -456,12 +456,7 @@ impl<E, W> BSplineDirector<Unknown, E, Unknown, W, Clamped> {
             return Err(TooFewKnots::new(knots.len()).into());
         }
         if self.elements.len() < knots.len() {
-            return Err(IncongruousParams::clamped(
-                self.elements.len(),
-                knots.len() as isize,
-                knots.len() as isize - self.elements.len() as isize + 1,
-            )
-            .into());
+            return Err(IncongruousElementsKnots::clamped(self.elements.len(), knots.len()).into());
         }
         let duplicate = self.elements.len() - knots.len(); //deg-1
         Ok(BSplineDirector {
@@ -505,7 +500,7 @@ impl<E, W> BSplineDirector<Unknown, E, Unknown, W, Legacy> {
     ///
     /// Returns [`NotSorted`] if a knot is not greater or equal then the knot before him.
     /// Returns [`TooFewKnots`] if not at least 2 knots are given.
-    /// Returns [`IncongruousParams`] if the calculated degree would not be strictly positive.
+    /// Returns [`IncongruousElementsKnots`] if less knots than elements + 2 are given.
     ///
     /// # Performance
     ///
@@ -514,7 +509,7 @@ impl<E, W> BSplineDirector<Unknown, E, Unknown, W, Legacy> {
     ///
     /// [`NotSorted`]: super::error::BSplineError
     /// [`TooFewKnots`]: super::error::BSplineError
-    /// [`IncongruousParams`]: super::error::BSplineError
+    /// [`IncongruousElementsKnots`]: super::error::BSplineError
     /// [`equidistant()`]: BSplineDirector::equidistant()
     pub fn knots<K>(self, knots: K) -> Result<LegacyBSplineDirector<K, E, W>, BSplineError>
     where
@@ -526,12 +521,10 @@ impl<E, W> BSplineDirector<Unknown, E, Unknown, W, Legacy> {
             return Err(TooFewKnots::new(knots.len()).into());
         }
         if knots.len() <= self.elements.len() + 1 {
-            return Err(IncongruousParams::legacy(
-                self.elements.len(),
-                knots.len() as isize,
-                knots.len() as isize - self.elements.len() as isize - 1,
-            )
-            .into());
+            return Err(IncongruousElementsKnots::legacy(self.elements.len(), knots.len()).into());
+        }
+        if self.elements.len() + 1 <= knots.len() - self.elements.len() {
+            return Err(IncongruousElementsKnots::legacy(self.elements.len(), knots.len()).into());
         }
         Ok(BSplineDirector {
             // unwrap is fine as we checked beforehand
@@ -633,6 +626,7 @@ where
     /// # Errors
     ///
     /// Returns [`InvalidDegree`] if given degree is not at least 1.
+    /// Returns [`IncongruousElementsDegree`] if given degree is not less than the amount of elements.
     ///
     /// [`InvalidDegree`]: super::error::BSplineError
     /// [`domain()`]: BSplineDirector::domain()
@@ -641,9 +635,12 @@ where
     pub fn degree(
         self,
         degree: usize,
-    ) -> Result<BSplineDirector<UnknownDomain<R>, E, Unknown, W, Open>, InvalidDegree> {
+    ) -> Result<BSplineDirector<UnknownDomain<R>, E, Unknown, W, Open>, BSplineError> {
         if degree < 1 {
-            return Err(InvalidDegree::new(degree));
+            return Err(InvalidDegree::new(degree).into());
+        }
+        if self.elements.len() <= degree {
+            return Err(IncongruousElementsDegree::open(self.elements.len(), degree).into());
         }
         Ok(BSplineDirector {
             knots: UnknownDomain::new(self.elements.len() - 1 + degree, degree),
@@ -668,10 +665,10 @@ where
     /// # Errors
     ///
     /// Returns [`TooFewKnots`] if not at least 2 knots are given.
-    /// Returns [`IncongruousParams`] if the calculated degree would not be strictly positive.
+    /// Returns [`IncongruousElementsKnots`] if less knots than elements or more knots than double the amount of elements are given.
     ///
     /// [`TooFewKnots`]: super::error::BSplineError
-    /// [`IncongruousParams`]: super::error::BSplineError
+    /// [`IncongruousElementsKnots`]: super::error::BSplineError
     /// [`domain()`]: BSplineDirector::domain()
     /// [`normalized()`]: BSplineDirector::normalized()
     /// [`distance()`]: BSplineDirector::distance()
@@ -683,12 +680,10 @@ where
             return Err(TooFewKnots::new(quantity).into());
         }
         if quantity < self.elements.len() {
-            return Err(IncongruousParams::legacy(
-                self.elements.len(),
-                quantity as isize,
-                quantity as isize - self.elements.len() as isize - 1,
-            )
-            .into());
+            return Err(IncongruousElementsKnots::legacy(self.elements.len(), quantity).into());
+        }
+        if self.elements.len() <= quantity - self.elements.len() + 1 {
+            return Err(IncongruousElementsKnots::open(self.elements.len(), quantity).into());
         }
         Ok(BSplineDirector {
             knots: UnknownDomain::new(quantity, quantity - self.elements.len() + 1),
@@ -723,9 +718,7 @@ where
     /// [`distance()`]: BSplineBuilder::distance()
     pub fn degree(self, degree: usize) -> BSplineBuilder<UnknownDomain<R>, E, Unknown, W, Open> {
         BSplineBuilder {
-            inner: self
-                .inner
-                .and_then(|director| director.degree(degree).map_err(|err| err.into())),
+            inner: self.inner.and_then(|director| director.degree(degree)),
         }
     }
 
@@ -778,10 +771,10 @@ where
     /// # Errors
     ///
     /// Returns [`InvalidDegree`] if given degree is 0.
-    /// Returns [`IncongruousParams`] if the the calculated amount of knots would be less than 2.
+    /// Returns [`IncongruousElementsDegree`] if degree is not less than the number of elements.
     ///
     /// [`InvalidDegree`]: super::error::BSplineError
-    /// [`IncongruousParams`]: super::error::BSplineError
+    /// [`IncongruousElementsDegree`]: super::error::BSplineError
     /// [`domain()`]: BSplineDirector::domain()
     /// [`normalized()`]: BSplineDirector::normalized()
     /// [`distance()`]: BSplineDirector::distance()
@@ -794,12 +787,7 @@ where
             return Err(InvalidDegree::new(degree).into());
         }
         if self.elements.len() <= degree {
-            return Err(IncongruousParams::clamped(
-                self.elements.len(),
-                self.elements.len() as isize - degree as isize + 1,
-                degree as isize,
-            )
-            .into());
+            return Err(IncongruousElementsDegree::clamped(self.elements.len(), degree).into());
         }
         Ok(BSplineDirector {
             knots: UnknownDomain::new(self.elements.len() - degree + 1, degree),
@@ -824,10 +812,10 @@ where
     /// # Errors
     ///
     /// Returns [`TooFewKnots`] if given quantity is less than 2.
-    /// Returns [`IncongruousParams`] if the the calculated degree would not strictly positive.
+    /// Returns [`IncongruousElementsKnots`] if less elements than knots are given.
     ///
     /// [`TooFewKnots`]: super::error::BSplineError
-    /// [`IncongruousParams`]: super::error::BSplineError
+    /// [`IncongruousElementsKnots`]: super::error::BSplineError
     /// [`domain()`]: BSplineDirector::domain()
     /// [`normalized()`]: BSplineDirector::normalized()
     /// [`distance()`]: BSplineDirector::distance()
@@ -839,12 +827,7 @@ where
             return Err(TooFewKnots::new(quantity).into());
         }
         if self.elements.len() < quantity {
-            return Err(IncongruousParams::clamped(
-                self.elements.len(),
-                quantity as isize,
-                self.elements.len() as isize - quantity as isize + 1,
-            )
-            .into());
+            return Err(IncongruousElementsKnots::clamped(self.elements.len(), quantity).into());
         }
         Ok(BSplineDirector {
             knots: UnknownDomain::new(quantity, self.elements.len() - quantity + 1),
@@ -1547,15 +1530,7 @@ mod test {
             .constant::<2>()
             .is_err());
 
-        // incongruous
-        assert!(BSplineDirector::new()
-            .open()
-            .elements([0.0, 1.0])
-            .unwrap()
-            .equidistant::<f32>()
-            .degree(1)
-            .is_ok());
-
+        // incongruous knots
         assert!(BSplineDirector::new()
             .open()
             .elements([0.0, 1.0, 2.0])
@@ -1571,6 +1546,39 @@ mod test {
             .equidistant::<f32>()
             .quantity(3)
             .is_ok());
+
+        assert!(BSplineDirector::new()
+            .open()
+            .elements([0.0, 1.0, 2.0])
+            .unwrap()
+            .equidistant::<f32>()
+            .quantity(4)
+            .is_ok());
+
+        assert!(BSplineDirector::new()
+            .open()
+            .elements([0.0, 1.0, 2.0])
+            .unwrap()
+            .equidistant::<f32>()
+            .quantity(5)
+            .is_err());
+
+        // incongruous degree
+        assert!(BSplineDirector::new()
+            .open()
+            .elements([0.0, 1.0])
+            .unwrap()
+            .equidistant::<f32>()
+            .degree(1)
+            .is_ok());
+
+        assert!(BSplineDirector::new()
+            .open()
+            .elements([0.0, 1.0])
+            .unwrap()
+            .equidistant::<f32>()
+            .degree(2)
+            .is_err());
     }
 
     #[test]
@@ -1589,14 +1597,14 @@ mod test {
         // too small of a workspace
         assert!(BSplineDirector::new()
             .legacy()
-            .elements([0.0, 1.0])
+            .elements([0.0, 1.0, 2.0, 3.0])
             .unwrap()
-            .knots([0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .knots([0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0])
             .unwrap()
-            .constant::<4>()
+            .constant::<2>()
             .is_err());
 
-        // incongruous
+        // incongruous knots
         assert!(BSplineDirector::new()
             .legacy()
             .elements([0.0, 1.0, 3.0])
@@ -1610,5 +1618,19 @@ mod test {
             .unwrap()
             .knots([0.0, 1.0, 2.0, 3.0, 4.0])
             .is_ok());
+
+        assert!(BSplineDirector::new()
+            .legacy()
+            .elements([0.0, 1.0, 3.0])
+            .unwrap()
+            .knots([0.0, 1.0, 2.0, 3.0, 4.0, 5.0])
+            .is_ok());
+
+        assert!(BSplineDirector::new()
+            .legacy()
+            .elements([0.0, 1.0, 3.0])
+            .unwrap()
+            .knots([0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .is_err());
     }
 }

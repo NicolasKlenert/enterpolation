@@ -107,7 +107,7 @@ pub struct TooFewElements {
 #[cfg(any(feature = "linear", feature = "bspline"))]
 impl fmt::Display for TooFewElements {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "To few elements given for a linear interpolation. {} elements were given, but at least 2 are necessary.", self.found)
+        write!(f, "To few elements given for the interpolation. {} elements were given, but at least 2 are necessary.", self.found)
     }
 }
 

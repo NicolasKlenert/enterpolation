@@ -40,7 +40,8 @@ mod error;
 pub use adaptors::{BorderBuffer, BorderDeletion};
 pub use builder::{BSplineBuilder, BSplineDirector};
 pub use error::{
-    BSplineError, IncongruousParams, InvalidDegree, NotSorted, TooFewElements, TooSmallWorkspace,
+    BSplineError, IncongruousElementsDegree, IncongruousElementsKnots, InvalidDegree, NotSorted,
+    TooFewElements, TooSmallWorkspace,
 };
 
 use crate::builder::Unknown;
@@ -202,6 +203,8 @@ where
     /// [`TooFewElements`] if there are less than two elements.
     /// [`InvalidDegree`] if degree is not at least 1 and at most the number of elements - 1.
     /// [`TooSmallWorkspace`] if the workspace is not bigger than the degree of the curve.
+    /// [`IncongruousElementsKnots`] either if the amount of knots is less than the amount of elements
+    /// or if the anoumt of knots is more than double the amount of elements.
     ///
     /// [`TooFewElements`]: BSplineError
     /// [`InvalidDegree`]: BSplineError
@@ -213,21 +216,11 @@ where
         }
         // Test if degree is strict positive
         if knots.len() < elements.len() {
-            return Err(IncongruousParams::open(
-                elements.len(),
-                knots.len() as isize,
-                knots.len() as isize - elements.len() as isize + 1,
-            )
-            .into());
+            return Err(IncongruousElementsKnots::open(elements.len(), knots.len()).into());
         }
         // Test if we have enough elements for the degree
-        if elements.len() < knots.len() - elements.len() {
-            return Err(IncongruousParams::open(
-                elements.len(),
-                knots.len() as isize,
-                knots.len() as isize - elements.len() as isize + 1,
-            )
-            .into());
+        if elements.len() <= knots.len() - elements.len() + 1 {
+            return Err(IncongruousElementsKnots::open(elements.len(), knots.len()).into());
         }
         let degree = knots.len() - elements.len() + 1;
         if space.len() <= degree {
