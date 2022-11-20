@@ -8,6 +8,7 @@ use std::error::Error;
 
 /// Errors which could occur when using or creating a linear interpolation.
 #[derive(Debug, Copy, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum BezierError {
     /// Error returned if the generator does not contain any elements.
     Empty(Empty),

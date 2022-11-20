@@ -119,6 +119,7 @@ impl fmt::Display for InvalidDegree {
 impl Error for InvalidDegree {}
 
 #[derive(Debug, Copy, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 enum BSplineBuildMode {
     Open,
     Clamped,
