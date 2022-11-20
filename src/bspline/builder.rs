@@ -523,7 +523,7 @@ impl<E, W> BSplineDirector<Unknown, E, Unknown, W, Legacy> {
         if knots.len() <= self.elements.len() + 1 {
             return Err(IncongruousElementsKnots::legacy(self.elements.len(), knots.len()).into());
         }
-        if self.elements.len() + 1 <= knots.len() - self.elements.len() {
+        if self.elements.len() < knots.len() - self.elements.len() {
             return Err(IncongruousElementsKnots::legacy(self.elements.len(), knots.len()).into());
         }
         Ok(BSplineDirector {
