@@ -34,6 +34,7 @@ libm = ["num-traits/libm", "topology-traits/libm"]
 linear = []
 bezier = []
 bspline = []
+serde = ["dep:serde"]
 
 [[bench]]
 name = "benches"
