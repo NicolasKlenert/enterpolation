@@ -41,26 +41,32 @@ harness = false
 
 [[example]]
 name = "bspline_reasoning"
+path = "examples/bspline_reasoning.rs"
 required-features = ["linear","bezier","bspline"]
 
 [[example]]
 name = "gradient"
+path = "examples/gradient.rs"
 required-features = ["bspline"]
 
 [[example]]
 name = "linear"
+path = "examples/linear.rs"
 required-features = ["std","linear"]
 
 [[example]]
 name = "noise"
+path = "examples/noise.rs"
 required-features = ["bspline"]
 
 [[example]]
 name = "nurbs"
+path = "examples/nurbs.rs"
 required-features = ["bspline"]
 
 [[example]]
 name = "plateaus"
+path = "examples/plateaus.rs"
 required-features = ["linear"]
 
 [badges.maintenance]
