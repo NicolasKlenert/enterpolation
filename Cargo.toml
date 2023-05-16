@@ -13,8 +13,8 @@ categories = ["graphics", "mathematics", "no-std"]
 version = "0.2.0"
 
 [dependencies]
-topology-traits = "0.1.1"
-assert_float_eq = "1"
+topology-traits = {version="0.1.1", default-features=false}
+assert_float_eq = {version="1", default-features=false}
 num-traits = {version="0.2", default-features=false}
 
 serde = { version = "1", optional = true, features = ["derive"] }
@@ -29,8 +29,8 @@ image = "0.24"
 
 [features]
 default = ["std","linear","bezier","bspline"]
-std = ["num-traits/std"]
-libm = ["num-traits/libm"]
+std = ["num-traits/std", "assert_float_eq/std", "topology-traits/std"]
+libm = ["num-traits/libm", "topology-traits/libm"]
 linear = []
 bezier = []
 bspline = []
