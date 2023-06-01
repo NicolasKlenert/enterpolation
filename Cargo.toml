@@ -13,18 +13,17 @@ categories = ["graphics", "mathematics", "no-std"]
 version = "0.2.0"
 
 [dependencies]
-topology-traits = {git="https://github.com/boehs/topology-traits.git", branch="patch-1", default-features=false}
+topology-traits = {version="0.1.2", default-features=false}
 assert_float_eq = {version="1", default-features=false}
 num-traits = {version="0.2", default-features=false}
-
 serde = { version = "1", optional = true, features = ["derive"] }
 
 
 [dev-dependencies]
 # real black box in necessary for accurate benches, but is only available in rust-nightly
-criterion = {version = "0.3"}#, features = ["real_blackbox"]}
+criterion = {version = "0.5"}#, features = ["real_blackbox"]}
 # we are using palette and image as dependency for our gradient example
-palette = "0.6"
+palette = "0.7"
 image = "0.24"
 
 [features]
@@ -72,3 +71,33 @@ required-features = ["linear"]
 
 [badges.maintenance]
 status = "actively-developed"
+
+[package.metadata.cargo-all-features]
+
+# Skip std and libm, as they are incompatible.
+skip_feature_sets = [
+    ["std", "libm"],
+]
+
+# If your crate has a large number of optional dependencies, skip them for speed
+# skip_optional_dependencies = true
+
+# Add back certain optional dependencies that you want to include in the permutations
+# extra_features = [
+#     "log",
+# ]
+
+# Exclude certain features from the build matrix
+# denylist = ["foo", "bar"]
+
+# Always include either std or libm
+always_include_features = [["std", "libm"]]
+
+# The maximum number of features to try at once. Does not count features from `always_include_features`.
+# This is useful for reducing the number of combinations run for a crate with a large amount of features,
+# since in most cases a bug just needs a small set of 2-3 features to reproduce.
+max_combination_size = 4
+
+# Only include certain features in the build matrix
+#(incompatible with `denylist`, `skip_optional_dependencies`, and `extra_features`)
+# allowlist = ["foo", "bar"]

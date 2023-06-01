@@ -16,7 +16,7 @@ impl From<Hsl> for CustomHsl {
 // As HSL does not implement multiplication, we have to implement the Merge trait ourself to use enterpolation.
 impl Merge<f32> for CustomHsl {
     fn merge(self, other: Self, factor: f32) -> Self {
-        self.0.mix(&other.0, factor).into()
+        self.0.mix(other.0, factor).into()
     }
 }
 

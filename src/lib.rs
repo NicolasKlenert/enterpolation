@@ -1,4 +1,4 @@
-#![cfg_attr(any(not(doctest), all(feature = "linear", feature = "bspline")), doc = include_str!("../README.md"))]
+#![cfg_attr(any(not(doctest), all(feature = "linear", feature = "bspline", feature = "std")), doc = include_str!("../README.md"))]
 #![cfg_attr(not(feature = "std"), no_std)]
 #![warn(
     anonymous_parameters,
