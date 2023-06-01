@@ -217,6 +217,8 @@ pub type ConstEquidistantLinear<R, T, const N: usize> =
 
 #[cfg(test)]
 mod test {
+    // use alloc::collections::binary_heap::IntoIter;
+
     use super::*;
     use crate::Curve;
 
@@ -284,6 +286,24 @@ mod test {
         // const LIN : Linear<f64,f64,ConstEquidistant<f64>,CollectionWrapper<[f64;4],f64>> = Linear::new_equidistant_unchecked([20.0,100.0,0.0,200.0]);
         let expected = [20.0, 60.0, 100.0, 50.0, 0.0, 100.0, 200.0];
         let mut iter = LIN.take(expected.len());
+        for i in 0..expected.len() {
+            let val = iter.next().unwrap();
+            assert_f64_near!(val, expected[i]);
+        }
+    }
+
+    #[test]
+    fn borrow_creation() {
+        let elements = [20.0, 100.0, 0.0, 200.0];
+        let knots = [0.0, 1.0, 2.0, 3.0];
+        let samples = [0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0];
+        let linear = Linear::builder()
+            .elements(&elements)
+            .knots(&knots)
+            .build()
+            .unwrap();
+        let expected = [20.0, 60.0, 100.0, 50.0, 0.0, 100.0, 200.0];
+        let mut iter = linear.sample(samples);
         for i in 0..expected.len() {
             let val = iter.next().unwrap();
             assert_f64_near!(val, expected[i]);
