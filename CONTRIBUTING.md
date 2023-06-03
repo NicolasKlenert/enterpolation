@@ -7,6 +7,8 @@ Have a shiny new feature in store? Remember to explain it thoroughly and provide
 ## Testing
 
 Every pull request is automatically tested with continuous integration to deny warnings and any missing documentation. It's a good idea to run your local tests with `RUSTFLAGS="-D warnings" cargo test` and also to run `cargo check` and `cargo build` with the compiler flag prepended. This will make sure that there are no warnings or missing documentation, all for the benefit of the user.
+Furthermore we use a (currently modified) version of cargo-all-features and cargo-nono to test if all (allowed) combinations of feature flags and `no-std` are working. 
+To check them yourself you might want to install these with `cargo install --url https://github.com/NicolasKlenert/cargo-all-features` and `cargo intall cargo-nono --locked`, and use them with `cargo test-all-features` and `cargo nono check --no-default-features --features "libm linear bezier bspline serde"`.
 
 There are a number of programs in the `examples` directory that demonstrate applications of the library in more "real" code. The output of these should be checked to see if they are affected by changes made.
 
