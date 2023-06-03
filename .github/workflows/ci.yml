@@ -50,7 +50,19 @@ jobs:
           command: install
           args: --git https://github.com/NicolasKlenert/cargo-all-features.git
 
+      - name: install tools
+        if: steps.cache.outputs.cache_hit != 'true'
+        uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: cargo-nono
+
       - name: Run Tests
         uses: actions-rs/cargo@v1
         with:
           command: test-all-features
+
+      - name: test no-std
+        uses: action-rs/cargo@v1
+        with:
+          command: nono check
