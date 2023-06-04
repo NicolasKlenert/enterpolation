@@ -63,6 +63,6 @@ jobs:
           command: test-all-features
 
       - name: test no-std
-        uses: action-rs/cargo@v1
+        uses: actions-rs/cargo@v1
         with:
-          command: nono check --no-default-features --features "libm linear bezier spline serde"
+          command: nono check --no-default-features --features "libm serde linear bezier bspline"
