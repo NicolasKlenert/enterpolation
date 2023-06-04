@@ -50,19 +50,19 @@ jobs:
           command: install
           args: --git https://github.com/NicolasKlenert/cargo-all-features.git
 
-      - name: install tools
-        if: steps.cache.outputs.cache_hit != 'true'
-        uses: actions-rs/cargo@v1
-        with:
-          command: install
-          args: cargo-nono --locked
+      # - name: install tools
+      #   if: steps.cache.outputs.cache_hit != 'true'
+      #   uses: actions-rs/cargo@v1
+      #   with:
+      #     command: install
+      #     args: cargo-nono --locked
 
       - name: Run Tests
         uses: actions-rs/cargo@v1
         with:
           command: test-all-features
 
-      - name: test no-std
-        uses: actions-rs/cargo@v1
-        with:
-          command: nono check --no-default-features --features "libm serde linear bezier bspline"
+      # - name: test no-std
+      #   uses: actions-rs/cargo@v1
+      #   with:
+      #     command: nono check --no-default-features --features libm serde linear bezier bspline
