@@ -61,7 +61,7 @@ pub use error::{KnotElementInequality, LinearError, NotSorted, TooFewElements};
 /// See [linear module] for more information.
 ///
 /// [linear module]: self
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Linear<K, E, F> {
     elements: E,
@@ -308,5 +308,20 @@ mod test {
             let val = iter.next().unwrap();
             assert_f64_near!(val, expected[i]);
         }
+    }
+
+    #[test]
+    fn partial_eq() {
+        let linear = Linear::builder()
+            .elements([20.0, 100.0, 0.0, 200.0])
+            .knots([0.0, 1.0, 2.0, 3.0])
+            .build()
+            .unwrap();
+        let linear2 = Linear::builder()
+            .elements([20.0, 100.0, 0.0, 200.0])
+            .knots([0.0, 1.0, 2.0, 3.0])
+            .build()
+            .unwrap();
+        assert_eq!(linear, linear2);
     }
 }

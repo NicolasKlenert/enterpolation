@@ -57,7 +57,7 @@ use core::fmt::Debug;
 /// See [bspline module] for more information.
 ///
 /// [bspline module]: self
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct BSpline<K, E, S> {
     elements: E,
@@ -289,6 +289,7 @@ mod test {
             assert_f32_near!(spline.gen(expect[i].0), expect[i].1);
         }
     }
+
     #[test]
     fn quadratic_bspline() {
         let expect = [
@@ -314,6 +315,7 @@ mod test {
             assert_f32_near!(spline.gen(expect[i].0), expect[i].1);
         }
     }
+
     #[test]
     fn cubic_bspline() {
         let expect = [
@@ -338,6 +340,7 @@ mod test {
             assert_f32_near!(spline.gen(expect[i].0), expect[i].1);
         }
     }
+
     #[test]
     fn quartic_bspline() {
         let expect = [
@@ -365,6 +368,7 @@ mod test {
             assert_f32_near!(spline.gen(expect[i].0), expect[i].1);
         }
     }
+
     #[test]
     fn quartic_bspline_f64() {
         let expect = [
@@ -391,5 +395,22 @@ mod test {
         for i in 0..expect.len() {
             assert_f64_near!(spline.gen(expect[i].0), expect[i].1);
         }
+    }
+
+    #[test]
+    fn partial_eq() {
+        let spline = BSpline::builder()
+            .elements([0.0f32, 1.0])
+            .knots([0.0f32, 1.0])
+            .constant::<2>()
+            .build()
+            .unwrap();
+        let spline2 = BSpline::builder()
+            .elements([0.0f32, 1.0])
+            .knots([0.0f32, 1.0])
+            .constant::<2>()
+            .build()
+            .unwrap();
+        assert_eq!(spline, spline2);
     }
 }

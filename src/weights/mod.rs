@@ -15,7 +15,7 @@ use num_traits::real::Real;
 /// Generator adaptor to transform `(T,R)` to `Homogeneous<T,R>`.
 ///
 /// Weights given by the generator who equal `R::zero()` are considered to be at infinity.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Weights<G> {
     gen: G,

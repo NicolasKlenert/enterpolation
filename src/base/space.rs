@@ -24,7 +24,7 @@ pub trait Space<T> {
 }
 
 /// Struct to handle a constant workspace.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct ConstSpace<T, const N: usize> {
     _phantom: PhantomData<fn() -> T>,
@@ -65,7 +65,7 @@ impl<T, const N: usize> Default for ConstSpace<T, N> {
 ///
 /// [`workspace()`]: DynSpace::workspace()
 #[cfg(feature = "std")]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct DynSpace<T> {
     len: usize,

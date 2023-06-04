@@ -157,7 +157,7 @@ where
 /// See [bezier module] for more information.
 ///
 /// [bezier module]: self
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Bezier<R, E, S> {
     elements: E,
@@ -387,5 +387,22 @@ mod test {
         assert_f64_near!(res[2], 0.0);
         assert_f64_near!(res[3], 0.0);
         assert_f64_near!(res[4], 0.0);
+    }
+
+    #[test]
+    fn partial_eq() {
+        let bez = Bezier::builder()
+            .elements([20.0, 0.0, 200.0])
+            .normalized::<f64>()
+            .constant()
+            .build()
+            .unwrap();
+        let bez2 = Bezier::builder()
+            .elements([20.0, 0.0, 200.0])
+            .normalized::<f64>()
+            .constant()
+            .build()
+            .unwrap();
+        assert_eq!(bez, bez2);
     }
 }

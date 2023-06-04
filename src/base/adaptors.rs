@@ -9,7 +9,7 @@ use num_traits::real::Real;
 /// Please look their for more information.
 ///
 /// [`clamp()`]: crate::Curve::clamp()
-#[derive(Clone, Debug)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Clamp<G>(G);
 
@@ -50,7 +50,7 @@ where
 /// This struct is created by the [`slice()`] method. Please look their for more information.
 ///
 /// [`slice()`]: crate::Curve::slice()
-#[derive(Clone, Debug)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Slice<G, R>(TransformInput<G, R, R>);
 
@@ -104,7 +104,7 @@ where
 /// Struct which transforms the input before sending it to the underlying generator.
 ///
 /// Both addition and multiplication is done. In regards to math operation priorities, multiplication is done first.
-#[derive(Clone, Debug)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct TransformInput<G, A, M> {
     addition: A,
@@ -165,7 +165,7 @@ where
 /// Struct which composite two generator together to act as one generator.
 ///
 /// This `struct` is created by [`Generator::composite`]. See its documentation for more.
-#[derive(Clone, Copy, Debug)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Composite<A, B>(A, B);
 
@@ -203,7 +203,7 @@ where
 /// That it, the struct holds two generators with output S and T and outputs (S,T).
 ///
 /// This `struct` is created by [`Generator::stack]. See its documentation for more.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Stack<G, H>(G, H);
 
@@ -257,7 +257,7 @@ where
 }
 
 /// DiscreteGenerator Adaptor which repeats the underlying elements.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Repeat<G>(G);
 
@@ -292,7 +292,7 @@ where
 impl<G> ConstDiscreteGenerator<{ usize::MAX }> for Repeat<G> where G: DiscreteGenerator {}
 
 /// Generator adaptor which repeats a fixed amount of first elements.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Wrap<G> {
     inner: G,

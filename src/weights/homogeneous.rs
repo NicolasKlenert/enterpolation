@@ -9,7 +9,7 @@ use num_traits::identities::{One, Zero};
 /// Wrapper for elements to achieve weighted and rational curves.
 ///
 /// This wrapper allows for Homogeneous Coordinates.
-#[derive(Clone, Copy, Hash, Default, Debug)]
+#[derive(Debug, Copy, Clone, PartialEq, Hash, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Homogeneous<E, R> {
     element: E,
