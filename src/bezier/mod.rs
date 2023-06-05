@@ -275,7 +275,7 @@ where
         )
     }
 
-    /// Generate the value and its deriatives, the order hereby is from value, then firt deriative, then second and so on.
+    /// Generate the value and its deriatives, the order hereby is from value, then first deriative, then second and so on.
     pub fn gen_with_deriatives<const K: usize>(&self, scalar: R) -> [E::Output; K] {
         // we pass only slices to guarantee the size of workspace to match the number of elements
         bezier_with_deriatives(

@@ -45,7 +45,7 @@ impl Add for Point {
     }
 }
 
-/// To calculate the distance of one point to another, we use substraction.
+/// To calculate the distance of one point to another, we use subtraction.
 impl Sub for Point {
     type Output = Point;
     fn sub(self, rhs: Point) -> Self::Output {

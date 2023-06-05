@@ -25,7 +25,7 @@ use super::{DiscreteGenerator, Generator};
 /// - comparable (you could define the trait Ord for the set of all generated elements)
 /// - non-strictly increasing
 ///
-/// Also it implements default search functions which can be overriden to achieve better performance
+/// Also it implements default search functions which can be overridden to achieve better performance
 /// and accuracy.
 ///
 /// # Panics
@@ -38,7 +38,7 @@ use super::{DiscreteGenerator, Generator};
 ///
 /// If a default implementation of a function is overwritten, the documentation should be copied
 /// and the examples only slightly changed such that they are working. The values and equations
-/// in the examples given should alwasy be true. If some values in the examples can't be reproduced,
+/// in the examples given should always be true. If some values in the examples can't be reproduced,
 /// the example doesn't have to be copied. These cases (if applicable) should be tested:
 /// - stricly increasing array with values
 ///     - outside of the array (both sides)
@@ -357,7 +357,7 @@ pub struct Equidistant<R = f64> {
     offset: R,
 }
 
-// // implement seperate new functions to be able to call them with const -> see issue #57563
+// // implement separate new functions to be able to call them with const -> see issue #57563
 // impl Equidistant<f64>
 // {
 //     pub const fn new_f64(len: usize) -> Self {

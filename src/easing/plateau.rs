@@ -28,7 +28,7 @@ where
 }
 
 /// Overclamp can be imagined as a to clamp working to hard. That is, not only will be values be
-/// clamped wich are outside the defined area but also some points inside the area, depending on
+/// clamped which are outside the defined area but also some points inside the area, depending on
 /// their distance and how strong the over clamping is done.
 ///
 /// Overclamping is done in the area of [0.0,1.0]. All values below a certain threshold will be clamped to

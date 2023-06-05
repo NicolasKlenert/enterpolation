@@ -109,7 +109,7 @@ impl fmt::Display for InvalidDegree {
         write!(
             f,
             "The degree of the resulting curve is {} and such not valid.
-            Only striclty positive degrees less than the number of elements are allowed.",
+            Only strictly positive degrees less than the number of elements are allowed.",
             self.degree
         )
     }

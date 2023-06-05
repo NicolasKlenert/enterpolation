@@ -5,8 +5,8 @@ use num_traits::real::Real;
 
 /// Wrapper for curves to clamp input to their domain.
 ///
-/// This struct in constructued through the [`clamp()`] method of curves.
-/// Please look their for more information.
+/// This struct is constructed through the [`clamp()`] method of curves.
+/// Please look there for more information.
 ///
 /// [`clamp()`]: crate::Curve::clamp()
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -128,7 +128,7 @@ where
     G: Curve<R>,
     R: Real,
 {
-    /// Transfrom an input such that the wrapped generator changes its domain from [0.0,1.0] to
+    /// Transform an input such that the wrapped generator changes its domain from [0.0,1.0] to
     /// the domain wished for.
     pub fn normalized_to_domain(generator: G, start: R, end: R) -> Self {
         Self::new(generator, -start, (end - start).recip())
