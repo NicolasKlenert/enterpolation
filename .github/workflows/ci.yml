@@ -20,24 +20,19 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@master
         id: toolchain
         with:
-          profile: minimal
           toolchain: ${{ matrix.rust }}
-          override: true
           components: rustfmt, clippy
 
       - name: clippy
         if: matrix.os == 'ubuntu-latest' && matrix.rust == 'stable'
-        uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: -- -D warnings
+        run: cargo clippy -- -D warnings
 
       - name: cache cargo binaries
         id: cache
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: "/usr/share/rust/.cargo"
           key: ${{ runner.os }}-cargo-bins-${{ env.GITHUB_SHA }}
@@ -45,24 +40,14 @@ jobs:
 
       - name: install tools
         if: steps.cache.outputs.cache_hit != 'true'
-        uses: actions-rs/cargo@v1
-        with:
-          command: install
-          args: --git https://github.com/NicolasKlenert/cargo-all-features.git
+        run: cargo install --git https://github.com/NicolasKlenert/cargo-all-features.git
 
       # - name: install tools
       #   if: steps.cache.outputs.cache_hit != 'true'
-      #   uses: actions-rs/cargo@v1
-      #   with:
-      #     command: install
-      #     args: cargo-nono --locked
+      #   run: cargo install cargo-nono --locked
 
       - name: Run Tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: test-all-features
+        run: cargo test-all-features
 
       # - name: test no-std
-      #   uses: actions-rs/cargo@v1
-      #   with:
-      #     command: nono check --no-default-features --features libm serde linear bezier bspline
+      #   run: cargo nono check --no-default-features --features libm serde linear bezier bspline
