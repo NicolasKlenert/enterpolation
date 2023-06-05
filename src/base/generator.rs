@@ -341,7 +341,7 @@ pub trait DiscreteGenerator: Generator<usize> {
     fn iter(&self) -> IntoIter<&Self> {
         IntoIter::new(self)
     }
-    /// Transfrom generator to one which repeats its elements.
+    /// Transform generator to one which repeats its elements.
     fn repeat(self) -> Repeat<Self>
     where
         Self: Sized,
@@ -357,16 +357,16 @@ impl<G: DiscreteGenerator + ?Sized> DiscreteGenerator for &G {
     }
 }
 
-/// Trait for [`DiscreteGenerator`] where its length is knwon at compile-time.
+/// Trait for [`DiscreteGenerator`] where its length is known at compile-time.
 ///
 /// [`DiscreteGenerator`]: DiscreteGenerator
 pub trait ConstDiscreteGenerator<const N: usize>: DiscreteGenerator {
     /// Collect all elements generated into an array.
     ///
     /// This function may be useful if one wants to save intermediate steps instead of generating
-    /// and caclulating it.
+    /// and calculating it.
     ///
-    /// If you want to transfrom a `DiscreteGenerator` to a collection,
+    /// If you want to transform a `DiscreteGenerator` to a collection,
     /// you may use `.iter().collect()` instead.
     fn to_array(&self) -> [Self::Output; N]
     where

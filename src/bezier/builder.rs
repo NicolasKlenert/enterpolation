@@ -341,7 +341,7 @@ where
         }
     }
 
-    /// Set the workspace whcih the interpolation uses.
+    /// Set the workspace which the interpolation uses.
     ///
     /// The workspace has to have a size of the number of elements in the bezier curve.
     ///
@@ -398,7 +398,7 @@ where
         }
     }
 
-    /// Set the workspace whcih the interpolation uses.
+    /// Set the workspace which the interpolation uses.
     ///
     /// The workspace has to have a size of the number of elements in the bezier curve.
     ///

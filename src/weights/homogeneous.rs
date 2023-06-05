@@ -128,7 +128,7 @@ impl<E, R> Homogeneous<E, R>
 where
     E: Div<R, Output = E>,
 {
-    /// Project the homogenous coordinate back to the element space.
+    /// Project the homogeneous coordinate back to the element space.
     ///
     /// The created element may not be a real number, but inf, NaN or such.
     pub fn project(self) -> E {

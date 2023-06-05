@@ -14,7 +14,7 @@ use topology_traits::Merge;
 
 /// Builder for linear interpolation.
 ///
-/// This struct helps create linear interpolations. The differene between this struct and [`LinearBuilder`]
+/// This struct helps create linear interpolations. The difference between this struct and [`LinearBuilder`]
 /// is that this struct may have other fallible methods and not only the [`build()`] method.
 ///
 /// Before building, one has to give information for:

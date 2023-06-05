@@ -22,7 +22,7 @@ pub struct Weights<G> {
 }
 
 impl<G> Weights<G> {
-    /// Transform given generator such that it outputs homogenous data.
+    /// Transform given generator such that it outputs homogeneous data.
     pub fn new(gen: G) -> Self {
         Weights { gen }
     }
@@ -72,11 +72,11 @@ where
 ///
 /// This trait is used to be able to implement Generator for Weights without having to add other generic variables.
 pub trait IntoWeight {
-    /// The element/direction of the homogenous data.
+    /// The element/direction of the homogeneous data.
     type Element;
-    /// The weight/rational of the homogenous data.
+    /// The weight/rational of the homogeneous data.
     type Weight;
-    /// Method to convert self into homogenous data.
+    /// Method to convert self into homogeneous data.
     fn into_weight(self) -> Homogeneous<Self::Element, Self::Weight>;
 }
 
