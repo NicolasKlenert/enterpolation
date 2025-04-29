@@ -1,6 +1,6 @@
 //! This example shall illustrate bsplines and how to corrolate to other curves.
 
-use assert_float_eq::{afe_is_f64_near, afe_near_error_msg, assert_f64_near};
+use assert_float_eq::assert_f64_near;
 use enterpolation::{bezier::Bezier, bspline::BSpline, linear::Linear, Curve};
 
 fn main() {
