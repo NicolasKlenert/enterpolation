@@ -3,7 +3,7 @@
 //! Enterpolation is written to be as generic as possible and using a generator
 //! instead of a collection allows to define a (nearly) infinite detail-rich interpolation.
 
-use assert_float_eq::{afe_is_f64_near, afe_near_error_msg, assert_f64_near};
+use assert_float_eq::assert_f64_near;
 use enterpolation::{bspline::BSpline, DiscreteGenerator, Generator};
 
 // We define our own value generator which will be the basis of our (nearly) infinite curve.
