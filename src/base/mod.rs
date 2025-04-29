@@ -8,7 +8,7 @@ mod space;
 pub use adaptors::{Clamp, Composite, Repeat, Slice, Stack, TransformInput, Wrap};
 #[allow(unreachable_pub)]
 pub use generator::{
-    ConstDiscreteGenerator, Curve, DiscreteGenerator, Extract, Generator, Stepper, Take,
+    ConstDiscreteGenerator, Curve, DiscreteGenerator, Extract, Generator, Stepper,
 };
 #[allow(unreachable_pub)]
 pub use list::{ConstEquidistant, Equidistant, NotSorted, Sorted, SortedGenerator};
