@@ -127,7 +127,7 @@ where
         let mut workspace = self.space.workspace();
         let mut_workspace = workspace.as_mut();
         for (i, val) in mut_workspace.iter_mut().enumerate().take(self.degree + 1) {
-            *val = self.elements.gen(index - self.degree + i);
+            *val = self.elements.interpolate(index - self.degree + i);
         }
         workspace
     }
@@ -142,7 +142,7 @@ where
     K: SortedGenerator<Output = R>,
 {
     type Output = E::Output;
-    fn gen(&self, scalar: R) -> E::Output {
+    fn interpolate(&self, scalar: R) -> E::Output {
         // we do NOT calculaute a possible multiplicity of the scalar, as we assume
         // the chance of hitting a knot is almost zero.
         let lower_cut = self.degree;
@@ -160,8 +160,8 @@ where
         for r in 1..=self.degree {
             for j in 0..=(self.degree - r) {
                 let i = j + r + index - self.degree;
-                let factor = (scalar - self.knots.gen(i - 1))
-                    / (self.knots.gen(i + self.degree - r) - self.knots.gen(i - 1));
+                let factor = (scalar - self.knots.interpolate(i - 1))
+                    / (self.knots.interpolate(i + self.degree - r) - self.knots.interpolate(i - 1));
                 elements[j] = elements[j].merge(elements[j + 1], factor);
             }
         }
@@ -179,8 +179,8 @@ where
 {
     fn domain(&self) -> [R; 2] {
         [
-            self.knots.gen(self.degree - 1),
-            self.knots.gen(self.knots.len() - self.degree),
+            self.knots.interpolate(self.degree - 1),
+            self.knots.interpolate(self.knots.len() - self.degree),
         ]
     }
 }
@@ -286,7 +286,7 @@ mod test {
             .build()
             .unwrap();
         for i in 0..expect.len() {
-            assert_f32_near!(spline.gen(expect[i].0), expect[i].1);
+            assert_f32_near!(spline.interpolate(expect[i].0), expect[i].1);
         }
     }
 
@@ -312,7 +312,7 @@ mod test {
             .build()
             .unwrap();
         for i in 0..expect.len() {
-            assert_f32_near!(spline.gen(expect[i].0), expect[i].1);
+            assert_f32_near!(spline.interpolate(expect[i].0), expect[i].1);
         }
     }
 
@@ -337,7 +337,7 @@ mod test {
             .build()
             .unwrap();
         for i in 0..expect.len() {
-            assert_f32_near!(spline.gen(expect[i].0), expect[i].1);
+            assert_f32_near!(spline.interpolate(expect[i].0), expect[i].1);
         }
     }
 
@@ -365,7 +365,7 @@ mod test {
             .build()
             .unwrap();
         for i in 0..expect.len() {
-            assert_f32_near!(spline.gen(expect[i].0), expect[i].1);
+            assert_f32_near!(spline.interpolate(expect[i].0), expect[i].1);
         }
     }
 
@@ -393,7 +393,7 @@ mod test {
             .build()
             .unwrap();
         for i in 0..expect.len() {
-            assert_f64_near!(spline.gen(expect[i].0), expect[i].1);
+            assert_f64_near!(spline.interpolate(expect[i].0), expect[i].1);
         }
     }
 

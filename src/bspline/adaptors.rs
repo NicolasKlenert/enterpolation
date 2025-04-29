@@ -44,9 +44,9 @@ where
     G: DiscreteGenerator,
 {
     type Output = G::Output;
-    fn gen(&self, input: usize) -> Self::Output {
+    fn interpolate(&self, input: usize) -> Self::Output {
         let clamped = input.max(self.n).min(self.inner.len() + self.n - 1);
-        self.inner.gen(clamped - self.n)
+        self.inner.interpolate(clamped - self.n)
     }
 }
 
@@ -113,8 +113,8 @@ where
     G: DiscreteGenerator,
 {
     type Output = G::Output;
-    fn gen(&self, input: usize) -> Self::Output {
-        self.inner.gen(input + 1)
+    fn interpolate(&self, input: usize) -> Self::Output {
+        self.inner.interpolate(input + 1)
     }
 }
 

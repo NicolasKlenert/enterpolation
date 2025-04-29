@@ -113,7 +113,7 @@ fn main() {
     for val in [0.0f64, 1.0, 2.0, 3.0, 4.0].iter().copied() {
         // scale value to the corresponding circumference
         let circle_point = Point::new((val * 0.5 * PI).cos(), (val * 0.5 * PI).sin());
-        assert_float_absolute_eq!(nurbs.gen(val).dist(circle_point), 0.0);
+        assert_float_absolute_eq!(nurbs.interpolate(val).dist(circle_point), 0.0);
     }
     println!("Successful creation of unit circle with a NURBS!");
     // but we can approximate it by linearizing.

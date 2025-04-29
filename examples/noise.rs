@@ -11,7 +11,7 @@ struct ValueGenerator {}
 
 impl Generator<usize> for ValueGenerator {
     type Output = f64;
-    fn gen(&self, input: usize) -> f64 {
+    fn interpolate(&self, input: usize) -> f64 {
         // In Reality we would want to use a hash-like function
         // otherwise we don't create noise but a simple pattern
         (input % 10) as f64
@@ -43,7 +43,11 @@ fn main() {
     // lands on an integer we know that values at x and x+10.0 are equal.
     let samples = [3.3, 157.23, 989.98];
     for sample in samples.iter() {
-        assert_f64_near!(spline.gen(sample), spline.gen(sample + 10.0), 10);
+        assert_f64_near!(
+            spline.interpolate(sample),
+            spline.interpolate(sample + 10.0),
+            10
+        );
     }
     println!("Nearly infinite long curve generated!");
 }

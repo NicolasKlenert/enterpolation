@@ -31,8 +31,8 @@ where
     G::Output: Project,
 {
     type Output = <G::Output as Project>::Element;
-    fn gen(&self, input: I) -> Self::Output {
-        self.inner.gen(input).project()
+    fn interpolate(&self, input: I) -> Self::Output {
+        self.inner.interpolate(input).project()
     }
 }
 

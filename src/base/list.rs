@@ -75,7 +75,7 @@ pub trait SortedGenerator: DiscreteGenerator {
         while dist > 0 {
             let step = dist / 2;
             let sample = pointer + step;
-            if element >= self.gen(sample) {
+            if element >= self.interpolate(sample) {
                 pointer = sample + 1;
                 dist -= step + 1;
             } else {
@@ -145,8 +145,8 @@ pub trait SortedGenerator: DiscreteGenerator {
     /// let values = vec![-1.0,0.0,0.15,0.7,1.0,20.0];
     /// for value in values {
     ///     let (min_index, max_index, factor) = arr.upper_border(value);
-    ///     let min = arr.gen(min_index);
-    ///     let max = arr.gen(max_index);
+    ///     let min = arr.interpolate(min_index);
+    ///     let max = arr.interpolate(max_index);
     ///     assert_f64_near!(utils::lerp(min,max,factor),value);
     /// }
     /// ```
@@ -161,8 +161,8 @@ pub trait SortedGenerator: DiscreteGenerator {
     /// for (value, result) in values.into_iter().zip(results) {
     ///     let (min_index, max_index, factor) = arr.upper_border(value);
     ///     println!("min_index: {:?}, max_index: {:?}, factor: {:?}", min_index, max_index, factor);
-    ///     let min = arr.gen(min_index);
-    ///     let max = arr.gen(max_index);
+    ///     let min = arr.interpolate(min_index);
+    ///     let max = arr.interpolate(max_index);
     ///     assert_f64_near!(utils::lerp(min,max,factor),result);
     /// }
     /// ```
@@ -218,8 +218,8 @@ pub trait SortedGenerator: DiscreteGenerator {
     where
         Self::Output: Sub<Output = Self::Output> + Div<Output = Self::Output> + Copy,
     {
-        let max = self.gen(max_index);
-        let min = self.gen(min_index);
+        let max = self.interpolate(max_index);
+        let min: <Self as Generator<usize>>::Output = self.interpolate(min_index);
         (element - min) / (max - min)
     }
 
@@ -238,8 +238,8 @@ pub trait SortedGenerator: DiscreteGenerator {
     where
         Self::Output: Sub<Output = Self::Output> + Div<Output = Self::Output> + Zero + Copy,
     {
-        let max = self.gen(max_index);
-        let min = self.gen(min_index);
+        let max = self.interpolate(max_index);
+        let min = self.interpolate(min_index);
         let div = max - min;
         if div.is_zero() {
             return div;
@@ -264,9 +264,9 @@ where
         if col.is_empty() {
             return Ok(Sorted(col));
         }
-        let mut last = col.gen(0);
+        let mut last = col.interpolate(0);
         for i in 1..col.len() {
-            let current = col.gen(i);
+            let current = col.interpolate(i);
             match last.partial_cmp(&current) {
                 None | Some(Ordering::Greater) => return Err(NotSorted { index: i }),
                 _ => {
@@ -293,8 +293,8 @@ where
     C: Generator<usize>,
 {
     type Output = C::Output;
-    fn gen(&self, input: usize) -> Self::Output {
-        self.0.gen(input)
+    fn interpolate(&self, input: usize) -> Self::Output {
+        self.0.interpolate(input)
     }
 }
 
@@ -413,7 +413,7 @@ where
     R: Real + FromPrimitive,
 {
     type Output = R;
-    fn gen(&self, input: usize) -> R {
+    fn interpolate(&self, input: usize) -> R {
         self.step * R::from_usize(input).unwrap() + self.offset
     }
 }
@@ -478,7 +478,7 @@ where
         Self::Output: PartialOrd + Copy,
     {
         // extrapolation to the left
-        if element < self.gen(min) {
+        if element < self.interpolate(min) {
             return min;
         }
         let scaled = (element - self.offset) / self.step;
@@ -524,8 +524,8 @@ where
     /// let values = vec![-1.0,0.0,0.15,0.6,1.0,20.0];
     /// for value in values {
     ///     let (min_index, max_index, factor) = equdist.upper_border(value);
-    ///     let min = equdist.gen(min_index);
-    ///     let max = equdist.gen(max_index);
+    ///     let min = equdist.interpolate(min_index);
+    ///     let max = equdist.interpolate(max_index);
     ///     assert_f64_near!(utils::lerp(min,max,factor),value);
     /// }
     /// ```
@@ -578,7 +578,7 @@ where
     R: Real + FromPrimitive,
 {
     type Output = R;
-    fn gen(&self, input: usize) -> R {
+    fn interpolate(&self, input: usize) -> R {
         R::from_usize(input).unwrap() / R::from_usize(N - 1).unwrap()
     }
 }
@@ -648,7 +648,7 @@ where
         Self::Output: PartialOrd + Copy,
     {
         // extrapolation to the left
-        if element < self.gen(min) {
+        if element < self.interpolate(min) {
             return min;
         }
         let scaled = element * R::from_usize(N - 1).unwrap();
@@ -688,8 +688,8 @@ where
     /// let values = vec![-1.0,0.0,0.15,0.6,1.0,20.0];
     /// for value in values {
     ///     let (min_index, max_index, factor) = equdist.upper_border(value);
-    ///     let min = equdist.gen(min_index);
-    ///     let max = equdist.gen(max_index);
+    ///     let min = equdist.interpolate(min_index);
+    ///     let max = equdist.interpolate(max_index);
     ///     assert_f64_near!(utils::lerp(min,max,factor),value);
     /// }
     /// ```

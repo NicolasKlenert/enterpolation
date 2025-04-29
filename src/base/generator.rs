@@ -16,10 +16,10 @@ pub trait Generator<Input> {
     /// The element outputted
     type Output;
     /// Method to generate the element at the given input
-    fn gen(&self, input: Input) -> Self::Output;
+    fn interpolate(&self, input: Input) -> Self::Output;
     /// Helper function if one wants to extract values from the interpolation.
     ///
-    /// It takes an iterator of items which are inputed into the [`gen()`] method
+    /// It takes an iterator of items which are inputed into the [`interpolate()`] method
     /// and returns an iterator of the corresponding outputs.
     ///
     /// # Examples
@@ -44,7 +44,7 @@ pub trait Generator<Input> {
     /// # }
     /// ```
     ///
-    /// [`gen()`]: Self::gen()
+    /// [`interpolate()`]: Self::interpolate()
     fn extract<I, J>(self, iterator: I) -> Extract<Self, J>
     where
         Self: Sized,
@@ -75,7 +75,7 @@ pub trait Generator<Input> {
     ///                 .elements_with_weights(elements.stack(weights))
     ///                 .knots([0.0,1.0,2.0])
     ///                 .build()?;
-    /// assert_f64_near!(linear.gen(0.5), 4.0);
+    /// assert_f64_near!(linear.interpolate(0.5), 4.0);
     /// #
     /// #     Ok(())
     /// # }
@@ -114,8 +114,8 @@ pub trait Generator<Input> {
     /// let results : Vec<_> = curve.sample(corrected_samples).collect();
     ///
     /// let smoother_animation = smoothing.composite(curve);
-    /// assert_f64_near!(smoother_animation.gen(0.1), results[0]);
-    /// assert_f64_near!(smoother_animation.gen(0.25), results[1]);
+    /// assert_f64_near!(smoother_animation.interpolate(0.1), results[0]);
+    /// assert_f64_near!(smoother_animation.interpolate(0.25), results[1]);
     /// # }
     /// ```
     ///
@@ -134,7 +134,7 @@ pub trait Generator<Input> {
     }
     /// Helper function if one wants to sample values from the interpolation.
     ///
-    /// It takes an iterator of items which are inputed into the [`gen()`] method
+    /// It takes an iterator of items which are inputed into the [`interpolate()`] method
     /// and returns an iterator of the corresponding outputs.
     ///
     /// This acts the same as `generator.by_ref().extract()`.
@@ -162,7 +162,7 @@ pub trait Generator<Input> {
     /// # }
     /// ```
     ///
-    /// [`gen()`]: Self::gen()
+    /// [`interpolate()`]: Self::interpolate()
     fn sample<I, J>(&self, iterator: I) -> Extract<&Self, J>
     where
         Self: Sized,
@@ -176,8 +176,8 @@ pub trait Generator<Input> {
 // Make references of generators also generators
 impl<G: Generator<I> + ?Sized, I> Generator<I> for &G {
     type Output = G::Output;
-    fn gen(&self, input: I) -> Self::Output {
-        (**self).gen(input)
+    fn interpolate(&self, input: I) -> Self::Output {
+        (**self).interpolate(input)
     }
 }
 
@@ -275,7 +275,7 @@ where
     ///                 .clamp();
     /// let expected = [[-1.0,0.0],[0.0,0.0],[0.5,1.5],[1.0,3.0],[2.0,3.0]];
     /// for [input,result] in expected {
-    ///     assert_f64_near!(linear.gen(input), result);
+    ///     assert_f64_near!(linear.interpolate(input), result);
     /// }
     /// #
     /// #     Ok(())
@@ -317,14 +317,14 @@ pub trait DiscreteGenerator: Generator<usize> {
         if self.is_empty() {
             return None;
         }
-        Some(self.gen(0))
+        Some(self.interpolate(0))
     }
     /// Returns the last element of the generator, or `None` if it is empty.
     fn last(&self) -> Option<Self::Output> {
         if self.is_empty() {
             return None;
         }
-        Some(self.gen(self.len() - 1))
+        Some(self.interpolate(self.len() - 1))
     }
     /// Returns `true` if the generator does not generate any elements.
     fn is_empty(&self) -> bool {
@@ -374,7 +374,7 @@ pub trait ConstDiscreteGenerator<const N: usize>: DiscreteGenerator {
     {
         let mut arr = [Default::default(); N];
         for (i, val) in arr.iter_mut().enumerate().take(N) {
-            *val = self.gen(i);
+            *val = self.interpolate(i);
         }
         arr
     }
@@ -412,7 +412,7 @@ where
     type Item = G::Output;
     fn next(&mut self) -> Option<Self::Item> {
         if self.front < self.back {
-            let res = self.gen.gen(self.front);
+            let res = self.gen.interpolate(self.front);
             self.front += 1;
             return Some(res);
         }
@@ -444,7 +444,7 @@ where
 {
     fn next_back(&mut self) -> Option<Self::Item> {
         if self.front < self.back {
-            let res = self.gen.gen(self.back);
+            let res = self.gen.interpolate(self.back);
             self.back -= 1;
             return Some(res);
         }
@@ -481,7 +481,7 @@ where
 {
     type Item = G::Output;
     fn next(&mut self) -> Option<Self::Item> {
-        Some(self.generator.gen(self.iterator.next()?))
+        Some(self.generator.interpolate(self.iterator.next()?))
     }
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.iterator.size_hint()
@@ -490,7 +490,7 @@ where
         self.iterator.count()
     }
     fn nth(&mut self, n: usize) -> Option<Self::Item> {
-        Some(self.generator.gen(self.iterator.nth(n)?))
+        Some(self.generator.interpolate(self.iterator.nth(n)?))
     }
 }
 
@@ -514,10 +514,10 @@ where
     I: DoubleEndedIterator,
 {
     fn next_back(&mut self) -> Option<Self::Item> {
-        Some(self.generator.gen(self.iterator.next_back()?))
+        Some(self.generator.interpolate(self.iterator.next_back()?))
     }
     fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
-        Some(self.generator.gen(self.iterator.nth_back(n)?))
+        Some(self.generator.interpolate(self.iterator.nth_back(n)?))
     }
 }
 

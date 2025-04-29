@@ -21,7 +21,7 @@ pub use space::{ConstSpace, Space};
 #[cfg(feature = "std")]
 impl<T: Copy> Generator<usize> for Vec<T> {
     type Output = T;
-    fn gen(&self, input: usize) -> Self::Output {
+    fn interpolate(&self, input: usize) -> Self::Output {
         self[input]
     }
 }
@@ -45,7 +45,7 @@ impl<T: Copy> DiscreteGenerator for Vec<T> {
 
 impl<T: Copy> Generator<usize> for &[T] {
     type Output = T;
-    fn gen(&self, input: usize) -> Self::Output {
+    fn interpolate(&self, input: usize) -> Self::Output {
         self[input]
     }
 }
@@ -58,7 +58,7 @@ impl<T: Copy> DiscreteGenerator for &[T] {
 
 impl<T: Copy, const N: usize> Generator<usize> for [T; N] {
     type Output = T;
-    fn gen(&self, input: usize) -> Self::Output {
+    fn interpolate(&self, input: usize) -> Self::Output {
         self[input]
     }
 }

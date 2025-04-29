@@ -74,10 +74,10 @@ fn main() {
     for (x, y, pixel) in imgbuf.enumerate_pixels_mut() {
         let raw = if y <= upper_height {
             gradient
-                .gen(remap(x as f32, 0.0, width as f32, dmin, dmax))
+                .interpolate(remap(x as f32, 0.0, width as f32, dmin, dmax))
                 .get_raw()
         } else {
-            let graph = lin.gen(remap(x as f32, 0.0, width as f32, dmin, dmax));
+            let graph = lin.interpolate(remap(x as f32, 0.0, width as f32, dmin, dmax));
             let graph = remap(graph, omin, omax, 0.0, 1.0);
             // test if pixel falls into the area of the graph
             if (graph
@@ -94,7 +94,7 @@ fn main() {
                 [0, 0, 0]
             } else {
                 plateaus
-                    .gen(remap(x as f32, 0.0, width as f32, dmin, dmax))
+                    .interpolate(remap(x as f32, 0.0, width as f32, dmin, dmax))
                     .get_raw()
             }
         };

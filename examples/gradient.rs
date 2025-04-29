@@ -48,7 +48,9 @@ fn main() {
     let mut imgbuf = ImageBuffer::new(width, height);
 
     for (x, _, pixel) in imgbuf.enumerate_pixels_mut() {
-        let hsl = spline.gen(remap(x as f32, 0.0, width as f32, dmin, dmax)).0;
+        let hsl = spline
+            .interpolate(remap(x as f32, 0.0, width as f32, dmin, dmax))
+            .0;
         let srgb: palette::Srgb = hsl.into_color();
         let raw: (u8, u8, u8) = srgb.into_format().into_components();
         *pixel = Rgba([raw.0, raw.1, raw.2, 255]);

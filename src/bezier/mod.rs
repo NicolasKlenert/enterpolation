@@ -223,7 +223,7 @@ where
             .enumerate()
             .take(self.elements.len())
         {
-            *val = self.elements.gen(i);
+            *val = self.elements.interpolate(i);
         }
         workspace
     }
@@ -237,7 +237,7 @@ where
     R: Real,
 {
     type Output = E::Output;
-    fn gen(&self, scalar: R) -> E::Output {
+    fn interpolate(&self, scalar: R) -> E::Output {
         // we pass only slices to guarantee the size of workspace to match the number of elements
         bezier(
             &mut self.workspace().as_mut()[..self.elements.len()],
@@ -337,8 +337,8 @@ mod test {
             .constant()
             .build()
             .unwrap();
-        assert_f64_near!(bez.gen(2.0), 820.0);
-        assert_f64_near!(bez.gen(-1.0), 280.0);
+        assert_f64_near!(bez.interpolate(2.0), 820.0);
+        assert_f64_near!(bez.interpolate(-1.0), 280.0);
     }
 
     #[test]

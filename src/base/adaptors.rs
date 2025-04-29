@@ -26,10 +26,10 @@ where
     R: Real,
 {
     type Output = G::Output;
-    fn gen(&self, input: R) -> Self::Output {
+    fn interpolate(&self, input: R) -> Self::Output {
         let [min, max] = self.domain();
         let clamped = clamp(input, min, max);
-        self.0.gen(clamped)
+        self.0.interpolate(clamped)
     }
 }
 
@@ -86,8 +86,8 @@ where
     R: Real,
 {
     type Output = G::Output;
-    fn gen(&self, input: R) -> Self::Output {
-        self.0.gen(input)
+    fn interpolate(&self, input: R) -> Self::Output {
+        self.0.interpolate(input)
     }
 }
 
@@ -144,8 +144,9 @@ where
     G: Generator<<<I as Mul<M>>::Output as Add<A>>::Output>,
 {
     type Output = G::Output;
-    fn gen(&self, input: I) -> Self::Output {
-        self.inner.gen(input * self.multiplication + self.addition)
+    fn interpolate(&self, input: I) -> Self::Output {
+        self.inner
+            .interpolate(input * self.multiplication + self.addition)
     }
 }
 
@@ -182,8 +183,8 @@ where
     B: Generator<A::Output>,
 {
     type Output = B::Output;
-    fn gen(&self, scalar: T) -> Self::Output {
-        self.1.gen(self.0.gen(scalar))
+    fn interpolate(&self, scalar: T) -> Self::Output {
+        self.1.interpolate(self.0.interpolate(scalar))
     }
 }
 
@@ -221,8 +222,8 @@ where
     Input: Copy,
 {
     type Output = (G::Output, H::Output);
-    fn gen(&self, input: Input) -> Self::Output {
-        (self.0.gen(input), self.1.gen(input))
+    fn interpolate(&self, input: Input) -> Self::Output {
+        (self.0.interpolate(input), self.1.interpolate(input))
     }
 }
 
@@ -275,8 +276,8 @@ where
     G: DiscreteGenerator,
 {
     type Output = G::Output;
-    fn gen(&self, input: usize) -> Self::Output {
-        self.0.gen(input % self.0.len())
+    fn interpolate(&self, input: usize) -> Self::Output {
+        self.0.interpolate(input % self.0.len())
     }
 }
 
@@ -311,8 +312,8 @@ where
     G: DiscreteGenerator,
 {
     type Output = G::Output;
-    fn gen(&self, input: usize) -> Self::Output {
-        self.inner.gen(input % self.inner.len())
+    fn interpolate(&self, input: usize) -> Self::Output {
+        self.inner.interpolate(input % self.inner.len())
     }
 }
 
@@ -334,7 +335,7 @@ mod test {
     fn input_transform() {
         let identity = Identity {};
         let transformed = TransformInput::new(identity, 0.0, 2.0);
-        assert_f64_near!(transformed.gen(1.0), 2.0);
+        assert_f64_near!(transformed.interpolate(1.0), 2.0);
         let results = [0.0, 1.0, 2.0];
         // try to extract
         let extractor = transformed.extract([0.0, 0.5, 1.0]);
@@ -356,8 +357,8 @@ mod test {
         let identity = Identity {};
         let slice = Slice::new(identity, 10.0..100.0);
         let results = [10.0, 100.0];
-        assert_f64_near!(slice.gen(0.0), 10.0);
-        assert_f64_near!(slice.gen(1.0), 100.0);
+        assert_f64_near!(slice.interpolate(0.0), 10.0);
+        assert_f64_near!(slice.interpolate(1.0), 100.0);
         for (val, res) in slice.take(results.len()).zip(results.iter()) {
             assert_f64_near!(val, res);
         }
