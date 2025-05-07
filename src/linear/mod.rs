@@ -232,9 +232,8 @@ mod test {
             .unwrap();
         let expected = [20.0, 60.0, 100.0, 50.0, 0.0, 100.0, 200.0];
         let mut iter = lin.take(expected.len());
-        for i in 0..expected.len() {
-            let val = iter.next().unwrap();
-            assert_f64_near!(val, expected[i]);
+        for val in expected {
+            assert_f64_near!(val, iter.next().unwrap());
         }
     }
 
@@ -248,9 +247,8 @@ mod test {
             .unwrap();
         let expected = [20.0, 60.0, 100.0, 50.0, 0.0, 100.0, 200.0];
         let mut iter = lin.take(expected.len());
-        for i in 0..expected.len() {
-            let val = iter.next().unwrap();
-            assert_f64_near!(val, expected[i]);
+        for val in expected {
+            assert_f64_near!(val, iter.next().unwrap());
         }
     }
 
@@ -286,9 +284,8 @@ mod test {
         // const LIN : Linear<f64,f64,ConstEquidistant<f64>,CollectionWrapper<[f64;4],f64>> = Linear::new_equidistant_unchecked([20.0,100.0,0.0,200.0]);
         let expected = [20.0, 60.0, 100.0, 50.0, 0.0, 100.0, 200.0];
         let mut iter = LIN.take(expected.len());
-        for i in 0..expected.len() {
-            let val = iter.next().unwrap();
-            assert_f64_near!(val, expected[i]);
+        for val in expected {
+            assert_f64_near!(val, iter.next().unwrap());
         }
     }
 
@@ -304,9 +301,8 @@ mod test {
             .unwrap();
         let expected = [20.0, 60.0, 100.0, 50.0, 0.0, 100.0, 200.0];
         let mut iter = linear.sample(samples);
-        for i in 0..expected.len() {
-            let val = iter.next().unwrap();
-            assert_f64_near!(val, expected[i]);
+        for val in expected {
+            assert_f64_near!(val, iter.next().unwrap());
         }
     }
 
