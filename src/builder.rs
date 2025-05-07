@@ -42,6 +42,12 @@ impl<R> NormalizedInput<R> {
     }
 }
 
+impl<R> Default for NormalizedInput<R> {
+    fn default() -> Self {
+        Self(Default::default())
+    }
+}
+
 /// Struct to indicate which input domain to use
 #[cfg(feature = "bezier")]
 #[derive(Debug, Copy, Clone)]
@@ -71,9 +77,15 @@ impl<R> Type<R> {
     }
 }
 
+impl<R> Default for Type<R> {
+    fn default() -> Self {
+        Self(Default::default())
+    }
+}
+
 /// Error returned if if there are no elements.
 #[cfg(feature = "bezier")]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Empty {}
 
