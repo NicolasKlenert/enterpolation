@@ -35,8 +35,8 @@ where
 {
     type Output =
         Homogeneous<<G::Output as IntoWeight>::Element, <G::Output as IntoWeight>::Weight>;
-    fn gen(&self, input: Input) -> Self::Output {
-        self.gen.gen(input).into_weight()
+    fn eval(&self, input: Input) -> Self::Output {
+        self.gen.eval(input).into_weight()
     }
 }
 

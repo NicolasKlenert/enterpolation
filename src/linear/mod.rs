@@ -119,12 +119,12 @@ where
     /// # Panics
     ///
     /// Panics if `scalar` is NaN or similar.
-    fn gen(&self, scalar: K::Output) -> Self::Output {
+    fn eval(&self, scalar: K::Output) -> Self::Output {
         //we use upper_border_with_factor as this allows us a performance improvement for equidistant knots
         let (min_index, max_index, factor) = self.knots.upper_border(scalar);
-        let min_point = self.elements.gen(min_index);
-        let max_point = self.elements.gen(max_index);
-        min_point.merge(max_point, self.easing.gen(factor))
+        let min_point = self.elements.eval(min_index);
+        let max_point = self.elements.eval(max_index);
+        min_point.merge(max_point, self.easing.eval(factor))
     }
 }
 
@@ -261,10 +261,10 @@ mod test {
             .knots([1.0, 2.0, 3.0, 4.0])
             .build()
             .unwrap();
-        assert_f64_near!(lin.gen(1.5), 60.0);
-        assert_f64_near!(lin.gen(2.5), 50.0);
-        assert_f64_near!(lin.gen(-1.0), -140.0);
-        assert_f64_near!(lin.gen(5.0), 400.0);
+        assert_f64_near!(lin.eval(1.5), 60.0);
+        assert_f64_near!(lin.eval(2.5), 50.0);
+        assert_f64_near!(lin.eval(-1.0), -140.0);
+        assert_f64_near!(lin.eval(5.0), 400.0);
     }
 
     #[test]
@@ -275,7 +275,7 @@ mod test {
             .normalized()
             .build()
             .unwrap();
-        assert_f64_near!(lin.gen(0.5), 0.1);
+        assert_f64_near!(lin.eval(0.5), 0.1);
         // const LIN : Linear<f64,f64,ConstEquidistant<f64>,CollectionWrapper<[f64;4],f64>> = Linear::new_equidistant_unchecked([20.0,100.0,0.0,200.0]);
     }
 

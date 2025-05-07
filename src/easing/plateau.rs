@@ -52,7 +52,7 @@ where
     R: Real + FromPrimitive,
 {
     type Output = R;
-    fn gen(&self, input: R) -> R {
+    fn eval(&self, input: R) -> R {
         smoothstep(over_clamp(input, self.min, self.max))
     }
 }

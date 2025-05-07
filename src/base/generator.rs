@@ -16,7 +16,7 @@ pub trait Generator<Input> {
     /// The element outputted
     type Output;
     /// Method to generate the element at the given input
-    fn gen(&self, input: Input) -> Self::Output;
+    fn eval(&self, input: Input) -> Self::Output;
     /// Helper function if one wants to extract values from the interpolation.
     ///
     /// It takes an iterator of items which are inputed into the [`gen()`] method
@@ -176,8 +176,8 @@ pub trait Generator<Input> {
 // Make references of generators also generators
 impl<G: Generator<I> + ?Sized, I> Generator<I> for &G {
     type Output = G::Output;
-    fn gen(&self, input: I) -> Self::Output {
-        (**self).gen(input)
+    fn eval(&self, input: I) -> Self::Output {
+        (**self).eval(input)
     }
 }
 
@@ -317,14 +317,14 @@ pub trait DiscreteGenerator: Generator<usize> {
         if self.is_empty() {
             return None;
         }
-        Some(self.gen(0))
+        Some(self.eval(0))
     }
     /// Returns the last element of the generator, or `None` if it is empty.
     fn last(&self) -> Option<Self::Output> {
         if self.is_empty() {
             return None;
         }
-        Some(self.gen(self.len() - 1))
+        Some(self.eval(self.len() - 1))
     }
     /// Returns `true` if the generator does not generate any elements.
     fn is_empty(&self) -> bool {
@@ -374,7 +374,7 @@ pub trait ConstDiscreteGenerator<const N: usize>: DiscreteGenerator {
     {
         let mut arr = [Default::default(); N];
         for (i, val) in arr.iter_mut().enumerate().take(N) {
-            *val = self.gen(i);
+            *val = self.eval(i);
         }
         arr
     }
@@ -412,7 +412,7 @@ where
     type Item = G::Output;
     fn next(&mut self) -> Option<Self::Item> {
         if self.front < self.back {
-            let res = self.gen.gen(self.front);
+            let res = self.gen.eval(self.front);
             self.front += 1;
             return Some(res);
         }
@@ -444,7 +444,7 @@ where
 {
     fn next_back(&mut self) -> Option<Self::Item> {
         if self.front < self.back {
-            let res = self.gen.gen(self.back);
+            let res = self.gen.eval(self.back);
             self.back -= 1;
             return Some(res);
         }
@@ -481,7 +481,7 @@ where
 {
     type Item = G::Output;
     fn next(&mut self) -> Option<Self::Item> {
-        Some(self.generator.gen(self.iterator.next()?))
+        Some(self.generator.eval(self.iterator.next()?))
     }
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.iterator.size_hint()
@@ -490,7 +490,7 @@ where
         self.iterator.count()
     }
     fn nth(&mut self, n: usize) -> Option<Self::Item> {
-        Some(self.generator.gen(self.iterator.nth(n)?))
+        Some(self.generator.eval(self.iterator.nth(n)?))
     }
 }
 
@@ -514,10 +514,10 @@ where
     I: DoubleEndedIterator,
 {
     fn next_back(&mut self) -> Option<Self::Item> {
-        Some(self.generator.gen(self.iterator.next_back()?))
+        Some(self.generator.eval(self.iterator.next_back()?))
     }
     fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
-        Some(self.generator.gen(self.iterator.nth_back(n)?))
+        Some(self.generator.eval(self.iterator.nth_back(n)?))
     }
 }
 
