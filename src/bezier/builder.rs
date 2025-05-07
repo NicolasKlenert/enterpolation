@@ -4,13 +4,11 @@
 
 use super::error::{BezierError, Empty};
 use super::{Bezier, TooSmallWorkspace};
-use crate::builder::{InputDomain, NormalizedInput, Unknown, WithWeight, WithoutWeight};
-use crate::weights::{Homogeneous, IntoWeight, Weighted, Weights};
 #[cfg(feature = "std")]
 use crate::DynSpace;
-use crate::{
-    ConstDiscreteGenerator, ConstSpace, DiscreteGenerator, Generator, Space, TransformInput,
-};
+use crate::builder::{InputDomain, NormalizedInput, Unknown, WithWeight, WithoutWeight};
+use crate::weights::{Homogeneous, IntoWeight, Weighted, Weights};
+use crate::{Chain, ConstChain, ConstSpace, Signal, Space, TransformInput};
 use core::marker::PhantomData;
 use core::ops::{Div, Mul};
 use num_traits::identities::Zero;
@@ -59,7 +57,7 @@ pub struct BezierDirector<I, E, S, W> {
 ///
 /// ```rust
 /// # use std::error::Error;
-/// # use enterpolation::{bezier::{Bezier, BezierError}, Generator, Curve};
+/// # use enterpolation::{bezier::{Bezier, BezierError}, Signal, Curve};
 /// # use assert_float_eq::{afe_is_f64_near, afe_near_error_msg, assert_f64_near};
 /// #
 /// # fn main() -> Result<(), BezierError> {
@@ -138,7 +136,7 @@ impl BezierDirector<Unknown, Unknown, Unknown, Unknown> {
         elements: E,
     ) -> Result<BezierDirector<Unknown, E, Unknown, WithoutWeight>, Empty>
     where
-        E: DiscreteGenerator,
+        E: Chain,
     {
         if elements.len() < 1 {
             return Err(Empty::new());
@@ -168,22 +166,22 @@ impl BezierDirector<Unknown, Unknown, Unknown, Unknown> {
     /// [`Empty`]: super::BezierError
     pub fn elements_with_weights<G>(
         self,
-        gen: G,
+        signal: G,
     ) -> Result<BezierDirector<Unknown, Weights<G>, Unknown, WithWeight>, Empty>
     where
-        G: DiscreteGenerator,
+        G: Chain,
         G::Output: IntoWeight,
         <G::Output as IntoWeight>::Element:
             Mul<<G::Output as IntoWeight>::Weight, Output = <G::Output as IntoWeight>::Element>,
         <G::Output as IntoWeight>::Weight: Zero + Copy,
     {
-        if gen.len() < 1 {
+        if signal.len() < 1 {
             return Err(Empty::new());
         }
         Ok(BezierDirector {
             input: self.input,
             space: self.space,
-            elements: Weights::new(gen),
+            elements: Weights::new(signal),
             _phantom: PhantomData,
         })
     }
@@ -195,7 +193,7 @@ impl BezierBuilder<Unknown, Unknown, Unknown, Unknown> {
     /// # Examples
     ///
     /// ```
-    /// # use enterpolation::{bezier::{Bezier, BezierError}, Generator, Curve};
+    /// # use enterpolation::{bezier::{Bezier, BezierError}, Signal, Curve};
     /// # fn main() -> Result<(), BezierError> {
     /// let bez = Bezier::builder()
     ///                 .elements([1.0,2.0])
@@ -212,7 +210,7 @@ impl BezierBuilder<Unknown, Unknown, Unknown, Unknown> {
     /// ```
     pub fn elements<E>(self, elements: E) -> BezierBuilder<Unknown, E, Unknown, WithoutWeight>
     where
-        E: DiscreteGenerator,
+        E: Chain,
     {
         BezierBuilder {
             inner: self
@@ -234,7 +232,7 @@ impl BezierBuilder<Unknown, Unknown, Unknown, Unknown> {
     /// # Examples
     ///
     /// ```
-    /// # use enterpolation::{bezier::{Bezier, BezierError}, Generator, Curve};
+    /// # use enterpolation::{bezier::{Bezier, BezierError}, Signal, Curve};
     /// # fn main() -> Result<(), BezierError> {
     /// let bez = Bezier::builder()
     ///                 .elements_with_weights([(1.0,1.0),(2.0,4.0),(3.0,0.0)])
@@ -251,10 +249,10 @@ impl BezierBuilder<Unknown, Unknown, Unknown, Unknown> {
     /// ```
     pub fn elements_with_weights<G>(
         self,
-        gen: G,
+        signal: G,
     ) -> BezierBuilder<Unknown, Weights<G>, Unknown, WithWeight>
     where
-        G: DiscreteGenerator,
+        G: Chain,
         G::Output: IntoWeight,
         <G::Output as IntoWeight>::Element:
             Mul<<G::Output as IntoWeight>::Weight, Output = <G::Output as IntoWeight>::Element>,
@@ -263,7 +261,7 @@ impl BezierBuilder<Unknown, Unknown, Unknown, Unknown> {
         BezierBuilder {
             inner: self.inner.and_then(|director| {
                 director
-                    .elements_with_weights(gen)
+                    .elements_with_weights(signal)
                     .map_err(|err| err.into())
             }),
         }
@@ -308,7 +306,7 @@ impl<E, W> BezierBuilder<Unknown, E, Unknown, W> {
 
 impl<I, E, W> BezierDirector<I, E, Unknown, W>
 where
-    E: DiscreteGenerator,
+    E: Chain,
 {
     /// Set the workspace which the interpolation uses.
     ///
@@ -331,7 +329,7 @@ where
     /// when interpolating.
     pub fn constant<const N: usize>(self) -> BezierDirector<I, E, ConstSpace<E::Output, N>, W>
     where
-        E: ConstDiscreteGenerator<N>,
+        E: ConstChain<N>,
     {
         BezierDirector {
             input: self.input,
@@ -371,7 +369,7 @@ where
 
 impl<I, E, W> BezierBuilder<I, E, Unknown, W>
 where
-    E: DiscreteGenerator,
+    E: Chain,
 {
     /// Set the workspace which the interpolation uses.
     ///
@@ -391,7 +389,7 @@ where
     /// when interpolating.
     pub fn constant<const N: usize>(self) -> BezierBuilder<I, E, ConstSpace<E::Output, N>, W>
     where
-        E: ConstDiscreteGenerator<N>,
+        E: ConstChain<N>,
     {
         BezierBuilder {
             inner: self.inner.map(|director| director.constant()),
@@ -418,7 +416,7 @@ where
 
 impl<R, E, S> BezierDirector<NormalizedInput<R>, E, S, WithoutWeight>
 where
-    E: DiscreteGenerator,
+    E: Chain,
     E::Output: Merge<R>,
     S: Space<E::Output>,
     R: Real,
@@ -431,7 +429,7 @@ where
 
 impl<R, E, S> BezierBuilder<NormalizedInput<R>, E, S, WithoutWeight>
 where
-    E: DiscreteGenerator,
+    E: Chain,
     E::Output: Merge<R>,
     S: Space<E::Output>,
     R: Real,
@@ -444,7 +442,7 @@ where
 
 impl<R, E, S> BezierDirector<InputDomain<R>, E, S, WithoutWeight>
 where
-    E: DiscreteGenerator,
+    E: Chain,
     E::Output: Merge<R> + Copy,
     S: Space<E::Output>,
     R: Real,
@@ -462,7 +460,7 @@ where
 
 impl<R, E, S> BezierBuilder<InputDomain<R>, E, S, WithoutWeight>
 where
-    E: DiscreteGenerator,
+    E: Chain,
     E::Output: Merge<R> + Copy,
     S: Space<E::Output>,
     R: Real,
@@ -477,10 +475,10 @@ where
 impl<R, G, S> BezierDirector<NormalizedInput<R>, Weights<G>, S, WithWeight>
 where
     R: Real + Copy,
-    G: DiscreteGenerator,
+    G: Chain,
     G::Output: IntoWeight,
     S: Space<Homogeneous<<G::Output as IntoWeight>::Element, <G::Output as IntoWeight>::Weight>>,
-    <Weights<G> as Generator<usize>>::Output: Merge<R>,
+    <Weights<G> as Signal<usize>>::Output: Merge<R>,
     <G::Output as IntoWeight>::Element:
         Div<<G::Output as IntoWeight>::Weight, Output = <G::Output as IntoWeight>::Element>,
 {
@@ -493,10 +491,10 @@ where
 impl<R, G, S> BezierBuilder<NormalizedInput<R>, Weights<G>, S, WithWeight>
 where
     R: Real + Copy,
-    G: DiscreteGenerator,
+    G: Chain,
     G::Output: IntoWeight,
     S: Space<Homogeneous<<G::Output as IntoWeight>::Element, <G::Output as IntoWeight>::Weight>>,
-    <Weights<G> as Generator<usize>>::Output: Merge<R>,
+    <Weights<G> as Signal<usize>>::Output: Merge<R>,
     <G::Output as IntoWeight>::Element:
         Div<<G::Output as IntoWeight>::Weight, Output = <G::Output as IntoWeight>::Element>,
 {
@@ -509,10 +507,10 @@ where
 impl<R, G, S> BezierDirector<InputDomain<R>, Weights<G>, S, WithWeight>
 where
     R: Real + Copy,
-    G: DiscreteGenerator,
+    G: Chain,
     G::Output: IntoWeight,
     S: Space<Homogeneous<<G::Output as IntoWeight>::Element, <G::Output as IntoWeight>::Weight>>,
-    <Weights<G> as Generator<usize>>::Output: Merge<R> + Copy,
+    <Weights<G> as Signal<usize>>::Output: Merge<R> + Copy,
     <G::Output as IntoWeight>::Element:
         Div<<G::Output as IntoWeight>::Weight, Output = <G::Output as IntoWeight>::Element>,
 {
@@ -530,10 +528,10 @@ where
 impl<R, G, S> BezierBuilder<InputDomain<R>, Weights<G>, S, WithWeight>
 where
     R: Real + Copy,
-    G: DiscreteGenerator,
+    G: Chain,
     G::Output: IntoWeight,
     S: Space<Homogeneous<<G::Output as IntoWeight>::Element, <G::Output as IntoWeight>::Weight>>,
-    <Weights<G> as Generator<usize>>::Output: Merge<R> + Copy,
+    <Weights<G> as Signal<usize>>::Output: Merge<R> + Copy,
     <G::Output as IntoWeight>::Element:
         Div<<G::Output as IntoWeight>::Weight, Output = <G::Output as IntoWeight>::Element>,
 {
@@ -550,8 +548,8 @@ type WeightedBezier<R, G, S> = Weighted<Bezier<R, Weights<G>, S>>;
 #[cfg(test)]
 mod test {
     use super::{BezierBuilder, BezierDirector};
-    // Homogeneous for creating Homogeneous, Generator for using .stack()
-    use crate::{weights::Homogeneous, Generator};
+    // Homogeneous for creating Homogeneous, Signal for using .stack()
+    use crate::{Signal, weights::Homogeneous};
     #[test]
     fn elements_with_weights() {
         BezierBuilder::new()
@@ -582,12 +580,14 @@ mod test {
             .constant()
             .build()
             .unwrap();
-        assert!(BezierBuilder::new()
-            .elements::<[f64; 0]>([])
-            .normalized::<f64>()
-            .constant()
-            .build()
-            .is_err());
+        assert!(
+            BezierBuilder::new()
+                .elements::<[f64; 0]>([])
+                .normalized::<f64>()
+                .constant()
+                .build()
+                .is_err()
+        );
     }
 
     #[test]

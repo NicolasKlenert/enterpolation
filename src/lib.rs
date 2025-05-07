@@ -42,9 +42,9 @@ pub use topology_traits::Merge;
 #[cfg(feature = "std")]
 pub use base::DynSpace;
 pub use base::{
-    Clamp, Composite, ConstDiscreteGenerator, ConstEquidistant, ConstSpace, Curve,
-    DiscreteGenerator, Equidistant, Extract, Generator, NotSorted, Repeat, Slice, Sorted,
-    SortedGenerator, Space, Stack, Stepper, TransformInput, Wrap,
+    Chain, Clamp, Composite, ConstChain, ConstEquidistant, ConstSpace, Curve, Equidistant, Extract,
+    NotSorted, Repeat, Signal, Slice, Sorted, SortedChain, Space, Stack, Stepper,
+    TransformInput, Wrap,
 };
 pub use easing::Identity;
 // pub use weights::{Homogeneous, Weighted, Weights, IntoWeight};

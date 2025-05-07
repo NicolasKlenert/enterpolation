@@ -1,7 +1,7 @@
 //! The adaptor `Weighted` can be used for all interpolations to hide the inner workings of a weighted element.
 
 use crate::weights::Homogeneous;
-use crate::{Curve, Generator};
+use crate::{Curve, Signal};
 use core::ops::Div;
 use num_traits::real::Real;
 
@@ -16,8 +16,8 @@ pub struct Weighted<G> {
 
 impl<G> Weighted<G> {
     /// Use the `Weighted` Adaptor on the given weighted interpolation to automatically unwrap the elements of their weight.
-    pub fn new(gen: G) -> Self {
-        Weighted { inner: gen }
+    pub fn new(signal: G) -> Self {
+        Weighted { inner: signal }
     }
     /// Return the inner interpolation.
     pub fn inner(self) -> G {
@@ -25,9 +25,9 @@ impl<G> Weighted<G> {
     }
 }
 
-impl<G, I> Generator<I> for Weighted<G>
+impl<G, I> Signal<I> for Weighted<G>
 where
-    G: Generator<I>,
+    G: Signal<I>,
     G::Output: Project,
 {
     type Output = <G::Output as Project>::Element;
@@ -47,7 +47,7 @@ where
     }
 }
 
-/// This trait is used to be able to implement Generator for Weights without having to add other generic variables.
+/// This trait is used to be able to implement Signal for Weights without having to add other generic variables.
 pub trait Project {
     type Element;
     type Weight;

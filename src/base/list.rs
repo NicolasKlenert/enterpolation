@@ -2,9 +2,9 @@ use core::cmp::Ordering;
 use core::fmt;
 use core::marker::PhantomData;
 use core::ops::{Div, Index, Sub};
+use num_traits::FromPrimitive;
 use num_traits::identities::Zero;
 use num_traits::real::Real;
-use num_traits::FromPrimitive;
 
 #[cfg(feature = "std")]
 use std::error::Error;
@@ -12,16 +12,16 @@ use std::error::Error;
 //temp
 use core::fmt::Debug;
 
-use super::{DiscreteGenerator, Generator};
+use super::{Chain, Signal};
 
 // REMARK: It may be valuable to create traits SortedNonEmpty and SortedNonSingular
 // REMARK: These would be Sorted + NonEmpty and Sorted + MinSize<2>.
 // REMARK: They would implement the specified functions without risk of panics and possible use of the functions.
 // REMARK: However this will create even more traits which have to be implemented.
 
-/// Trait to mark a generator as sorted.
+/// Trait to mark a chain as sorted.
 ///
-/// This guarantees that the generated elements of a generator are
+/// This guarantees that the generated elements of a chain are
 /// - comparable (you could define the trait Ord for the set of all generated elements)
 /// - non-strictly increasing
 ///
@@ -47,7 +47,7 @@ use super::{DiscreteGenerator, Generator};
 ///     - a knot inside the array
 ///     - value inbetween two knots
 /// - semi-constant array with values outside of the array (both_sides)
-pub trait SortedGenerator: DiscreteGenerator {
+pub trait SortedChain: Chain {
     /// Returns the smallest index between `min` and `max`
     /// for which the corresponding element is bigger then the input.
     /// If all elements are smaller, this function will return the given maximum.
@@ -59,7 +59,7 @@ pub trait SortedGenerator: DiscreteGenerator {
     /// # Examples
     ///
     /// ```
-    /// # use enterpolation::{SortedGenerator, Sorted};
+    /// # use enterpolation::{SortedChain, Sorted};
     /// let arr = Sorted::new_unchecked([0.0,0.1,0.2,0.7,0.7,0.7,0.8,1.0]);
     /// assert_eq!(arr.strict_upper_bound_clamped(-1.0,1,5),1);
     /// assert_eq!(arr.strict_upper_bound_clamped(0.15,1,5),2);
@@ -94,7 +94,7 @@ pub trait SortedGenerator: DiscreteGenerator {
     /// # Examples
     ///
     /// ```
-    /// # use enterpolation::{SortedGenerator, Sorted};
+    /// # use enterpolation::{SortedChain, Sorted};
     /// let arr = Sorted::new_unchecked([0.0,0.1,0.2,0.7,0.7,0.7,0.8,1.0]);
     /// assert_eq!(arr.strict_upper_bound(-1.0),0);
     /// assert_eq!(arr.strict_upper_bound(0.15),2);
@@ -138,21 +138,21 @@ pub trait SortedGenerator: DiscreteGenerator {
     /// # Examples
     ///
     /// ```
-    /// # use enterpolation::{SortedGenerator, Sorted, Generator};
+    /// # use enterpolation::{SortedChain, Sorted, Signal};
     /// # use enterpolation::utils;
     /// # use assert_float_eq::{afe_is_f64_near, afe_near_error_msg, assert_f64_near};
     /// let arr = Sorted::new_unchecked([0.0,0.1,0.2,0.7,0.7,0.7,0.8,1.0]);
     /// let values = vec![-1.0,0.0,0.15,0.7,1.0,20.0];
     /// for value in values {
     ///     let (min_index, max_index, factor) = arr.upper_border(value);
-    ///     let min = arr.gen(min_index);
-    ///     let max = arr.gen(max_index);
+    ///     let min = arr.eval(min_index);
+    ///     let max = arr.eval(max_index);
     ///     assert_f64_near!(utils::lerp(min,max,factor),value);
     /// }
     /// ```
     ///
     /// ```
-    /// # use enterpolation::{SortedGenerator, Sorted, Generator};
+    /// # use enterpolation::{SortedChain, Sorted, Signal};
     /// # use enterpolation::utils;
     /// # use assert_float_eq::{afe_is_f64_near, afe_near_error_msg, assert_f64_near};
     /// let arr = Sorted::new_unchecked([0.0,0.0,5.0,5.0,5.0]);
@@ -161,8 +161,8 @@ pub trait SortedGenerator: DiscreteGenerator {
     /// for (value, result) in values.into_iter().zip(results) {
     ///     let (min_index, max_index, factor) = arr.upper_border(value);
     ///     println!("min_index: {:?}, max_index: {:?}, factor: {:?}", min_index, max_index, factor);
-    ///     let min = arr.gen(min_index);
-    ///     let max = arr.gen(max_index);
+    ///     let min = arr.eval(min_index);
+    ///     let max = arr.eval(max_index);
     ///     assert_f64_near!(utils::lerp(min,max,factor),result);
     /// }
     /// ```
@@ -249,14 +249,14 @@ pub trait SortedGenerator: DiscreteGenerator {
     // If you want to add a default implementation: The wrapper `Sorted` should forward to the implementation!
 }
 
-/// Struct to represent a sorted collection/generator.
+/// Struct to represent a sorted collection.
 #[derive(Debug, Copy, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Sorted<C>(C);
 
 impl<C> Sorted<C>
 where
-    C: DiscreteGenerator,
+    C: Chain,
     C::Output: PartialOrd,
 {
     /// Returns Some(Sorted) if collection is sorted, otherwise returns `NotSorted` Error.
@@ -288,9 +288,9 @@ impl<C> Sorted<C> {
     }
 }
 
-impl<C> Generator<usize> for Sorted<C>
+impl<C> Signal<usize> for Sorted<C>
 where
-    C: Generator<usize>,
+    C: Signal<usize>,
 {
     type Output = C::Output;
     fn eval(&self, input: usize) -> Self::Output {
@@ -298,16 +298,16 @@ where
     }
 }
 
-impl<C> DiscreteGenerator for Sorted<C>
+impl<C> Chain for Sorted<C>
 where
-    C: DiscreteGenerator,
+    C: Chain,
 {
     fn len(&self) -> usize {
         self.0.len()
     }
 }
 
-impl<C: DiscreteGenerator> SortedGenerator for Sorted<C> {}
+impl<C: Chain> SortedChain for Sorted<C> {}
 
 impl<C, Idx> Index<Idx> for Sorted<C>
 where
@@ -347,7 +347,7 @@ impl fmt::Display for NotSorted {
 #[cfg(feature = "std")]
 impl Error for NotSorted {}
 
-/// Struct used as a generator for equidistant elements.
+/// Struct used as a signal for equidistant elements.
 /// Acts like an array of knots.
 #[derive(Debug, Copy, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -372,7 +372,7 @@ impl<R> Equidistant<R>
 where
     R: Real + FromPrimitive,
 {
-    /// Create a generator for equidistant real numbers with `len-1` steps from 0.0 to 1.0.
+    /// Create a signal for equidistant real numbers with `len-1` steps from 0.0 to 1.0.
     ///
     /// #Panics
     ///
@@ -385,7 +385,7 @@ where
         }
     }
 
-    /// Create a generator for equidistant real numbers with `len-1` steps from `start` to `end`.
+    /// Create a signal for equidistant real numbers with `len-1` steps from `start` to `end`.
     ///
     /// #Panics
     ///
@@ -398,7 +398,7 @@ where
         }
     }
 
-    /// Create a generator for equidistant real number with `len-1` steps from `start` to `end`.
+    /// Create a signal for equidistant real number with `len-1` steps from `start` to `end`.
     pub fn step(len: usize, start: R, step: R) -> Self {
         Equidistant {
             len,
@@ -408,7 +408,7 @@ where
     }
 }
 
-impl<R> Generator<usize> for Equidistant<R>
+impl<R> Signal<usize> for Equidistant<R>
 where
     R: Real + FromPrimitive,
 {
@@ -418,7 +418,7 @@ where
     }
 }
 
-impl<R> DiscreteGenerator for Equidistant<R>
+impl<R> Chain for Equidistant<R>
 where
     R: Real + FromPrimitive,
 {
@@ -427,7 +427,7 @@ where
     }
 }
 
-impl<R> SortedGenerator for Equidistant<R>
+impl<R> SortedChain for Equidistant<R>
 where
     R: Real + FromPrimitive,
 {
@@ -437,7 +437,7 @@ where
     /// # Examples
     ///
     /// ```
-    /// # use enterpolation::{SortedGenerator, Equidistant};
+    /// # use enterpolation::{SortedChain, Equidistant};
     /// let equi = Equidistant::normalized(11);
     /// assert_eq!(equi.strict_upper_bound(-1.0),0);
     /// assert_eq!(equi.strict_upper_bound(0.15),2);
@@ -467,7 +467,7 @@ where
     /// # Examples
     ///
     /// ```
-    /// # use enterpolation::{SortedGenerator, Equidistant};
+    /// # use enterpolation::{SortedChain, Equidistant};
     /// let equi = Equidistant::normalized(11);
     /// assert_eq!(equi.strict_upper_bound_clamped(-1.0,1,3),1);
     /// assert_eq!(equi.strict_upper_bound_clamped(0.15,1,3),2);
@@ -517,15 +517,15 @@ where
     /// # Examples
     ///
     /// ```
-    /// # use enterpolation::{SortedGenerator, Equidistant, Generator};
+    /// # use enterpolation::{SortedChain, Equidistant, Signal};
     /// # use enterpolation::utils;
     /// # use assert_float_eq::{afe_is_f64_near, afe_near_error_msg, assert_f64_near};
     /// let equdist = Equidistant::normalized(6);
     /// let values = vec![-1.0,0.0,0.15,0.6,1.0,20.0];
     /// for value in values {
     ///     let (min_index, max_index, factor) = equdist.upper_border(value);
-    ///     let min = equdist.gen(min_index);
-    ///     let max = equdist.gen(max_index);
+    ///     let min = equdist.eval(min_index);
+    ///     let max = equdist.eval(max_index);
     ///     assert_f64_near!(utils::lerp(min,max,factor),value);
     /// }
     /// ```
@@ -551,7 +551,7 @@ where
     }
 }
 
-/// Struct used as a generator for equidistant elements in constant context.
+/// Struct used as a signal for equidistant elements in constant context.
 /// Acts like an array of knots.
 ///
 /// This struct is necessary as to date neither generic bounds nor floating point opterations are
@@ -573,7 +573,7 @@ impl<R, const N: usize> ConstEquidistant<R, N> {
     }
 }
 
-impl<R, const N: usize> Generator<usize> for ConstEquidistant<R, N>
+impl<R, const N: usize> Signal<usize> for ConstEquidistant<R, N>
 where
     R: Real + FromPrimitive,
 {
@@ -583,7 +583,7 @@ where
     }
 }
 
-impl<R, const N: usize> DiscreteGenerator for ConstEquidistant<R, N>
+impl<R, const N: usize> Chain for ConstEquidistant<R, N>
 where
     R: Real + FromPrimitive,
 {
@@ -592,7 +592,7 @@ where
     }
 }
 
-impl<R, const N: usize> SortedGenerator for ConstEquidistant<R, N>
+impl<R, const N: usize> SortedChain for ConstEquidistant<R, N>
 where
     R: Real + FromPrimitive,
 {
@@ -607,7 +607,7 @@ where
     /// # Examples
     ///
     /// ```
-    /// # use enterpolation::{SortedGenerator, ConstEquidistant};
+    /// # use enterpolation::{SortedChain, ConstEquidistant};
     /// let equi = ConstEquidistant::<f64,11>::new();
     /// assert_eq!(equi.strict_upper_bound(-1.0),0);
     /// assert_eq!(equi.strict_upper_bound(0.15),2);
@@ -637,7 +637,7 @@ where
     /// # Examples
     ///
     /// ```
-    /// # use enterpolation::{SortedGenerator, ConstEquidistant};
+    /// # use enterpolation::{SortedChain, ConstEquidistant};
     /// let equi = ConstEquidistant::<f64,11>::new();
     /// assert_eq!(equi.strict_upper_bound_clamped(-1.0,1,3),1);
     /// assert_eq!(equi.strict_upper_bound_clamped(0.15,1,3),2);
@@ -681,15 +681,15 @@ where
     /// # Examples
     ///
     /// ```
-    /// # use enterpolation::{SortedGenerator, ConstEquidistant, Generator};
+    /// # use enterpolation::{SortedChain, ConstEquidistant, Signal};
     /// # use enterpolation::utils;
     /// # use assert_float_eq::{afe_is_f64_near, afe_near_error_msg, assert_f64_near};
     /// let equdist = ConstEquidistant::<f64,6>::new();
     /// let values = vec![-1.0,0.0,0.15,0.6,1.0,20.0];
     /// for value in values {
     ///     let (min_index, max_index, factor) = equdist.upper_border(value);
-    ///     let min = equdist.gen(min_index);
-    ///     let max = equdist.gen(max_index);
+    ///     let min = equdist.eval(min_index);
+    ///     let max = equdist.eval(max_index);
     ///     assert_f64_near!(utils::lerp(min,max,factor),value);
     /// }
     /// ```

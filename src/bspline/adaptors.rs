@@ -1,7 +1,7 @@
 use crate::builder::TooFewElements;
-use crate::{DiscreteGenerator, Generator, SortedGenerator};
+use crate::{Chain, Signal, SortedChain};
 
-/// DiscreteGenerator Adaptor which repeats its first and last element `n` more times.
+/// Chain Adaptor which repeats its first and last element `n` more times.
 #[derive(Debug, Copy, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct BorderBuffer<G> {
@@ -11,9 +11,9 @@ pub struct BorderBuffer<G> {
 
 impl<G> BorderBuffer<G>
 where
-    G: DiscreteGenerator,
+    G: Chain,
 {
-    /// Creates a generator which repeats the first and last element of the given generator `n` more times.
+    /// Creates a chain which repeats the first and last element of the given chain `n` more times.
     pub fn new(inner: G, n: usize) -> Self {
         BorderBuffer { inner, n }
     }
@@ -39,9 +39,9 @@ where
     }
 }
 
-impl<G> Generator<usize> for BorderBuffer<G>
+impl<G> Signal<usize> for BorderBuffer<G>
 where
-    G: DiscreteGenerator,
+    G: Chain,
 {
     type Output = G::Output;
     fn eval(&self, input: usize) -> Self::Output {
@@ -50,18 +50,18 @@ where
     }
 }
 
-impl<G> DiscreteGenerator for BorderBuffer<G>
+impl<G> Chain for BorderBuffer<G>
 where
-    G: DiscreteGenerator,
+    G: Chain,
 {
     fn len(&self) -> usize {
         self.inner.len() + 2 * self.n
     }
 }
 
-impl<G> SortedGenerator for BorderBuffer<G>
+impl<G> SortedChain for BorderBuffer<G>
 where
-    G: SortedGenerator,
+    G: SortedChain,
 {
     fn strict_upper_bound_clamped(&self, element: Self::Output, min: usize, max: usize) -> usize
     where
@@ -84,11 +84,11 @@ where
     }
 }
 
-/// DiscreteGenerator Adaptor which deletes the first and last element.
+/// Chain Adaptor which deletes the first and last element.
 ///
 /// # Panics
 ///
-/// Using this Generator may cause a panic if the underlying generator has less than two elements.
+/// Using this chain may cause a panic if the underlying chain has less than two elements.
 #[derive(Debug, Copy, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct BorderDeletion<G> {
@@ -97,9 +97,9 @@ pub struct BorderDeletion<G> {
 
 impl<G> BorderDeletion<G>
 where
-    G: DiscreteGenerator,
+    G: Chain,
 {
-    /// Creates a generator ignores the first and last element.
+    /// Creates a chain, ignores the first and last element.
     pub fn new(inner: G) -> Result<Self, TooFewElements> {
         if inner.len() < 2 {
             return Err(TooFewElements::new(inner.len()));
@@ -108,9 +108,9 @@ where
     }
 }
 
-impl<G> Generator<usize> for BorderDeletion<G>
+impl<G> Signal<usize> for BorderDeletion<G>
 where
-    G: DiscreteGenerator,
+    G: Chain,
 {
     type Output = G::Output;
     fn eval(&self, input: usize) -> Self::Output {
@@ -118,21 +118,21 @@ where
     }
 }
 
-impl<G> DiscreteGenerator for BorderDeletion<G>
+impl<G> Chain for BorderDeletion<G>
 where
-    G: DiscreteGenerator,
+    G: Chain,
 {
     /// # Panics
     ///
-    /// May Panic if the underlying generator has less than two elements.
+    /// May Panic if the underlying chain has less than two elements.
     fn len(&self) -> usize {
         self.inner.len() - 2
     }
 }
 
-impl<G> SortedGenerator for BorderDeletion<G>
+impl<G> SortedChain for BorderDeletion<G>
 where
-    G: SortedGenerator,
+    G: SortedChain,
 {
     fn strict_upper_bound_clamped(&self, element: Self::Output, min: usize, max: usize) -> usize
     where
@@ -148,7 +148,7 @@ where
 #[cfg(test)]
 mod test {
     use super::{BorderBuffer, BorderDeletion};
-    use crate::{DiscreteGenerator, Equidistant, SortedGenerator};
+    use crate::{Chain, Equidistant, SortedChain};
 
     #[test]
     fn borderdeletion() {

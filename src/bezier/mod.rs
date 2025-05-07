@@ -4,7 +4,7 @@
 //!
 //! ```rust
 //! # use std::error::Error;
-//! # use enterpolation::{bezier::{Bezier, BezierError}, Generator, Curve};
+//! # use enterpolation::{bezier::{Bezier, BezierError}, Signal, Curve};
 //! # use assert_float_eq::{afe_is_f64_near, afe_near_error_msg, assert_f64_near};
 //! #
 //! # fn main() -> Result<(), BezierError> {
@@ -26,7 +26,7 @@
 //!
 //! [`BezierBuilder`]: BezierBuilder
 use crate::builder::Unknown;
-use crate::{Curve, DiscreteGenerator, Generator, Space};
+use crate::{Chain, Curve, Signal, Space};
 use core::marker::PhantomData;
 use core::ops::{Mul, Sub};
 use num_traits::cast::FromPrimitive;
@@ -177,7 +177,7 @@ impl Bezier<Unknown, Unknown, Unknown> {
     ///
     /// ```rust
     /// # use std::error::Error;
-    /// # use enterpolation::{bezier::{Bezier, BezierError}, Generator, Curve};
+    /// # use enterpolation::{bezier::{Bezier, BezierError}, Signal, Curve};
     /// # use assert_float_eq::{afe_is_f64_near, afe_near_error_msg, assert_f64_near};
     /// #
     /// # fn main() -> Result<(), BezierError> {
@@ -211,7 +211,7 @@ impl Bezier<Unknown, Unknown, Unknown> {
 
 impl<R, E, S> Bezier<R, E, S>
 where
-    E: DiscreteGenerator,
+    E: Chain,
     S: Space<E::Output>,
 {
     /// Creates a workspace and copies all elements into it.
@@ -229,9 +229,9 @@ where
     }
 }
 
-impl<R, E, S> Generator<R> for Bezier<R, E, S>
+impl<R, E, S> Signal<R> for Bezier<R, E, S>
 where
-    E: DiscreteGenerator,
+    E: Chain,
     E::Output: Merge<R> + Copy,
     S: Space<E::Output>,
     R: Real,
@@ -248,7 +248,7 @@ where
 
 impl<R, E, S> Curve<R> for Bezier<R, E, S>
 where
-    E: DiscreteGenerator,
+    E: Chain,
     E::Output: Merge<R> + Copy,
     S: Space<E::Output>,
     R: Real,
@@ -261,7 +261,7 @@ where
 
 impl<R, E, S> Bezier<R, E, S>
 where
-    E: DiscreteGenerator,
+    E: Chain,
     E::Output: Merge<R> + Mul<R, Output = E::Output> + Sub<Output = E::Output> + Copy,
     S: Space<E::Output>,
     R: Real + FromPrimitive,
@@ -287,7 +287,7 @@ where
 
 impl<R, E, S> Bezier<R, E, S>
 where
-    E: DiscreteGenerator,
+    E: Chain,
     S: Space<E::Output>,
 {
     /// Create generic bezier curve.
@@ -314,7 +314,7 @@ where
     /// # Panics
     ///
     /// May panic or return non-expected values if the space given is less than the number of elements.
-    /// Will panic if the given generator does not generate any element.
+    /// Will panic if the given signal does not generate any element.
     pub fn new_unchecked(elements: E, space: S) -> Self {
         Bezier {
             space,

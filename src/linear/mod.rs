@@ -3,7 +3,7 @@
 //! The easist way to create a linear interpolation is by using the builder pattern of [`LinearBuilder`].
 //!
 //! ```rust
-//! # use enterpolation::{linear::{Linear, LinearError}, Generator, Curve};
+//! # use enterpolation::{linear::{Linear, LinearError}, Signal, Curve};
 //! # use assert_float_eq::{afe_is_f64_near, afe_near_error_msg, assert_f64_near};
 //! #
 //! # fn main() -> Result<(), LinearError> {
@@ -43,7 +43,7 @@
 //! [`equidistant_unchecked()`]: Linear::equidistant_unchecked()
 
 use crate::builder::Unknown;
-use crate::{ConstEquidistant, Curve, DiscreteGenerator, Generator, Identity, SortedGenerator};
+use crate::{Chain, ConstEquidistant, Curve, Identity, Signal, SortedChain};
 use num_traits::real::Real;
 use topology_traits::Merge;
 
@@ -80,7 +80,7 @@ impl Linear<Unknown, Unknown, Unknown> {
     ///
     /// ```rust
     /// # use std::error::Error;
-    /// # use enterpolation::{linear::{Linear, LinearError}, Generator, Curve};
+    /// # use enterpolation::{linear::{Linear, LinearError}, Signal, Curve};
     /// # use assert_float_eq::{afe_is_f64_near, afe_near_error_msg, assert_f64_near};
     /// #
     /// # fn main() -> Result<(), LinearError> {
@@ -107,10 +107,10 @@ impl Linear<Unknown, Unknown, Unknown> {
     }
 }
 
-impl<R, K, E, F> Generator<R> for Linear<K, E, F>
+impl<R, K, E, F> Signal<R> for Linear<K, E, F>
 where
-    K: SortedGenerator<Output = R>,
-    E: DiscreteGenerator,
+    K: SortedChain<Output = R>,
+    E: Chain,
     E::Output: Merge<R> + Debug,
     F: Curve<R, Output = R>,
     R: Real + Debug,
@@ -130,8 +130,8 @@ where
 
 impl<R, K, E, F> Curve<R> for Linear<K, E, F>
 where
-    K: SortedGenerator<Output = R>,
-    E: DiscreteGenerator,
+    K: SortedChain<Output = R>,
+    E: Chain,
     E::Output: Merge<R> + Debug,
     F: Curve<R, Output = R>,
     R: Real + Debug,
@@ -143,9 +143,9 @@ where
 
 impl<K, E, F> Linear<K, E, F>
 where
-    K: SortedGenerator,
+    K: SortedChain,
     K::Output: Real,
-    E: DiscreteGenerator,
+    E: Chain,
     E::Output: Merge<K::Output>,
 {
     /// Create a linear interpolation with slice-like collections of elements and knots.
@@ -169,8 +169,8 @@ where
 
 impl<K, E, F> Linear<K, E, F>
 where
-    E: DiscreteGenerator,
-    K: SortedGenerator,
+    E: Chain,
+    K: SortedChain,
     E::Output: Merge<K::Output>,
     K::Output: Real,
 {

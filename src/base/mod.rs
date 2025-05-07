@@ -1,17 +1,15 @@
 mod adaptors;
-mod generator;
 mod list;
+mod signal;
 mod space;
 
 // These get re-exported at the library level.
 #[allow(unreachable_pub)]
 pub use adaptors::{Clamp, Composite, Repeat, Slice, Stack, TransformInput, Wrap};
 #[allow(unreachable_pub)]
-pub use generator::{
-    ConstDiscreteGenerator, Curve, DiscreteGenerator, Extract, Generator, Stepper,
-};
+pub use list::{ConstEquidistant, Equidistant, NotSorted, Sorted, SortedChain};
 #[allow(unreachable_pub)]
-pub use list::{ConstEquidistant, Equidistant, NotSorted, Sorted, SortedGenerator};
+pub use signal::{Chain, ConstChain, Curve, Extract, Signal, Stepper};
 #[allow(unreachable_pub)]
 #[cfg(feature = "std")]
 pub use space::DynSpace;
@@ -19,64 +17,64 @@ pub use space::DynSpace;
 pub use space::{ConstSpace, Space};
 
 #[cfg(feature = "std")]
-impl<T: Copy> Generator<usize> for Vec<T> {
+impl<T: Copy> Signal<usize> for Vec<T> {
     type Output = T;
     fn eval(&self, input: usize) -> Self::Output {
         self[input]
     }
 }
 #[cfg(feature = "std")]
-impl<T: Copy> DiscreteGenerator for Vec<T> {
+impl<T: Copy> Chain for Vec<T> {
     fn len(&self) -> usize {
         self.len()
     }
 }
 
-// /// A stack of values or generators
+// /// A stack of values or signals
 // #[cfg(feature = "std")]
-// impl<G,I> Generator<(usize, I)> for Vec<G>
-// where G: Generator<I>
+// impl<G,I> Signal<(usize, I)> for Vec<G>
+// where G: Signal<I>
 // {
 //     type Output = G::Output;
-//     fn gen(&self, input: (usize, I)) -> Self::Output {
-//         self[input.0].gen(input.1)
+//     fn eval(&self, input: (usize, I)) -> Self::Output {
+//         self[input.0].eval(input.1)
 //     }
 // }
 
-impl<T: Copy> Generator<usize> for &[T] {
+impl<T: Copy> Signal<usize> for &[T] {
     type Output = T;
     fn eval(&self, input: usize) -> Self::Output {
         self[input]
     }
 }
 
-impl<T: Copy> DiscreteGenerator for &[T] {
+impl<T: Copy> Chain for &[T] {
     fn len(&self) -> usize {
         <[T]>::len(self)
     }
 }
 
-impl<T: Copy, const N: usize> Generator<usize> for [T; N] {
+impl<T: Copy, const N: usize> Signal<usize> for [T; N] {
     type Output = T;
     fn eval(&self, input: usize) -> Self::Output {
         self[input]
     }
 }
 
-impl<T: Copy, const N: usize> DiscreteGenerator for [T; N] {
+impl<T: Copy, const N: usize> Chain for [T; N] {
     fn len(&self) -> usize {
         N
     }
 }
 
-impl<T: Copy, const N: usize> ConstDiscreteGenerator<N> for [T; N] {}
+impl<T: Copy, const N: usize> ConstChain<N> for [T; N] {}
 
-// /// A stack of values or generators
-// impl<G,I, const N: usize> Generator<(usize, I)> for [G;N]
-// where G: Generator<I>
+// /// A stack of values or signals
+// impl<G,I, const N: usize> Signal<(usize, I)> for [G;N]
+// where G: Signal<I>
 // {
 //     type Output = G::Output;
-//     fn gen(&self, input: (usize, I)) -> Self::Output {
-//         self[input.0].gen(input.1)
+//     fn eval(&self, input: (usize, I)) -> Self::Output {
+//         self[input.0].eval(input.1)
 //     }
 // }

@@ -88,7 +88,7 @@ impl Empty {
 #[cfg(feature = "bezier")]
 impl fmt::Display for Empty {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "No elements given, an empty generator is not allowed.")
+        write!(f, "No elements given, an empty signal is not allowed.")
     }
 }
 
@@ -107,7 +107,11 @@ pub struct TooFewElements {
 #[cfg(any(feature = "linear", feature = "bspline"))]
 impl fmt::Display for TooFewElements {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "To few elements given for the interpolation. {} elements were given, but at least 2 are necessary.", self.found)
+        write!(
+            f,
+            "To few elements given for the interpolation. {} elements were given, but at least 2 are necessary.",
+            self.found
+        )
     }
 }
 
@@ -134,7 +138,11 @@ pub struct TooFewKnots {
 #[cfg(feature = "bspline")]
 impl fmt::Display for TooFewKnots {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "To few knots given for the interpolation. {} knots were given, but at least 2 are necessary.", self.found)
+        write!(
+            f,
+            "To few knots given for the interpolation. {} knots were given, but at least 2 are necessary.",
+            self.found
+        )
     }
 }
 

@@ -3,7 +3,7 @@
 //! Easing function, in the context of this crate, are function which take as only input
 //! a real number in [0.0,1.0] and return a real number in [0.0,1.0].
 
-use crate::{Curve, Generator};
+use crate::{Curve, Signal};
 use num_traits::real::Real;
 use num_traits::FromPrimitive;
 
@@ -26,7 +26,7 @@ impl<F> FuncEase<F> {
     }
 }
 
-impl<F, R> Generator<R> for FuncEase<F>
+impl<F, R> Signal<R> for FuncEase<F>
 where
     F: Fn(R) -> R,
 {
@@ -64,7 +64,7 @@ impl Default for Identity {
     }
 }
 
-impl<R> Generator<R> for Identity {
+impl<R> Signal<R> for Identity {
     type Output = R;
     fn eval(&self, input: R) -> R {
         input

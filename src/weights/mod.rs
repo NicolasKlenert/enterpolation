@@ -7,52 +7,52 @@ mod weighted;
 pub use homogeneous::Homogeneous;
 pub use weighted::Weighted;
 
-use crate::{ConstDiscreteGenerator, Curve, DiscreteGenerator, Generator};
+use crate::{Chain, ConstChain, Curve, Signal};
 use core::ops::Mul;
 use num_traits::identities::Zero;
 use num_traits::real::Real;
 
-/// Generator adaptor to transform `(T,R)` to `Homogeneous<T,R>`.
+/// Signal adaptor to transform `(T,R)` to `Homogeneous<T,R>`.
 ///
-/// Weights given by the generator who equal `R::zero()` are considered to be at infinity.
+/// Weights given by the signal who equal `R::zero()` are considered to be at infinity.
 #[derive(Debug, Copy, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Weights<G> {
-    gen: G,
+    signal: G,
 }
 
 impl<G> Weights<G> {
-    /// Transform given generator such that it outputs homogeneous data.
-    pub fn new(gen: G) -> Self {
-        Weights { gen }
+    /// Transform given signal such that it outputs homogeneous data.
+    pub fn new(signal: G) -> Self {
+        Weights { signal }
     }
 }
 
-impl<G, Input> Generator<Input> for Weights<G>
+impl<G, Input> Signal<Input> for Weights<G>
 where
-    G: Generator<Input>,
+    G: Signal<Input>,
     G::Output: IntoWeight,
 {
     type Output =
         Homogeneous<<G::Output as IntoWeight>::Element, <G::Output as IntoWeight>::Weight>;
     fn eval(&self, input: Input) -> Self::Output {
-        self.gen.eval(input).into_weight()
+        self.signal.eval(input).into_weight()
     }
 }
 
-impl<G> DiscreteGenerator for Weights<G>
+impl<G> Chain for Weights<G>
 where
-    G: DiscreteGenerator,
+    G: Chain,
     G::Output: IntoWeight,
 {
     fn len(&self) -> usize {
-        self.gen.len()
+        self.signal.len()
     }
 }
 
-impl<G, const N: usize> ConstDiscreteGenerator<N> for Weights<G>
+impl<G, const N: usize> ConstChain<N> for Weights<G>
 where
-    G: ConstDiscreteGenerator<N>,
+    G: ConstChain<N>,
     G::Output: IntoWeight,
 {
 }
@@ -64,13 +64,13 @@ where
     R: Real,
 {
     fn domain(&self) -> [R; 2] {
-        self.gen.domain()
+        self.signal.domain()
     }
 }
 
 /// Trait for all structs which can be transformed into homogeneous data.
 ///
-/// This trait is used to be able to implement Generator for Weights without having to add other generic variables.
+/// This trait is used to be able to implement Signals for Weights without having to add other generic variables.
 pub trait IntoWeight {
     /// The element/direction of the homogeneous data.
     type Element;

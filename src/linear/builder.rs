@@ -4,12 +4,12 @@ use super::error::LinearError;
 use super::{KnotElementInequality, Linear, TooFewElements};
 use crate::builder::{Type, Unknown, WithWeight, WithoutWeight};
 use crate::weights::{IntoWeight, Weighted, Weights};
-use crate::{DiscreteGenerator, Equidistant, Generator, Identity, Sorted, SortedGenerator};
+use crate::{Chain, Equidistant, Identity, Signal, Sorted, SortedChain};
 use core::marker::PhantomData;
 use core::ops::Mul;
+use num_traits::FromPrimitive;
 use num_traits::identities::Zero;
 use num_traits::real::Real;
-use num_traits::FromPrimitive;
 use topology_traits::Merge;
 
 /// Builder for linear interpolation.
@@ -24,7 +24,7 @@ use topology_traits::Merge;
 ///   Either by giving them directly with [`knots()`] or by using equidistant knots with [`equidistant()`].
 ///
 /// ```rust
-/// # use enterpolation::{linear::{LinearDirector, LinearError}, Generator, Curve};
+/// # use enterpolation::{linear::{LinearDirector, LinearError}, Signal, Curve};
 /// # use assert_float_eq::{afe_is_f64_near, afe_near_error_msg, assert_f64_near};
 /// #
 /// # fn main() -> Result<(), LinearError> {
@@ -80,7 +80,7 @@ pub struct LinearDirector<K, E, F, W> {
 ///   Either by giving them directly with [`knots()`] or by using equidistant knots with [`equidistant()`].
 ///
 /// ```rust
-/// # use enterpolation::{linear::{Linear, LinearError}, Generator, Curve};
+/// # use enterpolation::{linear::{Linear, LinearError}, Signal, Curve};
 /// # use assert_float_eq::{afe_is_f64_near, afe_near_error_msg, assert_f64_near};
 /// #
 /// # fn main() -> Result<(), LinearError> {
@@ -167,7 +167,7 @@ impl<F> LinearDirector<Unknown, Unknown, F, Unknown> {
         elements: E,
     ) -> Result<LinearDirector<Unknown, E, F, WithoutWeight>, TooFewElements>
     where
-        E: DiscreteGenerator,
+        E: Chain,
     {
         if elements.len() < 2 {
             return Err(TooFewElements::new(elements.len()));
@@ -193,7 +193,7 @@ impl<F> LinearDirector<Unknown, Unknown, F, Unknown> {
     /// # Examples
     ///
     /// ```rust
-    /// # use enterpolation::{linear::{Linear, LinearError}, Generator, Curve};
+    /// # use enterpolation::{linear::{Linear, LinearError}, Signal, Curve};
     /// # use assert_float_eq::{afe_is_f64_near, afe_near_error_msg, assert_f64_near};
     /// #
     /// # fn main() -> Result<(), LinearError> {
@@ -218,21 +218,21 @@ impl<F> LinearDirector<Unknown, Unknown, F, Unknown> {
     /// [`TooFewElements`]: super::error::LinearError
     pub fn elements_with_weights<G>(
         self,
-        gen: G,
+        signal: G,
     ) -> Result<LinearDirector<Unknown, Weights<G>, F, WithWeight>, TooFewElements>
     where
-        G: DiscreteGenerator,
+        G: Chain,
         G::Output: IntoWeight,
         <G::Output as IntoWeight>::Element:
             Mul<<G::Output as IntoWeight>::Weight, Output = <G::Output as IntoWeight>::Element>,
         <G::Output as IntoWeight>::Weight: Zero + Copy,
     {
-        if gen.len() < 2 {
-            return Err(TooFewElements::new(gen.len()));
+        if signal.len() < 2 {
+            return Err(TooFewElements::new(signal.len()));
         }
         Ok(LinearDirector {
             knots: self.knots,
-            elements: Weights::new(gen),
+            elements: Weights::new(signal),
             easing: self.easing,
             _phantom: PhantomData,
         })
@@ -243,7 +243,7 @@ impl<F> LinearBuilder<Unknown, Unknown, F, Unknown> {
     /// Set the elements of the linear interpolation.
     pub fn elements<E>(self, elements: E) -> LinearBuilder<Unknown, E, F, WithoutWeight>
     where
-        E: DiscreteGenerator,
+        E: Chain,
     {
         LinearBuilder {
             inner: self
@@ -265,7 +265,7 @@ impl<F> LinearBuilder<Unknown, Unknown, F, Unknown> {
     /// # Examples
     ///
     /// ```rust
-    /// # use enterpolation::{linear::{Linear, LinearError}, Generator, Curve};
+    /// # use enterpolation::{linear::{Linear, LinearError}, Signal, Curve};
     /// # use assert_float_eq::{afe_is_f64_near, afe_near_error_msg, assert_f64_near};
     /// #
     /// # fn main() -> Result<(), LinearError> {
@@ -284,10 +284,10 @@ impl<F> LinearBuilder<Unknown, Unknown, F, Unknown> {
     /// ```
     pub fn elements_with_weights<G>(
         self,
-        gen: G,
+        signal: G,
     ) -> LinearBuilder<Unknown, Weights<G>, F, WithWeight>
     where
-        G: DiscreteGenerator,
+        G: Chain,
         G::Output: IntoWeight,
         <G::Output as IntoWeight>::Element:
             Mul<<G::Output as IntoWeight>::Weight, Output = <G::Output as IntoWeight>::Element>,
@@ -296,7 +296,7 @@ impl<F> LinearBuilder<Unknown, Unknown, F, Unknown> {
         LinearBuilder {
             inner: self.inner.and_then(|director| {
                 director
-                    .elements_with_weights(gen)
+                    .elements_with_weights(signal)
                     .map_err(|err| err.into())
             }),
         }
@@ -324,8 +324,8 @@ impl<E, F, W> LinearDirector<Unknown, E, F, W> {
     /// [`NotSorted`]:  super::error::LinearError
     pub fn knots<K>(self, knots: K) -> Result<LinearDirector<Sorted<K>, E, F, W>, LinearError>
     where
-        E: DiscreteGenerator,
-        K: DiscreteGenerator,
+        E: Chain,
+        K: Chain,
         K::Output: PartialOrd,
     {
         if self.elements.len() != knots.len() {
@@ -382,8 +382,8 @@ impl<E, F, W> LinearBuilder<Unknown, E, F, W> {
     /// [`equidistant()`]: LinearBuilder::equidistant()
     pub fn knots<K>(self, knots: K) -> LinearBuilder<Sorted<K>, E, F, W>
     where
-        E: DiscreteGenerator,
-        K: DiscreteGenerator,
+        E: Chain,
+        K: Chain,
         K::Output: PartialOrd,
     {
         LinearBuilder {
@@ -420,7 +420,7 @@ impl<E, F, W> LinearBuilder<Unknown, E, F, W> {
 
 impl<R, E, F, W> LinearDirector<Type<R>, E, F, W>
 where
-    E: DiscreteGenerator,
+    E: Chain,
     R: Real + FromPrimitive,
 {
     /// Set the domain of the interpolation.
@@ -455,7 +455,7 @@ where
 
 impl<R, E, F, W> LinearBuilder<Type<R>, E, F, W>
 where
-    E: DiscreteGenerator,
+    E: Chain,
     R: Real + FromPrimitive,
 {
     /// Set the domain of the interpolation.
@@ -481,7 +481,7 @@ where
 
 impl<K, E, F, W> LinearDirector<K, E, F, W>
 where
-    K: SortedGenerator,
+    K: SortedChain,
 {
     /// Sets an easing function.
     ///
@@ -505,7 +505,7 @@ where
 
 impl<K, E, F, W> LinearBuilder<K, E, F, W>
 where
-    K: SortedGenerator,
+    K: SortedChain,
 {
     /// Sets an easing function.
     ///
@@ -526,8 +526,8 @@ where
 
 impl<K, E, F> LinearDirector<K, E, F, WithoutWeight>
 where
-    E: DiscreteGenerator,
-    K: SortedGenerator,
+    E: Chain,
+    K: SortedChain,
     E::Output: Merge<K::Output>,
     K::Output: Real,
 {
@@ -539,8 +539,8 @@ where
 
 impl<K, E, F> LinearBuilder<K, E, F, WithoutWeight>
 where
-    E: DiscreteGenerator,
-    K: SortedGenerator,
+    E: Chain,
+    K: SortedChain,
     E::Output: Merge<K::Output>,
     K::Output: Real,
 {
@@ -555,11 +555,11 @@ where
 
 impl<K, G, F> LinearDirector<K, Weights<G>, F, WithWeight>
 where
-    K: SortedGenerator,
+    K: SortedChain,
     K::Output: Real + Copy,
-    G: DiscreteGenerator,
+    G: Chain,
     G::Output: IntoWeight,
-    <Weights<G> as Generator<usize>>::Output: Merge<K::Output>,
+    <Weights<G> as Signal<usize>>::Output: Merge<K::Output>,
 {
     /// Build a weighted linear interpolation.
     pub fn build(self) -> WeightedLinear<K, G, F> {
@@ -573,11 +573,11 @@ where
 
 impl<K, G, F> LinearBuilder<K, Weights<G>, F, WithWeight>
 where
-    K: SortedGenerator,
+    K: SortedChain,
     K::Output: Real + Copy,
-    G: DiscreteGenerator,
+    G: Chain,
     G::Output: IntoWeight,
-    <Weights<G> as Generator<usize>>::Output: Merge<K::Output>,
+    <Weights<G> as Signal<usize>>::Output: Merge<K::Output>,
 {
     /// Build a weighted linear interpolation.
     pub fn build(self) -> Result<WeightedLinear<K, G, F>, LinearError> {
@@ -594,8 +594,8 @@ type WeightedLinear<K, G, F> = Weighted<Linear<K, Weights<G>, F>>;
 #[cfg(test)]
 mod test {
     use super::LinearBuilder;
-    // Homogeneous for creating Homogeneous, Generator for using .stack()
-    use crate::{linear::LinearDirector, weights::Homogeneous, Generator};
+    // Homogeneous for creating Homogeneous, Signal for using .stack()
+    use crate::{Signal, linear::LinearDirector, weights::Homogeneous};
     #[test]
     fn building_weights() {
         LinearBuilder::new()
@@ -629,40 +629,52 @@ mod test {
 
     #[test]
     fn builder_errors() {
-        assert!(LinearBuilder::new()
-            .elements::<[f64; 0]>([])
-            .knots::<[f64; 0]>([])
-            .build()
-            .is_err());
-        assert!(LinearBuilder::new()
-            .elements([1.0])
-            .knots([1.0])
-            .build()
-            .is_err());
-        assert!(LinearBuilder::new()
-            .elements([1.0, 2.0])
-            .knots([1.0, 2.0, 3.0])
-            .build()
-            .is_err());
+        assert!(
+            LinearBuilder::new()
+                .elements::<[f64; 0]>([])
+                .knots::<[f64; 0]>([])
+                .build()
+                .is_err()
+        );
+        assert!(
+            LinearBuilder::new()
+                .elements([1.0])
+                .knots([1.0])
+                .build()
+                .is_err()
+        );
+        assert!(
+            LinearBuilder::new()
+                .elements([1.0, 2.0])
+                .knots([1.0, 2.0, 3.0])
+                .build()
+                .is_err()
+        );
     }
 
     #[test]
     fn director_errors() {
         assert!(LinearDirector::new().elements([0.0]).is_err());
-        assert!(LinearDirector::new()
-            .elements([0.0, 1.0])
-            .unwrap()
-            .knots([1.0])
-            .is_err());
-        assert!(LinearDirector::new()
-            .elements([1.0, 2.0])
-            .unwrap()
-            .knots([1.0, 2.0, 3.0])
-            .is_err());
-        assert!(LinearDirector::new()
-            .elements([1.0, 2.0])
-            .unwrap()
-            .knots([1.0, 2.0])
-            .is_ok());
+        assert!(
+            LinearDirector::new()
+                .elements([0.0, 1.0])
+                .unwrap()
+                .knots([1.0])
+                .is_err()
+        );
+        assert!(
+            LinearDirector::new()
+                .elements([1.0, 2.0])
+                .unwrap()
+                .knots([1.0, 2.0, 3.0])
+                .is_err()
+        );
+        assert!(
+            LinearDirector::new()
+                .elements([1.0, 2.0])
+                .unwrap()
+                .knots([1.0, 2.0])
+                .is_ok()
+        );
     }
 }
