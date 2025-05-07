@@ -1,5 +1,5 @@
-use num_traits::real::Real;
 use num_traits::FromPrimitive;
+use num_traits::real::Real;
 
 use core::iter::FusedIterator;
 use core::ops::RangeBounds;
@@ -12,7 +12,7 @@ use super::{Clamp, Composite, Repeat, Slice, Stack};
 /// This trait is fairly similar to core::ops::Index, however it does not retrurn a reference but
 /// the element itself. When a struct implements an Index, it usually should be able to implement this trait as well.
 /// The other way around does not have to be the case.
-pub trait Generator<Input> {
+pub trait Signal<Input> {
     /// The element outputted
     type Output;
     /// Method to generate the element at the given input
@@ -26,7 +26,7 @@ pub trait Generator<Input> {
     ///
     #[cfg_attr(feature = "linear", doc = "```rust")]
     #[cfg_attr(not(feature = "linear"), doc = "```ignore")]
-    /// # use enterpolation::{linear::{Linear, LinearError}, Generator};
+    /// # use enterpolation::{linear::{Linear, LinearError}, Signal};
     /// # use assert_float_eq::{afe_is_f64_near, afe_near_error_msg, assert_f64_near};
     /// #
     /// # fn main() -> Result<(), LinearError> {
@@ -52,19 +52,19 @@ pub trait Generator<Input> {
         J: Iterator<Item = Input>,
     {
         Extract {
-            generator: self,
+            signal: self,
             iterator: iterator.into_iter(),
         }
     }
-    /// Stack two generators together
+    /// Stack two signals together
     ///
-    /// That is for two generators with output `T` and `R` the created generators output will be `(T,R)`.
+    /// That is for two signal with output `T` and `R` the created signal output will be `(T,R)`.
     ///
     /// # Examples
     ///
     #[cfg_attr(feature = "linear", doc = "```rust")]
     #[cfg_attr(not(feature = "linear"), doc = "```ignore")]
-    /// # use enterpolation::{linear::{Linear, LinearError}, Generator};
+    /// # use enterpolation::{linear::{Linear, LinearError}, Signal};
     /// # use assert_float_eq::{afe_is_f64_near, afe_near_error_msg, assert_f64_near};
     /// #
     /// # fn main() -> Result<(), LinearError> {
@@ -75,21 +75,21 @@ pub trait Generator<Input> {
     ///                 .elements_with_weights(elements.stack(weights))
     ///                 .knots([0.0,1.0,2.0])
     ///                 .build()?;
-    /// assert_f64_near!(linear.gen(0.5), 4.0);
+    /// assert_f64_near!(linear.eval(0.5), 4.0);
     /// #
     /// #     Ok(())
     /// # }
     /// ```
-    fn stack<G>(self, gen: G) -> Stack<Self, G>
+    fn stack<G>(self, signal: G) -> Stack<Self, G>
     where
         Self: Sized,
     {
-        Stack::new(self, gen)
+        Stack::new(self, signal)
     }
-    /// Takes two generators and creates a new generator pipelining both generators.
+    /// Takes two signals and creates a new signal pipelining both signals.
     ///
-    /// [`composite()`] will return a new generator which will first generate values from the original input
-    /// and then use these values as input for the second generator.
+    /// [`composite()`] will return a new signal which will first generate values from the original input
+    /// and then use these values as input for the second signal.
     ///
     /// In other words, it is the composite of two functions.
     ///
@@ -97,7 +97,7 @@ pub trait Generator<Input> {
     ///
     #[cfg_attr(feature = "bezier", doc = "```rust")]
     #[cfg_attr(not(feature = "bezier"), doc = "```ignore")]
-    /// # use enterpolation::{bezier::{Bezier, BezierError}, easing::{FuncEase, smoothstep}, Generator};
+    /// # use enterpolation::{bezier::{Bezier, BezierError}, easing::{FuncEase, smoothstep}, Signal};
     /// # use assert_float_eq::{afe_is_f64_near, afe_near_error_msg, assert_f64_near};
     /// #
     /// # fn main() {
@@ -114,19 +114,19 @@ pub trait Generator<Input> {
     /// let results : Vec<_> = curve.sample(corrected_samples).collect();
     ///
     /// let smoother_animation = smoothing.composite(curve);
-    /// assert_f64_near!(smoother_animation.gen(0.1), results[0]);
-    /// assert_f64_near!(smoother_animation.gen(0.25), results[1]);
+    /// assert_f64_near!(smoother_animation.eval(0.1), results[0]);
+    /// assert_f64_near!(smoother_animation.eval(0.25), results[1]);
     /// # }
     /// ```
     ///
     /// [`composite()`]: Self::composite()
-    fn composite<G>(self, gen: G) -> Composite<Self, G>
+    fn composite<G>(self, signal: G) -> Composite<Self, G>
     where
         Self: Sized,
     {
-        Composite::new(self, gen)
+        Composite::new(self, signal)
     }
-    /// Get a reference of the generator.
+    /// Get a reference of the signal.
     ///
     /// This is useful if one wants to add an adaptor without consuming the original.
     fn by_ref(&self) -> &Self {
@@ -137,13 +137,13 @@ pub trait Generator<Input> {
     /// It takes an iterator of items which are inputed into the [`gen()`] method
     /// and returns an iterator of the corresponding outputs.
     ///
-    /// This acts the same as `generator.by_ref().extract()`.
+    /// This acts the same as `signal.by_ref().extract()`.
     ///
     /// # Examples
     ///
     #[cfg_attr(feature = "linear", doc = "```rust")]
     #[cfg_attr(not(feature = "linear"), doc = "```ignore")]
-    /// # use enterpolation::{linear::{Linear, LinearError}, Generator};
+    /// # use enterpolation::{linear::{Linear, LinearError}, Signal};
     /// # use assert_float_eq::{afe_is_f64_near, afe_near_error_msg, assert_f64_near};
     /// #
     /// # fn main() -> Result<(), LinearError> {
@@ -173,18 +173,18 @@ pub trait Generator<Input> {
     }
 }
 
-// Make references of generators also generators
-impl<G: Generator<I> + ?Sized, I> Generator<I> for &G {
+// Make references of signals also signals
+impl<G: Signal<I> + ?Sized, I> Signal<I> for &G {
     type Output = G::Output;
     fn eval(&self, input: I) -> Self::Output {
         (**self).eval(input)
     }
 }
 
-/// Specialized [`Generator`] which takes a real number as input.
+/// Specialized [`Signal`] which takes a real number as input.
 ///
-/// [`Generator`]: Generator
-pub trait Curve<R>: Generator<R>
+/// [`Signal`]: Signal
+pub trait Curve<R>: Signal<R>
 where
     R: Real,
 {
@@ -264,7 +264,7 @@ where
     ///
     #[cfg_attr(feature = "linear", doc = "```rust")]
     #[cfg_attr(not(feature = "linear"), doc = "```ignore")]
-    /// # use enterpolation::{linear::{Linear, LinearError}, Generator, Curve};
+    /// # use enterpolation::{linear::{Linear, LinearError}, Signal, Curve};
     /// # use assert_float_eq::{afe_is_f64_near, afe_near_error_msg, assert_f64_near};
     /// #
     /// # fn main() -> Result<(), LinearError> {
@@ -275,7 +275,7 @@ where
     ///                 .clamp();
     /// let expected = [[-1.0,0.0],[0.0,0.0],[0.5,1.5],[1.0,3.0],[2.0,3.0]];
     /// for [input,result] in expected {
-    ///     assert_f64_near!(linear.gen(input), result);
+    ///     assert_f64_near!(linear.eval(input), result);
     /// }
     /// #
     /// #     Ok(())
@@ -299,38 +299,38 @@ where
     }
 }
 
-/// Specialized [`Generator`] with input of type `usize`.
+/// Specialized [`Signal`] with input of type `usize`.
 ///
-/// All `DiscreteGenerator` must return valid values
+/// All `Chain` must return valid values
 /// when using inputs less than the value returned by their [`len()`] method.
 ///
-/// [`Generator`]: Generator
-/// [`len()`]: DiscreteGenerator::len()
-pub trait DiscreteGenerator: Generator<usize> {
-    /// Returns the minimum amount of elements the generator can create.
+/// [`Signal`]: Signal
+/// [`len()`]: Chain::len()
+pub trait Chain: Signal<usize> {
+    /// Returns the minimum amount of elements the signal can create.
     ///
-    /// The generator has to guarantee that every usize number
+    /// The signal has to guarantee that every usize number
     /// lower than the returned number has to create a valid element.
     fn len(&self) -> usize;
-    /// Returns the first element of the generator, or `None` if it is empty.
+    /// Returns the first element of the signal, or `None` if it is empty.
     fn first(&self) -> Option<Self::Output> {
         if self.is_empty() {
             return None;
         }
         Some(self.eval(0))
     }
-    /// Returns the last element of the generator, or `None` if it is empty.
+    /// Returns the last element of the signal, or `None` if it is empty.
     fn last(&self) -> Option<Self::Output> {
         if self.is_empty() {
             return None;
         }
         Some(self.eval(self.len() - 1))
     }
-    /// Returns `true` if the generator does not generate any elements.
+    /// Returns `true` if the signal does not generate any elements.
     fn is_empty(&self) -> bool {
         self.len() == 0
     }
-    /// Convert generator to an iterator which steps through all generatable values.
+    /// Convert signal to an iterator which steps through all generatable values.
     fn into_iter(self) -> IntoIter<Self>
     where
         Self: Sized,
@@ -341,7 +341,7 @@ pub trait DiscreteGenerator: Generator<usize> {
     fn iter(&self) -> IntoIter<&Self> {
         IntoIter::new(self)
     }
-    /// Transform generator to one which repeats its elements.
+    /// Transform signal to one which repeats its elements.
     fn repeat(self) -> Repeat<Self>
     where
         Self: Sized,
@@ -350,23 +350,23 @@ pub trait DiscreteGenerator: Generator<usize> {
     }
 }
 
-// Make references of DiscreteGenerator also DiscreteGenerator
-impl<G: DiscreteGenerator + ?Sized> DiscreteGenerator for &G {
+// Make references of Chain also Chain
+impl<G: Chain + ?Sized> Chain for &G {
     fn len(&self) -> usize {
         (**self).len()
     }
 }
 
-/// Trait for [`DiscreteGenerator`] where its length is known at compile-time.
+/// Trait for [`Chain`] where its length is known at compile-time.
 ///
-/// [`DiscreteGenerator`]: DiscreteGenerator
-pub trait ConstDiscreteGenerator<const N: usize>: DiscreteGenerator {
+/// [`Chain`]: Chain
+pub trait ConstChain<const N: usize>: Chain {
     /// Collect all elements generated into an array.
     ///
     /// This function may be useful if one wants to save intermediate steps instead of generating
     /// and calculating it.
     ///
-    /// If you want to transform a `DiscreteGenerator` to a collection,
+    /// If you want to transform a `ConstChain` to a collection,
     /// you may use `.iter().collect()` instead.
     fn to_array(&self) -> [Self::Output; N]
     where
@@ -380,39 +380,39 @@ pub trait ConstDiscreteGenerator<const N: usize>: DiscreteGenerator {
     }
 }
 
-//Make references of DiscreteGenerator also DiscreteGenerator
-impl<G: ConstDiscreteGenerator<N> + ?Sized, const N: usize> ConstDiscreteGenerator<N> for &G {}
+//Make references of ConstChain also ConstChain
+impl<G: ConstChain<N> + ?Sized, const N: usize> ConstChain<N> for &G {}
 
-/// Iterator constructed by the `into_iter` and 'iter' method of generators.
+/// Iterator constructed by the `into_iter` and 'iter' method of signals.
 #[derive(Debug, Clone, PartialEq)] // Iterators shouldn't be Copy -- see #27186
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct IntoIter<G> {
-    gen: G,
+    signal: G,
     front: usize,
     back: usize,
 }
 
 impl<G> IntoIter<G>
 where
-    G: DiscreteGenerator,
+    G: Chain,
 {
-    pub fn new(gen: G) -> Self {
+    pub fn new(signal: G) -> Self {
         IntoIter {
             front: 0,
-            back: gen.len(),
-            gen,
+            back: signal.len(),
+            signal,
         }
     }
 }
 
 impl<G> Iterator for IntoIter<G>
 where
-    G: DiscreteGenerator,
+    G: Chain,
 {
     type Item = G::Output;
     fn next(&mut self) -> Option<Self::Item> {
         if self.front < self.back {
-            let res = self.gen.eval(self.front);
+            let res = self.signal.eval(self.front);
             self.front += 1;
             return Some(res);
         }
@@ -434,17 +434,17 @@ where
     }
 }
 
-impl<G> FusedIterator for IntoIter<G> where G: DiscreteGenerator {}
+impl<G> FusedIterator for IntoIter<G> where G: Chain {}
 
-impl<G> ExactSizeIterator for IntoIter<G> where G: DiscreteGenerator {}
+impl<G> ExactSizeIterator for IntoIter<G> where G: Chain {}
 
 impl<G> DoubleEndedIterator for IntoIter<G>
 where
-    G: DiscreteGenerator,
+    G: Chain,
 {
     fn next_back(&mut self) -> Option<Self::Item> {
         if self.front < self.back {
-            let res = self.gen.eval(self.back);
+            let res = self.signal.eval(self.back);
             self.back -= 1;
             return Some(res);
         }
@@ -463,25 +463,25 @@ where
 ///
 /// Maps the items of the iterator to the output of the curve.
 ///
-/// This struct is created by the [`extract()`] method on [`Generator`]. See its documentation for more.
+/// This struct is created by the [`extract()`] method on [`Signal`]. See its documentation for more.
 ///
-/// [`extract()`]: crate::Generator::extract()
-/// [`Generator`]: crate::Generator
+/// [`extract()`]: crate::Signal::extract()
+/// [`Signal`]: crate::Signal
 #[derive(Debug, Clone, PartialEq)] // Iterators shouldn't be Copy -- see #27186
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Extract<G, I> {
-    generator: G,
+    signal: G,
     iterator: I,
 }
 
 impl<G, I> Iterator for Extract<G, I>
 where
-    G: Generator<I::Item>,
+    G: Signal<I::Item>,
     I: Iterator,
 {
     type Item = G::Output;
     fn next(&mut self) -> Option<Self::Item> {
-        Some(self.generator.eval(self.iterator.next()?))
+        Some(self.signal.eval(self.iterator.next()?))
     }
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.iterator.size_hint()
@@ -490,34 +490,34 @@ where
         self.iterator.count()
     }
     fn nth(&mut self, n: usize) -> Option<Self::Item> {
-        Some(self.generator.eval(self.iterator.nth(n)?))
+        Some(self.signal.eval(self.iterator.nth(n)?))
     }
 }
 
 impl<G, I> FusedIterator for Extract<G, I>
 where
-    G: Generator<I::Item>,
+    G: Signal<I::Item>,
     I: FusedIterator,
 {
 }
 
 impl<G, I> ExactSizeIterator for Extract<G, I>
 where
-    G: Generator<I::Item>,
+    G: Signal<I::Item>,
     I: ExactSizeIterator,
 {
 }
 
 impl<G, I> DoubleEndedIterator for Extract<G, I>
 where
-    G: Generator<I::Item>,
+    G: Signal<I::Item>,
     I: DoubleEndedIterator,
 {
     fn next_back(&mut self) -> Option<Self::Item> {
-        Some(self.generator.eval(self.iterator.next_back()?))
+        Some(self.signal.eval(self.iterator.next_back()?))
     }
     fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
-        Some(self.generator.eval(self.iterator.nth_back(n)?))
+        Some(self.signal.eval(self.iterator.nth_back(n)?))
     }
 }
 

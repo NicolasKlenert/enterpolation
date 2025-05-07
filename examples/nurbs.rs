@@ -6,7 +6,7 @@
 
 use core::f64::consts::PI;
 use core::ops::{Add, Div, Mul, Sub};
-use enterpolation::{bspline::BSpline, Curve, Generator};
+use enterpolation::{Curve, Signal, bspline::BSpline};
 // used to test equality of f64s
 #[macro_use]
 extern crate assert_float_eq;

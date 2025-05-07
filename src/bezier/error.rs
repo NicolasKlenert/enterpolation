@@ -10,7 +10,7 @@ use std::error::Error;
 #[derive(Debug, Copy, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum BezierError {
-    /// Error returned if the generator does not contain any elements.
+    /// Error returned if the signal does not contain any elements.
     Empty(Empty),
     /// Error returned if the given workspace is too small for the interpolation to use.
     TooSmallWorkspace(TooSmallWorkspace),

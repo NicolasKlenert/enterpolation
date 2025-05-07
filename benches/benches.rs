@@ -1,6 +1,6 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use enterpolation::bspline::BSpline;
-use enterpolation::{Curve, Generator};
+use enterpolation::{Curve, Signal};
 
 const ELEMENTS: [f64; 100] = [
     943.0, 978.0, 579.0, 15.0, 608.0, 938.0, 669.0, 98.0, 720.0, 303.0, 345.0, 421.0, 767.0, 798.0,

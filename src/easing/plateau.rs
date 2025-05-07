@@ -1,5 +1,5 @@
 use crate::easing::smoothstep;
-use crate::{Curve, Generator};
+use crate::{Curve, Signal};
 use num_traits::real::Real;
 use num_traits::FromPrimitive;
 
@@ -47,7 +47,7 @@ where
     }
 }
 
-impl<R> Generator<R> for Plateau<R>
+impl<R> Signal<R> for Plateau<R>
 where
     R: Real + FromPrimitive,
 {

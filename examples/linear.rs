@@ -1,5 +1,5 @@
 use enterpolation::linear::Linear;
-use enterpolation::Generator;
+use enterpolation::Signal;
 
 /// This mimics R's approx function
 /// ```R

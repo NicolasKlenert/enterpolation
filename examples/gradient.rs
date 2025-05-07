@@ -1,4 +1,4 @@
-use enterpolation::{bspline::BSpline, Curve, Generator, Merge};
+use enterpolation::{Curve, Merge, Signal, bspline::BSpline};
 use image::{ImageBuffer, Rgba};
 use palette::{Hsl, IntoColor, Mix};
 

@@ -6,7 +6,7 @@
 //!
 //! ```rust
 //! # use std::error::Error;
-//! # use enterpolation::{bspline::{BSpline, BSplineError}, Generator, Curve};
+//! # use enterpolation::{bspline::{BSpline, BSplineError}, Signal, Curve};
 //! # use assert_float_eq::{afe_is_f64_near, afe_near_error_msg, assert_f64_near};
 //! #
 //! # fn main() -> Result<(), BSplineError> {
@@ -45,7 +45,7 @@ pub use error::{
 };
 
 use crate::builder::Unknown;
-use crate::{Curve, DiscreteGenerator, Generator, SortedGenerator, Space};
+use crate::{Chain, Curve, Signal, SortedChain, Space};
 use builder::Open;
 use num_traits::real::Real;
 use topology_traits::Merge;
@@ -79,7 +79,7 @@ impl BSpline<Unknown, Unknown, Unknown> {
     ///
     /// ```rust
     /// # use std::error::Error;
-    /// # use enterpolation::{bspline::{BSpline, BSplineError}, Generator, Curve};
+    /// # use enterpolation::{bspline::{BSpline, BSplineError}, Signal, Curve};
     /// # use assert_float_eq::{afe_is_f64_near, afe_near_error_msg, assert_f64_near};
     /// #
     /// # fn main() -> Result<(), BSplineError> {
@@ -119,7 +119,7 @@ impl BSpline<Unknown, Unknown, Unknown> {
 
 impl<K, E, S> BSpline<K, E, S>
 where
-    E: DiscreteGenerator,
+    E: Chain,
     S: Space<E::Output>,
 {
     /// Creates a workspace and copies degree+1 elements into it, starting from given index.
@@ -133,13 +133,13 @@ where
     }
 }
 
-impl<K, E, S, R> Generator<R> for BSpline<K, E, S>
+impl<K, E, S, R> Signal<R> for BSpline<K, E, S>
 where
-    E: DiscreteGenerator,
+    E: Chain,
     S: Space<E::Output>,
     E::Output: Merge<R> + Copy,
     R: Real + Debug,
-    K: SortedGenerator<Output = R>,
+    K: SortedChain<Output = R>,
 {
     type Output = E::Output;
     fn eval(&self, scalar: R) -> E::Output {
@@ -171,11 +171,11 @@ where
 
 impl<K, E, S, R> Curve<R> for BSpline<K, E, S>
 where
-    E: DiscreteGenerator,
+    E: Chain,
     S: Space<E::Output>,
     E::Output: Merge<R> + Copy,
     R: Real + Debug,
-    K: SortedGenerator<Output = R>,
+    K: SortedChain<Output = R>,
 {
     fn domain(&self) -> [R; 2] {
         [
@@ -187,8 +187,8 @@ where
 
 impl<K, E, S> BSpline<K, E, S>
 where
-    E: DiscreteGenerator,
-    K: SortedGenerator,
+    E: Chain,
+    K: SortedChain,
     S: Space<E::Output>,
 {
     /// Creates a bspline curve of elements and knots given.
@@ -237,8 +237,8 @@ where
 
 impl<K, E, S> BSpline<K, E, S>
 where
-    E: DiscreteGenerator,
-    K: SortedGenerator,
+    E: Chain,
+    K: SortedChain,
     S: Space<E::Output>,
 {
     /// Creates a bspline curve of elements and knots given.

@@ -7,18 +7,16 @@ use super::error::{
     BSplineError, IncongruousElementsDegree, IncongruousElementsKnots, InvalidDegree, TooFewKnots,
 };
 use super::{BSpline, TooFewElements, TooSmallWorkspace};
-use crate::builder::{Type, Unknown, WithWeight, WithoutWeight};
-use crate::weights::{Homogeneous, IntoWeight, Weighted, Weights};
 #[cfg(feature = "std")]
 use crate::DynSpace;
-use crate::{
-    ConstSpace, DiscreteGenerator, Equidistant, Generator, Sorted, SortedGenerator, Space,
-};
+use crate::builder::{Type, Unknown, WithWeight, WithoutWeight};
+use crate::weights::{Homogeneous, IntoWeight, Weighted, Weights};
+use crate::{Chain, ConstSpace, Equidistant, Signal, Sorted, SortedChain, Space};
 use core::marker::PhantomData;
 use core::ops::{Div, Mul};
+use num_traits::FromPrimitive;
 use num_traits::identities::Zero;
 use num_traits::real::Real;
-use num_traits::FromPrimitive;
 use topology_traits::Merge;
 // use super::error::{LinearError, ToFewElements, KnotElementInequality};
 
@@ -212,7 +210,7 @@ impl<M> BSplineDirector<Unknown, Unknown, Unknown, Unknown, M> {
 
     // /// Ensure the curve to be a loop, that is, its start and end point are equal and have a smooth transition.
     // ///
-    // /// This method changes the underlying knot and element generator, by repeating some.
+    // /// This method changes the underlying knot and element chain, by repeating some.
     // pub fn loop(self) -> BSplineDirector<K,E, Unknown, W>{
     //
     // }
@@ -229,7 +227,7 @@ impl<M> BSplineDirector<Unknown, Unknown, Unknown, Unknown, M> {
         elements: E,
     ) -> Result<BSplineDirector<Unknown, E, Unknown, WithoutWeight, M>, TooFewElements>
     where
-        E: DiscreteGenerator,
+        E: Chain,
     {
         if elements.len() < 2 {
             return Err(TooFewElements::new(elements.len()));
@@ -259,22 +257,22 @@ impl<M> BSplineDirector<Unknown, Unknown, Unknown, Unknown, M> {
     /// [`TooFewElements`]: super::error::BSplineError
     pub fn elements_with_weights<G>(
         self,
-        gen: G,
+        signal: G,
     ) -> Result<BSplineDirector<Unknown, Weights<G>, Unknown, WithWeight, M>, TooFewElements>
     where
-        G: DiscreteGenerator,
+        G: Chain,
         G::Output: IntoWeight,
         <G::Output as IntoWeight>::Element:
             Mul<<G::Output as IntoWeight>::Weight, Output = <G::Output as IntoWeight>::Element>,
         <G::Output as IntoWeight>::Weight: Zero + Copy,
     {
-        if gen.len() < 2 {
-            return Err(TooFewElements::new(gen.len()));
+        if signal.len() < 2 {
+            return Err(TooFewElements::new(signal.len()));
         }
         Ok(BSplineDirector {
             space: self.space,
             knots: self.knots,
-            elements: Weights::new(gen),
+            elements: Weights::new(signal),
             _phantoms: (PhantomData, self._phantoms.1),
         })
     }
@@ -309,7 +307,7 @@ impl<M> BSplineBuilder<Unknown, Unknown, Unknown, Unknown, M> {
 
     // /// Ensure the curve to be a loop, that is, its start and end point are equal and have a smooth transition.
     // ///
-    // /// This method changes the underlying knot and element generator, by repeating some.
+    // /// This method changes the underlying knot and element chain, by repeating some.
     // pub fn loop(self) -> BSplineDirector<K,E, Unknown, W>{
     //
     // }
@@ -317,7 +315,7 @@ impl<M> BSplineBuilder<Unknown, Unknown, Unknown, Unknown, M> {
     /// Set the elements of the bspline interpolation.
     pub fn elements<E>(self, elements: E) -> BSplineBuilder<Unknown, E, Unknown, WithoutWeight, M>
     where
-        E: DiscreteGenerator,
+        E: Chain,
     {
         BSplineBuilder {
             inner: self
@@ -337,10 +335,10 @@ impl<M> BSplineBuilder<Unknown, Unknown, Unknown, Unknown, M> {
     /// you may want to use homogeneous data itself without this wrapping mechanism.
     pub fn elements_with_weights<G>(
         self,
-        gen: G,
+        signal: G,
     ) -> BSplineBuilder<Unknown, Weights<G>, Unknown, WithWeight, M>
     where
-        G: DiscreteGenerator,
+        G: Chain,
         G::Output: IntoWeight,
         <G::Output as IntoWeight>::Element:
             Mul<<G::Output as IntoWeight>::Weight, Output = <G::Output as IntoWeight>::Element>,
@@ -349,7 +347,7 @@ impl<M> BSplineBuilder<Unknown, Unknown, Unknown, Unknown, M> {
         BSplineBuilder {
             inner: self.inner.and_then(|director| {
                 director
-                    .elements_with_weights(gen)
+                    .elements_with_weights(signal)
                     .map_err(|err| err.into())
             }),
         }
@@ -381,8 +379,8 @@ impl<E, W> BSplineDirector<Unknown, E, Unknown, W, Open> {
         knots: K,
     ) -> Result<BSplineDirector<Sorted<K>, E, Unknown, W, Open>, BSplineError>
     where
-        E: DiscreteGenerator,
-        K: DiscreteGenerator,
+        E: Chain,
+        K: Chain,
         K::Output: PartialOrd,
     {
         if knots.len() < 2 {
@@ -416,8 +414,8 @@ impl<E, W> BSplineBuilder<Unknown, E, Unknown, W, Open> {
     /// [`equidistant()`]: BSplineBuilder::equidistant()
     pub fn knots<K>(self, knots: K) -> BSplineBuilder<Sorted<K>, E, Unknown, W, Open>
     where
-        E: DiscreteGenerator,
-        K: DiscreteGenerator,
+        E: Chain,
+        K: Chain,
         K::Output: PartialOrd,
     {
         BSplineBuilder {
@@ -448,8 +446,8 @@ impl<E, W> BSplineDirector<Unknown, E, Unknown, W, Clamped> {
     /// [`IncongruousElementsKnots`]: super::error::BSplineError
     pub fn knots<K>(self, knots: K) -> Result<ClampedBSplineDirector<K, E, W>, BSplineError>
     where
-        E: DiscreteGenerator,
-        K: DiscreteGenerator,
+        E: Chain,
+        K: Chain,
         K::Output: PartialOrd,
     {
         if knots.len() < 2 {
@@ -481,8 +479,8 @@ impl<E, W> BSplineBuilder<Unknown, E, Unknown, W, Clamped> {
     /// [`equidistant()`]: BSplineBuilder::equidistant()
     pub fn knots<K>(self, knots: K) -> ClampedBSplineBuilder<K, E, W>
     where
-        E: DiscreteGenerator,
-        K: DiscreteGenerator,
+        E: Chain,
+        K: Chain,
         K::Output: PartialOrd,
     {
         BSplineBuilder {
@@ -513,8 +511,8 @@ impl<E, W> BSplineDirector<Unknown, E, Unknown, W, Legacy> {
     /// [`equidistant()`]: BSplineDirector::equidistant()
     pub fn knots<K>(self, knots: K) -> Result<LegacyBSplineDirector<K, E, W>, BSplineError>
     where
-        E: DiscreteGenerator,
-        K: DiscreteGenerator,
+        E: Chain,
+        K: Chain,
         K::Output: PartialOrd,
     {
         if knots.len() < 4 {
@@ -549,8 +547,8 @@ impl<E, W> BSplineBuilder<Unknown, E, Unknown, W, Legacy> {
     /// [`equidistant()`]: BSplineBuilder::equidistant()
     pub fn knots<K>(self, knots: K) -> LegacyBSplineBuilder<K, E, W>
     where
-        E: DiscreteGenerator,
-        K: DiscreteGenerator,
+        E: Chain,
+        K: Chain,
         K::Output: PartialOrd,
     {
         BSplineBuilder {
@@ -610,7 +608,7 @@ impl<E, W, M> BSplineBuilder<Unknown, E, Unknown, W, M> {
 
 impl<R, E, W> BSplineDirector<Type<R>, E, Unknown, W, Open>
 where
-    E: DiscreteGenerator,
+    E: Chain,
 {
     /// Set the degree of the curve.
     ///
@@ -696,7 +694,7 @@ where
 
 impl<R, E, W> BSplineBuilder<Type<R>, E, Unknown, W, Open>
 where
-    E: DiscreteGenerator,
+    E: Chain,
 {
     /// Set the degree of the curve.
     ///
@@ -754,7 +752,7 @@ where
 
 impl<R, E, W> BSplineDirector<Type<R>, E, Unknown, W, Clamped>
 where
-    E: DiscreteGenerator,
+    E: Chain,
 {
     /// Set the degree of the curve.
     ///
@@ -840,7 +838,7 @@ where
 
 impl<R, E, W> BSplineBuilder<Type<R>, E, Unknown, W, Clamped>
 where
-    E: DiscreteGenerator,
+    E: Chain,
 {
     /// Set the degree of the curve.
     ///
@@ -898,7 +896,7 @@ where
 
 impl<R, E, W> BSplineDirector<UnknownDomain<R>, E, Unknown, W, Open>
 where
-    E: DiscreteGenerator,
+    E: Chain,
     R: Real + FromPrimitive,
 {
     /// Set the domain of the interpolation.
@@ -937,7 +935,7 @@ where
 
 impl<R, E, W> BSplineBuilder<UnknownDomain<R>, E, Unknown, W, Open>
 where
-    E: DiscreteGenerator,
+    E: Chain,
     R: Real + FromPrimitive,
 {
     /// Set the domain of the interpolation.
@@ -967,7 +965,7 @@ where
 
 impl<R, E, W> BSplineDirector<UnknownDomain<R>, E, Unknown, W, Clamped>
 where
-    E: DiscreteGenerator,
+    E: Chain,
     R: Real + FromPrimitive,
 {
     /// Set the domain of the interpolation.
@@ -1021,7 +1019,7 @@ where
 
 impl<R, E, W> BSplineBuilder<UnknownDomain<R>, E, Unknown, W, Clamped>
 where
-    E: DiscreteGenerator,
+    E: Chain,
     R: Real + FromPrimitive,
 {
     /// Set the domain of the interpolation.
@@ -1057,8 +1055,8 @@ where
 
 impl<K, E, W, M> BSplineDirector<K, E, Unknown, W, M>
 where
-    E: DiscreteGenerator,
-    K: DiscreteGenerator,
+    E: Chain,
+    K: Chain,
 {
     /// Set the workspace which the interpolation uses.
     ///
@@ -1134,8 +1132,8 @@ where
 
 impl<K, E, W, M> BSplineBuilder<K, E, Unknown, W, M>
 where
-    E: DiscreteGenerator,
-    K: DiscreteGenerator,
+    E: Chain,
+    K: Chain,
 {
     /// Set the workspace which the interpolation uses.
     ///
@@ -1190,8 +1188,8 @@ where
 
 impl<K, E, S, M> BSplineDirector<K, E, S, WithoutWeight, M>
 where
-    K: SortedGenerator,
-    E: DiscreteGenerator,
+    K: SortedChain,
+    E: Chain,
     E::Output: Merge<K::Output> + Copy,
     S: Space<E::Output>,
 {
@@ -1213,8 +1211,8 @@ where
 
 impl<K, E, S, M> BSplineBuilder<K, E, S, WithoutWeight, M>
 where
-    K: SortedGenerator,
-    E: DiscreteGenerator,
+    K: SortedChain,
+    E: Chain,
     E::Output: Merge<K::Output> + Copy,
     S: Space<E::Output>,
 {
@@ -1242,11 +1240,11 @@ where
 
 impl<K, G, S, M> BSplineDirector<K, Weights<G>, S, WithWeight, M>
 where
-    G: DiscreteGenerator,
+    G: Chain,
     G::Output: IntoWeight,
-    K: SortedGenerator,
+    K: SortedChain,
     S: Space<Homogeneous<<G::Output as IntoWeight>::Element, <G::Output as IntoWeight>::Weight>>,
-    <Weights<G> as Generator<usize>>::Output: Merge<K::Output> + Copy,
+    <Weights<G> as Signal<usize>>::Output: Merge<K::Output> + Copy,
     <G::Output as IntoWeight>::Element:
         Div<<G::Output as IntoWeight>::Weight, Output = <G::Output as IntoWeight>::Element>,
 {
@@ -1272,11 +1270,11 @@ where
 
 impl<K, G, S, M> BSplineBuilder<K, Weights<G>, S, WithWeight, M>
 where
-    G: DiscreteGenerator,
+    G: Chain,
     G::Output: IntoWeight,
-    K: SortedGenerator,
+    K: SortedChain,
     S: Space<Homogeneous<<G::Output as IntoWeight>::Element, <G::Output as IntoWeight>::Weight>>,
-    <Weights<G> as Generator<usize>>::Output: Merge<K::Output> + Copy,
+    <Weights<G> as Signal<usize>>::Output: Merge<K::Output> + Copy,
     <G::Output as IntoWeight>::Element:
         Div<<G::Output as IntoWeight>::Weight, Output = <G::Output as IntoWeight>::Element>,
 {
@@ -1320,24 +1318,28 @@ type LegacyBSplineDirector<K, E, W> =
 #[cfg(test)]
 mod test {
     use super::BSplineBuilder;
-    // Homogeneous for creating Homogeneous, Generator for using .stack()
-    use crate::{bspline::BSplineDirector, weights::Homogeneous, Curve, Generator};
+    // Homogeneous for creating Homogeneous, Signal for using .stack()
+    use crate::{Curve, Signal, bspline::BSplineDirector, weights::Homogeneous};
 
     #[test]
     fn degenerate_creations() {
         let empty: [f64; 0] = [];
-        assert!(BSplineBuilder::new()
-            .elements(empty)
-            .knots(empty)
-            .constant::<1>()
-            .build()
-            .is_err());
-        assert!(BSplineBuilder::new()
-            .elements([1.0])
-            .knots([1.0])
-            .constant::<2>()
-            .build()
-            .is_err());
+        assert!(
+            BSplineBuilder::new()
+                .elements(empty)
+                .knots(empty)
+                .constant::<1>()
+                .build()
+                .is_err()
+        );
+        assert!(
+            BSplineBuilder::new()
+                .elements([1.0])
+                .knots([1.0])
+                .constant::<2>()
+                .build()
+                .is_err()
+        );
     }
 
     #[test]
@@ -1418,74 +1420,90 @@ mod test {
         assert!(BSplineDirector::new().clamped().elements([0.0]).is_err());
 
         // too few knots
-        assert!(BSplineDirector::new()
-            .clamped()
-            .elements([0.0, 1.0, 2.0, 3.0])
-            .unwrap()
-            .knots([0.0])
-            .is_err());
+        assert!(
+            BSplineDirector::new()
+                .clamped()
+                .elements([0.0, 1.0, 2.0, 3.0])
+                .unwrap()
+                .knots([0.0])
+                .is_err()
+        );
 
-        assert!(BSplineDirector::new()
-            .clamped()
-            .elements([0.0, 1.0, 2.0, 3.0])
-            .unwrap()
-            .equidistant::<f32>()
-            .quantity(1)
-            .is_err());
+        assert!(
+            BSplineDirector::new()
+                .clamped()
+                .elements([0.0, 1.0, 2.0, 3.0])
+                .unwrap()
+                .equidistant::<f32>()
+                .quantity(1)
+                .is_err()
+        );
 
         // invalid degree
-        assert!(BSplineDirector::new()
-            .clamped()
-            .elements([0.0, 1.0, 2.0, 3.0])
-            .unwrap()
-            .equidistant::<f32>()
-            .degree(0)
-            .is_err());
+        assert!(
+            BSplineDirector::new()
+                .clamped()
+                .elements([0.0, 1.0, 2.0, 3.0])
+                .unwrap()
+                .equidistant::<f32>()
+                .degree(0)
+                .is_err()
+        );
 
         // too small of a workspace
-        assert!(BSplineDirector::new()
-            .clamped()
-            .elements([0.0, 1.0, 2.0, 3.0])
-            .unwrap()
-            .equidistant::<f32>()
-            .degree(2)
-            .unwrap()
-            .domain(0.0, 1.0)
-            .constant::<2>()
-            .is_err());
+        assert!(
+            BSplineDirector::new()
+                .clamped()
+                .elements([0.0, 1.0, 2.0, 3.0])
+                .unwrap()
+                .equidistant::<f32>()
+                .degree(2)
+                .unwrap()
+                .domain(0.0, 1.0)
+                .constant::<2>()
+                .is_err()
+        );
 
         // incongruous
-        assert!(BSplineDirector::new()
-            .clamped()
-            .elements([0.0, 1.0, 2.0])
-            .unwrap()
-            .equidistant::<f32>()
-            .degree(3)
-            .is_err());
+        assert!(
+            BSplineDirector::new()
+                .clamped()
+                .elements([0.0, 1.0, 2.0])
+                .unwrap()
+                .equidistant::<f32>()
+                .degree(3)
+                .is_err()
+        );
 
-        assert!(BSplineDirector::new()
-            .clamped()
-            .elements([0.0, 1.0, 2.0, 3.0])
-            .unwrap()
-            .equidistant::<f32>()
-            .degree(3)
-            .is_ok());
+        assert!(
+            BSplineDirector::new()
+                .clamped()
+                .elements([0.0, 1.0, 2.0, 3.0])
+                .unwrap()
+                .equidistant::<f32>()
+                .degree(3)
+                .is_ok()
+        );
 
-        assert!(BSplineDirector::new()
-            .clamped()
-            .elements([0.0, 1.0, 2.0])
-            .unwrap()
-            .equidistant::<f32>()
-            .quantity(4)
-            .is_err());
+        assert!(
+            BSplineDirector::new()
+                .clamped()
+                .elements([0.0, 1.0, 2.0])
+                .unwrap()
+                .equidistant::<f32>()
+                .quantity(4)
+                .is_err()
+        );
 
-        assert!(BSplineDirector::new()
-            .clamped()
-            .elements([0.0, 1.0, 2.0])
-            .unwrap()
-            .equidistant::<f32>()
-            .quantity(3)
-            .is_ok());
+        assert!(
+            BSplineDirector::new()
+                .clamped()
+                .elements([0.0, 1.0, 2.0])
+                .unwrap()
+                .equidistant::<f32>()
+                .quantity(3)
+                .is_ok()
+        );
     }
 
     #[test]
@@ -1494,91 +1512,111 @@ mod test {
         assert!(BSplineDirector::new().open().elements([0.0]).is_err());
 
         // too few knots
-        assert!(BSplineDirector::new()
-            .open()
-            .elements([0.0, 1.0, 2.0, 3.0])
-            .unwrap()
-            .knots([0.0])
-            .is_err());
+        assert!(
+            BSplineDirector::new()
+                .open()
+                .elements([0.0, 1.0, 2.0, 3.0])
+                .unwrap()
+                .knots([0.0])
+                .is_err()
+        );
 
-        assert!(BSplineDirector::new()
-            .open()
-            .elements([0.0, 1.0, 2.0, 3.0])
-            .unwrap()
-            .equidistant::<f32>()
-            .quantity(1)
-            .is_err());
+        assert!(
+            BSplineDirector::new()
+                .open()
+                .elements([0.0, 1.0, 2.0, 3.0])
+                .unwrap()
+                .equidistant::<f32>()
+                .quantity(1)
+                .is_err()
+        );
 
         // invalid degree
-        assert!(BSplineDirector::new()
-            .open()
-            .elements([0.0, 1.0, 2.0, 3.0])
-            .unwrap()
-            .equidistant::<f32>()
-            .degree(0)
-            .is_err());
+        assert!(
+            BSplineDirector::new()
+                .open()
+                .elements([0.0, 1.0, 2.0, 3.0])
+                .unwrap()
+                .equidistant::<f32>()
+                .degree(0)
+                .is_err()
+        );
 
         // too small of a workspace
-        assert!(BSplineDirector::new()
-            .open()
-            .elements([0.0, 1.0, 2.0, 3.0])
-            .unwrap()
-            .equidistant::<f32>()
-            .degree(2)
-            .unwrap()
-            .domain(0.0, 1.0)
-            .constant::<2>()
-            .is_err());
+        assert!(
+            BSplineDirector::new()
+                .open()
+                .elements([0.0, 1.0, 2.0, 3.0])
+                .unwrap()
+                .equidistant::<f32>()
+                .degree(2)
+                .unwrap()
+                .domain(0.0, 1.0)
+                .constant::<2>()
+                .is_err()
+        );
 
         // incongruous knots
-        assert!(BSplineDirector::new()
-            .open()
-            .elements([0.0, 1.0, 2.0])
-            .unwrap()
-            .equidistant::<f32>()
-            .quantity(2)
-            .is_err());
+        assert!(
+            BSplineDirector::new()
+                .open()
+                .elements([0.0, 1.0, 2.0])
+                .unwrap()
+                .equidistant::<f32>()
+                .quantity(2)
+                .is_err()
+        );
 
-        assert!(BSplineDirector::new()
-            .open()
-            .elements([0.0, 1.0, 2.0])
-            .unwrap()
-            .equidistant::<f32>()
-            .quantity(3)
-            .is_ok());
+        assert!(
+            BSplineDirector::new()
+                .open()
+                .elements([0.0, 1.0, 2.0])
+                .unwrap()
+                .equidistant::<f32>()
+                .quantity(3)
+                .is_ok()
+        );
 
-        assert!(BSplineDirector::new()
-            .open()
-            .elements([0.0, 1.0, 2.0])
-            .unwrap()
-            .equidistant::<f32>()
-            .quantity(4)
-            .is_ok());
+        assert!(
+            BSplineDirector::new()
+                .open()
+                .elements([0.0, 1.0, 2.0])
+                .unwrap()
+                .equidistant::<f32>()
+                .quantity(4)
+                .is_ok()
+        );
 
-        assert!(BSplineDirector::new()
-            .open()
-            .elements([0.0, 1.0, 2.0])
-            .unwrap()
-            .equidistant::<f32>()
-            .quantity(5)
-            .is_err());
+        assert!(
+            BSplineDirector::new()
+                .open()
+                .elements([0.0, 1.0, 2.0])
+                .unwrap()
+                .equidistant::<f32>()
+                .quantity(5)
+                .is_err()
+        );
 
         // incongruous degree
-        assert!(BSplineDirector::new()
-            .open()
-            .elements([0.0, 1.0])
-            .unwrap()
-            .equidistant::<f32>()
-            .degree(1)
-            .is_ok());
+        assert!(
+            BSplineDirector::new()
+                .open()
+                .elements([0.0, 1.0])
+                .unwrap()
+                .equidistant::<f32>()
+                .degree(1)
+                .is_ok()
+        );
 
-        assert!(BSplineDirector::new()
-            .open()
-            .elements([0.0, 1.0])
-            .unwrap()
-            .equidistant::<f32>()
-            .degree(2)
-            .is_err());
+        assert!(
+            BSplineDirector::new()
+                .open()
+                .elements([0.0, 1.0])
+                .unwrap()
+                .equidistant::<f32>()
+                .degree(2)
+                .is_err()
+        );
     }
 
     #[test]
@@ -1587,50 +1625,62 @@ mod test {
         assert!(BSplineDirector::new().legacy().elements([0.0]).is_err());
 
         // too few knots
-        assert!(BSplineDirector::new()
-            .legacy()
-            .elements([0.0, 1.0, 2.0, 3.0])
-            .unwrap()
-            .knots([0.0, 1.0, 2.0])
-            .is_err());
+        assert!(
+            BSplineDirector::new()
+                .legacy()
+                .elements([0.0, 1.0, 2.0, 3.0])
+                .unwrap()
+                .knots([0.0, 1.0, 2.0])
+                .is_err()
+        );
 
         // too small of a workspace
-        assert!(BSplineDirector::new()
-            .legacy()
-            .elements([0.0, 1.0, 2.0, 3.0])
-            .unwrap()
-            .knots([0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0])
-            .unwrap()
-            .constant::<2>()
-            .is_err());
+        assert!(
+            BSplineDirector::new()
+                .legacy()
+                .elements([0.0, 1.0, 2.0, 3.0])
+                .unwrap()
+                .knots([0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0])
+                .unwrap()
+                .constant::<2>()
+                .is_err()
+        );
 
         // incongruous knots
-        assert!(BSplineDirector::new()
-            .legacy()
-            .elements([0.0, 1.0, 3.0])
-            .unwrap()
-            .knots([0.0, 1.0, 2.0, 3.0])
-            .is_err());
+        assert!(
+            BSplineDirector::new()
+                .legacy()
+                .elements([0.0, 1.0, 3.0])
+                .unwrap()
+                .knots([0.0, 1.0, 2.0, 3.0])
+                .is_err()
+        );
 
-        assert!(BSplineDirector::new()
-            .legacy()
-            .elements([0.0, 1.0, 3.0])
-            .unwrap()
-            .knots([0.0, 1.0, 2.0, 3.0, 4.0])
-            .is_ok());
+        assert!(
+            BSplineDirector::new()
+                .legacy()
+                .elements([0.0, 1.0, 3.0])
+                .unwrap()
+                .knots([0.0, 1.0, 2.0, 3.0, 4.0])
+                .is_ok()
+        );
 
-        assert!(BSplineDirector::new()
-            .legacy()
-            .elements([0.0, 1.0, 3.0])
-            .unwrap()
-            .knots([0.0, 1.0, 2.0, 3.0, 4.0, 5.0])
-            .is_ok());
+        assert!(
+            BSplineDirector::new()
+                .legacy()
+                .elements([0.0, 1.0, 3.0])
+                .unwrap()
+                .knots([0.0, 1.0, 2.0, 3.0, 4.0, 5.0])
+                .is_ok()
+        );
 
-        assert!(BSplineDirector::new()
-            .legacy()
-            .elements([0.0, 1.0, 3.0])
-            .unwrap()
-            .knots([0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
-            .is_err());
+        assert!(
+            BSplineDirector::new()
+                .legacy()
+                .elements([0.0, 1.0, 3.0])
+                .unwrap()
+                .knots([0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+                .is_err()
+        );
     }
 }

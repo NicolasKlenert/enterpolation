@@ -81,10 +81,10 @@ fn main() -> Result<(), BSplineError> {
 }
 ```
 
-For further information how to use any curve, one may look at the main traits of this crate: [`Generator`] and [`Curve`].
+For further information how to use any curve, one may look at the main traits of this crate: [`Signal`] and [`Curve`].
 
-[`Generator`]: https://docs.rs/enterpolation/0.1.0/enterpolation/trait.Generator.html
-[`Curve`]: https://docs.rs/enterpolation/0.1.0/enterpolation/trait.Curve.html
+[`Signal`]: https://docs.rs/enterpolation/0.3.0/enterpolation/trait.Signal.html
+[`Curve`]: https://docs.rs/enterpolation/0.3.0/enterpolation/trait.Curve.html
 
 ### Further Examples
 
@@ -99,7 +99,7 @@ This crate comes with a feature for every different interpolation method, such a
 If one wants to only enable specific crate features, they have to use the following `Cargo.toml` dependency configuration:
 ```toml
 [dependencies.enterpolation]
-version = "0.2"
+version = "0.3"
 default-features = false
 # re-enable all wanted features
 features = ["linear"]
@@ -144,22 +144,22 @@ If the elements you want to interpolate already implement [addition] with themse
 
 Otherwise this crate re-exports a trait [Merge], which represents the capability of an element to be merged with another one. This trait is necessary for all interpolations. Furthermore the core [Default] trait is also necessary for bezier curves and B-splines.
 
-Elements can be given to the curve with an array, a vector or by implementing the [DiscreteGenerator] trait. Basically every collection with an indexing operation can implement this trait. However generators can also implement it. Such one may generate the elements which should be interpolated on-the-fly. This can reduce the memory footprint if elements can be generically generated and one wants to interpolate many elements.
+Elements can be given to the curve with an array, a vector or by implementing the [Chain] trait. Basically every collection with an indexing operation can implement this trait. However signals can also implement it. Such one may generate the elements which should be interpolated on-the-fly. This can reduce the memory footprint if elements can be generically generated and one wants to interpolate many elements.
 
 [addition]: https://doc.rust-lang.org/core/ops/trait.Add.html
 [multiplication]: https://doc.rust-lang.org/core/ops/trait.Mul.html
 [Merge]: https://docs.rs/topology-traits/0.1.1/topology_traits/trait.Merge.html
 [Default]: https://doc.rust-lang.org/beta/core/default/trait.Default.html
-[DiscreteGenerator]: https://docs.rs/enterpolation/0.1.0/enterpolation/trait.DiscreteGenerator.html
+[Chain]: https://docs.rs/enterpolation/0.3.0/enterpolation/trait.Chain.html
 
 #### Requirements for Knots
 
 Knots represent the location of the elements in the input space. Such knots are usually of the same type as your input for the interpolation itself. As all interpolations (yet) are curves, usually knots are `f32` or `f64`. Elements must be multipliable with knots and knots have to be sorted with the smallest knot at index zero.
 
-Knots also can be given via an array or a vector, or some other type which implements the [`DiscreteGenerator`] trait. One may also implement the [`SortedGenerator`] trait if the type is always guaranteed to represent sorted knots.
+Knots also can be given via an array or a vector, or some other type which implements the [`Chain`] trait. One may also implement the [`SortedChain`] trait if the type is always guaranteed to represent sorted knots.
 
-[`DiscreteGenerator`]: https://docs.rs/enterpolation/0.1.0/enterpolation/trait.DiscreteGenerator.html
-[`SortedGenerator`]: https://docs.rs/enterpolation/0.1.0/enterpolation/trait.SortedGenerator.html
+[`Chain`]: https://docs.rs/enterpolation/0.3.0/enterpolation/trait.Chain.html
+[`SortedChain`]: https://docs.rs/enterpolation/0.3.0/enterpolation/trait.SortedChain.html
 
 #### B-spline Peculiarity
 

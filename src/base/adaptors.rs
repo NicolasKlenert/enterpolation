@@ -1,4 +1,4 @@
-use crate::{ConstDiscreteGenerator, Curve, DiscreteGenerator, Generator};
+use crate::{Chain, ConstChain, Curve, Signal};
 use core::ops::{Add, Bound, Mul, RangeBounds};
 use num_traits::clamp;
 use num_traits::real::Real;
@@ -15,12 +15,12 @@ pub struct Clamp<G>(G);
 
 impl<G> Clamp<G> {
     /// Create a new `Clamp` struct.
-    pub fn new(gen: G) -> Self {
-        Clamp(gen)
+    pub fn new(signal: G) -> Self {
+        Clamp(signal)
     }
 }
 
-impl<G, R> Generator<R> for Clamp<G>
+impl<G, R> Signal<R> for Clamp<G>
 where
     G: Curve<R>,
     R: Real,
@@ -59,30 +59,34 @@ where
     G: Curve<R>,
     R: Real,
 {
-    /// Create a new slice of the given generator.
+    /// Create a new slice of the given signal.
     ///
     /// It does not matter if the bounds itself are included or excluded as we assume a continuous curve.
-    pub fn new<B>(gen: G, bound: B) -> Self
+    pub fn new<B>(signal: G, bound: B) -> Self
     where
         B: RangeBounds<R>,
     {
-        let [gen_start, gen_end] = gen.domain();
+        let [signal_start, signal_end] = signal.domain();
         let bound_start = match bound.start_bound() {
             Bound::Included(x) | Bound::Excluded(x) => *x,
-            Bound::Unbounded => gen_start,
+            Bound::Unbounded => signal_start,
         };
         let bound_end = match bound.end_bound() {
             Bound::Included(x) | Bound::Excluded(x) => *x,
-            Bound::Unbounded => gen_end,
+            Bound::Unbounded => signal_end,
         };
-        let scale = (bound_end - bound_start) / (gen_end - gen_start);
-        Slice(TransformInput::new(gen, bound_start - gen_start, scale))
+        let scale = (bound_end - bound_start) / (signal_end - signal_start);
+        Slice(TransformInput::new(
+            signal,
+            bound_start - signal_start,
+            scale,
+        ))
     }
 }
 
-impl<G, R> Generator<R> for Slice<G, R>
+impl<G, R> Signal<R> for Slice<G, R>
 where
-    G: Generator<R>,
+    G: Signal<R>,
     R: Real,
 {
     type Output = G::Output;
@@ -101,7 +105,7 @@ where
     }
 }
 
-/// Struct which transforms the input before sending it to the underlying generator.
+/// Struct which transforms the input before sending it to the underlying signal.
 ///
 /// Both addition and multiplication is done. In regards to math operation priorities, multiplication is done first.
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -114,9 +118,9 @@ pub struct TransformInput<G, A, M> {
 
 impl<G, A, M> TransformInput<G, A, M> {
     /// Create a generic `TransformInput`.
-    pub fn new(generator: G, addition: A, multiplication: M) -> Self {
+    pub fn new(signal: G, addition: A, multiplication: M) -> Self {
         TransformInput {
-            inner: generator,
+            inner: signal,
             addition,
             multiplication,
         }
@@ -128,20 +132,20 @@ where
     G: Curve<R>,
     R: Real,
 {
-    /// Transform an input such that the wrapped generator changes its domain from [0.0,1.0] to
+    /// Transform an input such that the wrapped signal changes its domain from [0.0,1.0] to
     /// the domain wished for.
-    pub fn normalized_to_domain(generator: G, start: R, end: R) -> Self {
-        Self::new(generator, -start, (end - start).recip())
+    pub fn normalized_to_domain(signal: G, start: R, end: R) -> Self {
+        Self::new(signal, -start, (end - start).recip())
     }
 }
 
-impl<G, A, M, I> Generator<I> for TransformInput<G, A, M>
+impl<G, A, M, I> Signal<I> for TransformInput<G, A, M>
 where
     I: Mul<M>,
     I::Output: Add<A>,
     A: Copy,
     M: Copy,
-    G: Generator<<<I as Mul<M>>::Output as Add<A>>::Output>,
+    G: Signal<<<I as Mul<M>>::Output as Add<A>>::Output>,
 {
     type Output = G::Output;
     fn eval(&self, input: I) -> Self::Output {
@@ -162,24 +166,24 @@ where
     }
 }
 
-/// Struct which composite two generator together to act as one generator.
+/// Struct which composite two signal together to act as one signal.
 ///
-/// This `struct` is created by [`Generator::composite`]. See its documentation for more.
+/// This `struct` is created by [`Signal::composite`]. See its documentation for more.
 #[derive(Debug, Copy, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Composite<A, B>(A, B);
 
 impl<A, B> Composite<A, B> {
-    /// Creates a composite generator.
+    /// Creates a composite signal.
     pub fn new(first: A, second: B) -> Self {
         Composite(first, second)
     }
 }
 
-impl<A, B, T> Generator<T> for Composite<A, B>
+impl<A, B, T> Signal<T> for Composite<A, B>
 where
-    A: Generator<T>,
-    B: Generator<A::Output>,
+    A: Signal<T>,
+    B: Signal<A::Output>,
 {
     type Output = B::Output;
     fn eval(&self, scalar: T) -> Self::Output {
@@ -190,7 +194,7 @@ where
 impl<A, B, R> Curve<R> for Composite<A, B>
 where
     A: Curve<R>,
-    B: Generator<A::Output>,
+    B: Signal<A::Output>,
     R: Real,
 {
     fn domain(&self) -> [R; 2] {
@@ -198,26 +202,26 @@ where
     }
 }
 
-/// DiscreteGenerator adaptor which stacks two generators.
+/// Chain adaptor which stacks two signals.
 ///
-/// That it, the struct holds two generators with output S and T and outputs (S,T).
+/// That it, the struct holds two signals with output S and T and outputs (S,T).
 ///
-/// This `struct` is created by [`Generator::stack]. See its documentation for more.
+/// This `struct` is created by [`Signal::stack]. See its documentation for more.
 #[derive(Debug, Copy, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Stack<G, H>(G, H);
 
 impl<G, H> Stack<G, H> {
-    /// Creates a stacked generator, working similar like the `zip` method of iterators.
+    /// Creates a stacked signal, working similar like the `zip` method of iterators.
     pub fn new(first: G, second: H) -> Self {
         Stack(first, second)
     }
 }
 
-impl<G, H, Input> Generator<Input> for Stack<G, H>
+impl<G, H, Input> Signal<Input> for Stack<G, H>
 where
-    G: Generator<Input>,
-    H: Generator<Input>,
+    G: Signal<Input>,
+    H: Signal<Input>,
     Input: Copy,
 {
     type Output = (G::Output, H::Output);
@@ -226,20 +230,20 @@ where
     }
 }
 
-impl<G, H> DiscreteGenerator for Stack<G, H>
+impl<G, H> Chain for Stack<G, H>
 where
-    G: DiscreteGenerator,
-    H: DiscreteGenerator,
+    G: Chain,
+    H: Chain,
 {
     fn len(&self) -> usize {
         self.0.len().min(self.1.len())
     }
 }
 
-impl<G, H, const N: usize> ConstDiscreteGenerator<N> for Stack<G, H>
+impl<G, H, const N: usize> ConstChain<N> for Stack<G, H>
 where
-    G: ConstDiscreteGenerator<N>,
-    H: ConstDiscreteGenerator<N>,
+    G: ConstChain<N>,
+    H: ConstChain<N>,
 {
 }
 
@@ -256,23 +260,23 @@ where
     }
 }
 
-/// DiscreteGenerator Adaptor which repeats the underlying elements.
+/// Chain Adaptor which repeats the underlying elements.
 #[derive(Debug, Copy, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Repeat<G>(G);
 
 impl<G> Repeat<G> {
-    /// Repeat a given DiscreteGenerator pseudo-endlessly.
+    /// Repeat a given Chain pseudo-endlessly.
     ///
     /// In reality this adaptpor repeats the underlying elements until `usize::MAX` is reached.
-    pub fn new(gen: G) -> Self {
-        Repeat(gen)
+    pub fn new(signal: G) -> Self {
+        Repeat(signal)
     }
 }
 
-impl<G> Generator<usize> for Repeat<G>
+impl<G> Signal<usize> for Repeat<G>
 where
-    G: DiscreteGenerator,
+    G: Chain,
 {
     type Output = G::Output;
     fn eval(&self, input: usize) -> Self::Output {
@@ -280,18 +284,18 @@ where
     }
 }
 
-impl<G> DiscreteGenerator for Repeat<G>
+impl<G> Chain for Repeat<G>
 where
-    G: DiscreteGenerator,
+    G: Chain,
 {
     fn len(&self) -> usize {
         usize::MAX
     }
 }
 
-impl<G> ConstDiscreteGenerator<{ usize::MAX }> for Repeat<G> where G: DiscreteGenerator {}
+impl<G> ConstChain<{ usize::MAX }> for Repeat<G> where G: Chain {}
 
-/// Generator adaptor which repeats a fixed amount of first elements.
+/// Signal adaptor which repeats a fixed amount of first elements.
 #[derive(Debug, Copy, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Wrap<G> {
@@ -301,14 +305,14 @@ pub struct Wrap<G> {
 
 impl<G> Wrap<G> {
     /// Wrap the first `n` elements to the end.
-    pub fn new(gen: G, n: usize) -> Self {
-        Wrap { inner: gen, n }
+    pub fn new(signal: G, n: usize) -> Self {
+        Wrap { inner: signal, n }
     }
 }
 
-impl<G> Generator<usize> for Wrap<G>
+impl<G> Signal<usize> for Wrap<G>
 where
-    G: DiscreteGenerator,
+    G: Chain,
 {
     type Output = G::Output;
     fn eval(&self, input: usize) -> Self::Output {
@@ -316,9 +320,9 @@ where
     }
 }
 
-impl<G> DiscreteGenerator for Wrap<G>
+impl<G> Chain for Wrap<G>
 where
-    G: DiscreteGenerator,
+    G: Chain,
 {
     fn len(&self) -> usize {
         self.inner.len() + self.n
