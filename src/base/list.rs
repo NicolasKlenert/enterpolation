@@ -573,6 +573,12 @@ impl<R, const N: usize> ConstEquidistant<R, N> {
     }
 }
 
+impl<R, const N: usize> Default for ConstEquidistant<R, N> {
+    fn default() -> Self {
+        Self(Default::default())
+    }
+}
+
 impl<R, const N: usize> Signal<usize> for ConstEquidistant<R, N>
 where
     R: Real + FromPrimitive,
