@@ -8,13 +8,12 @@ license = "MIT OR Apache-2.0"
 documentation = "https://docs.rs/enterpolation"
 repository = "https://github.com/NicolasKlenert/enterpolation"
 readme = "README.md"
-keywords = ["interpolation", "curve", "spline", "bspline", "bezier"]
+keywords = ["interpolation", "curve", "spline", "bspline", "bezier", "nurbs"]
 categories = ["graphics", "mathematics", "no-std"]
 version = "0.3.0"
 
 [dependencies]
 topology-traits = { version = "0.1.2", default-features = false }
-assert_float_eq = { version = "1.1.4", default-features = false }
 num-traits = { version = "0.2.19", default-features = false }
 serde = { version = "1.0.219", optional = true, default-features = false, features = [
     "derive",
@@ -22,6 +21,7 @@ serde = { version = "1.0.219", optional = true, default-features = false, featur
 
 
 [dev-dependencies]
+assert_float_eq = { version = "1.1.4", default-features = false }
 # real black box in necessary for accurate benches, but is only available in rust-nightly
 criterion = { version = "0.5" } #, features = ["real_blackbox"]}
 # we are using palette and image as dependency for our gradient example
