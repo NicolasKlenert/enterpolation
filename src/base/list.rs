@@ -75,7 +75,7 @@ pub trait SortedGenerator: DiscreteGenerator {
         while dist > 0 {
             let step = dist / 2;
             let sample = pointer + step;
-            if element >= self.gen(sample) {
+            if element >= self.eval(sample) {
                 pointer = sample + 1;
                 dist -= step + 1;
             } else {
@@ -218,8 +218,8 @@ pub trait SortedGenerator: DiscreteGenerator {
     where
         Self::Output: Sub<Output = Self::Output> + Div<Output = Self::Output> + Copy,
     {
-        let max = self.gen(max_index);
-        let min = self.gen(min_index);
+        let max = self.eval(max_index);
+        let min = self.eval(min_index);
         (element - min) / (max - min)
     }
 
@@ -238,8 +238,8 @@ pub trait SortedGenerator: DiscreteGenerator {
     where
         Self::Output: Sub<Output = Self::Output> + Div<Output = Self::Output> + Zero + Copy,
     {
-        let max = self.gen(max_index);
-        let min = self.gen(min_index);
+        let max = self.eval(max_index);
+        let min = self.eval(min_index);
         let div = max - min;
         if div.is_zero() {
             return div;
@@ -264,9 +264,9 @@ where
         if col.is_empty() {
             return Ok(Sorted(col));
         }
-        let mut last = col.gen(0);
+        let mut last = col.eval(0);
         for i in 1..col.len() {
-            let current = col.gen(i);
+            let current = col.eval(i);
             match last.partial_cmp(&current) {
                 None | Some(Ordering::Greater) => return Err(NotSorted { index: i }),
                 _ => {
@@ -293,8 +293,8 @@ where
     C: Generator<usize>,
 {
     type Output = C::Output;
-    fn gen(&self, input: usize) -> Self::Output {
-        self.0.gen(input)
+    fn eval(&self, input: usize) -> Self::Output {
+        self.0.eval(input)
     }
 }
 
@@ -413,7 +413,7 @@ where
     R: Real + FromPrimitive,
 {
     type Output = R;
-    fn gen(&self, input: usize) -> R {
+    fn eval(&self, input: usize) -> R {
         self.step * R::from_usize(input).unwrap() + self.offset
     }
 }
@@ -478,7 +478,7 @@ where
         Self::Output: PartialOrd + Copy,
     {
         // extrapolation to the left
-        if element < self.gen(min) {
+        if element < self.eval(min) {
             return min;
         }
         let scaled = (element - self.offset) / self.step;
@@ -578,7 +578,7 @@ where
     R: Real + FromPrimitive,
 {
     type Output = R;
-    fn gen(&self, input: usize) -> R {
+    fn eval(&self, input: usize) -> R {
         R::from_usize(input).unwrap() / R::from_usize(N - 1).unwrap()
     }
 }
@@ -648,7 +648,7 @@ where
         Self::Output: PartialOrd + Copy,
     {
         // extrapolation to the left
-        if element < self.gen(min) {
+        if element < self.eval(min) {
             return min;
         }
         let scaled = element * R::from_usize(N - 1).unwrap();

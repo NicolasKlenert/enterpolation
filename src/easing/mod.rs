@@ -31,7 +31,7 @@ where
     F: Fn(R) -> R,
 {
     type Output = R;
-    fn gen(&self, input: R) -> R {
+    fn eval(&self, input: R) -> R {
         (self.func)(input)
     }
 }
@@ -66,7 +66,7 @@ impl Default for Identity {
 
 impl<R> Generator<R> for Identity {
     type Output = R;
-    fn gen(&self, input: R) -> R {
+    fn eval(&self, input: R) -> R {
         input
     }
 }
