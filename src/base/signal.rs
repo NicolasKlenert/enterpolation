@@ -650,18 +650,16 @@ mod test {
 
     #[test]
     fn stepper() {
-        let mut stepper = Stepper::normalized(11);
+        let mut stepper = Stepper::<f64>::normalized(11);
         let res = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0];
-        for i in 0..=10 {
-            let val = stepper.next().unwrap();
-            assert_f64_near!(val, res[i]);
+        for val in res {
+            assert_f64_near!(val, stepper.next().unwrap());
         }
 
         let mut stepper = Stepper::new(5, 3.0, 5.0);
         let res = [3.0, 3.5, 4.0, 4.5, 5.0];
-        for i in 0..5 {
-            let val = stepper.next().unwrap();
-            assert_f64_near!(val, res[i]);
+        for val in res {
+            assert_f64_near!(val, stepper.next().unwrap());
         }
     }
 }

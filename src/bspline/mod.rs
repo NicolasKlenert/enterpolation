@@ -285,8 +285,8 @@ mod test {
             .constant::<2>()
             .build()
             .unwrap();
-        for i in 0..expect.len() {
-            assert_f32_near!(spline.eval(expect[i].0), expect[i].1);
+        for (input, output) in expect {
+            assert_f32_near!(spline.eval(input), output);
         }
     }
 
@@ -311,8 +311,8 @@ mod test {
             .constant::<3>()
             .build()
             .unwrap();
-        for i in 0..expect.len() {
-            assert_f32_near!(spline.eval(expect[i].0), expect[i].1);
+        for (input, output) in expect {
+            assert_f32_near!(spline.eval(input), output);
         }
     }
 
@@ -336,8 +336,8 @@ mod test {
             .constant::<4>()
             .build()
             .unwrap();
-        for i in 0..expect.len() {
-            assert_f32_near!(spline.eval(expect[i].0), expect[i].1);
+        for (input, output) in expect {
+            assert_f32_near!(spline.eval(input), output);
         }
     }
 
@@ -364,8 +364,8 @@ mod test {
             .constant::<5>()
             .build()
             .unwrap();
-        for i in 0..expect.len() {
-            assert_f32_near!(spline.eval(expect[i].0), expect[i].1);
+        for (input, output) in expect {
+            assert_f32_near!(spline.eval(input), output);
         }
     }
 
@@ -392,8 +392,8 @@ mod test {
             .constant::<5>()
             .build()
             .unwrap();
-        for i in 0..expect.len() {
-            assert_f64_near!(spline.eval(expect[i].0), expect[i].1);
+        for (input, output) in expect {
+            assert_f64_near!(spline.eval(input), output);
         }
     }
 
