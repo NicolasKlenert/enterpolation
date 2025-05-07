@@ -72,12 +72,12 @@ impl<R> UnknownDomain<R> {
 ///
 /// Before building, one has to give information for:
 /// - The elements the interpolation should use. Methods like [`elements()`] and [`elements_with_weights`()]
-///     exist for that cause.
+///   exist for that cause.
 /// - The knots the interpolation uses. Either by giving them directly with [`knots()`] or by using
-///     equidistant knots with [`equidistant()`].
+///   equidistant knots with [`equidistant()`].
 /// - A workspace to use, that is, a mutable slice-like object to do operations on.
-///     Usually this is done by calling [`constant()`] or [`dynamic()`].
-///     [`workspace()`] is also posbbile for a custom workspace.
+///   Usually this is done by calling [`constant()`] or [`dynamic()`].
+///   [`workspace()`] is also posbbile for a custom workspace.
 ///
 /// Furthermore one may want to use different modes, toggled by the methods [`open()`],[`clamped()`]
 /// and [`legacy()`], where [`open()`] is the default one.
@@ -111,12 +111,12 @@ pub struct BSplineDirector<K, E, S, W, M> {
 ///
 /// Before building, one has to give information for:
 /// - The elements the interpolation should use. Methods like [`elements()`] and [`elements_with_weights`()]
-///     exist for that cause.
+///   exist for that cause.
 /// - The knots the interpolation uses. Either by giving them directly with [`knots()`] or by using
-///     equidistant knots with [`equidistant()`].
+///   equidistant knots with [`equidistant()`].
 /// - A workspace to use, that is, a mutable slice-like object to do operations on.
-///     Usually this is done by calling [`constant()`] or [`dynamic()`].
-///     [`workspace()`] is also posbbile for a custom workspace.
+///   Usually this is done by calling [`constant()`] or [`dynamic()`].
+///   [`workspace()`] is also posbbile for a custom workspace.
 ///
 /// Furthermore one may want to use different modes, toggled by the methods [`open()`],[`clamped()`]
 /// and [`legacy()`], where [`open()`] is the default one.
