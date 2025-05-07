@@ -3,8 +3,10 @@
 //! Enterpolation is written to be as generic as possible and using a generator
 //! instead of a collection allows to define a (nearly) infinite detail-rich interpolation.
 
-use assert_float_eq::assert_f64_near;
 use enterpolation::{bspline::BSpline, DiscreteGenerator, Generator};
+
+#[macro_use]
+extern crate assert_float_eq;
 
 // We define our own value generator which will be the basis of our (nearly) infinite curve.
 struct ValueGenerator {}

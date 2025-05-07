@@ -8,7 +8,8 @@ use core::f64::consts::PI;
 use core::ops::{Add, Div, Mul, Sub};
 use enterpolation::{bspline::BSpline, Curve, Generator};
 // used to test equality of f64s
-use assert_float_eq::{assert_f64_near, assert_float_absolute_eq};
+#[macro_use]
+extern crate assert_float_eq;
 
 /// We create our own 2D Point
 #[derive(Debug, Copy, Clone)]
