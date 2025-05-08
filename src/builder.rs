@@ -42,6 +42,7 @@ impl<R> NormalizedInput<R> {
     }
 }
 
+#[cfg(feature = "bezier")]
 impl<R> Default for NormalizedInput<R> {
     fn default() -> Self {
         Self(Default::default())
@@ -77,6 +78,7 @@ impl<R> Type<R> {
     }
 }
 
+#[cfg(any(feature = "linear", feature = "bspline"))]
 impl<R> Default for Type<R> {
     fn default() -> Self {
         Self(Default::default())
