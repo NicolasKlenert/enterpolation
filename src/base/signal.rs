@@ -19,7 +19,7 @@ pub trait Signal<Input> {
     fn eval(&self, input: Input) -> Self::Output;
     /// Helper function if one wants to extract values from the interpolation.
     ///
-    /// It takes an iterator of items which are inputed into the [`gen()`] method
+    /// It takes an iterator of items which are inputed into the [`eval()`] method
     /// and returns an iterator of the corresponding outputs.
     ///
     /// # Examples
@@ -44,7 +44,7 @@ pub trait Signal<Input> {
     /// # }
     /// ```
     ///
-    /// [`gen()`]: Self::gen()
+    /// [`eval()`]: Self::eval()
     fn extract<I, J>(self, iterator: I) -> Extract<Self, J>
     where
         Self: Sized,
@@ -134,7 +134,7 @@ pub trait Signal<Input> {
     }
     /// Helper function if one wants to sample values from the interpolation.
     ///
-    /// It takes an iterator of items which are inputed into the [`gen()`] method
+    /// It takes an iterator of items which are inputed into the [`eval()`] method
     /// and returns an iterator of the corresponding outputs.
     ///
     /// This acts the same as `signal.by_ref().extract()`.
@@ -162,7 +162,7 @@ pub trait Signal<Input> {
     /// # }
     /// ```
     ///
-    /// [`gen()`]: Self::gen()
+    /// [`eval()`]: Self::eval()
     fn sample<I, J>(&self, iterator: I) -> Extract<&Self, J>
     where
         Self: Sized,

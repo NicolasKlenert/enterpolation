@@ -21,7 +21,7 @@ Enterpolation is a library to generate and use different interpolation and extra
 Add this to your `Cargo.toml`:
 ```toml
 [dependencies]
-enterpolation = "0.2"
+enterpolation = "0.3"
 ```
 
 Here is a simple example creating a linear interpolation of `f64` and extracting 21 values from start to end. This library supports all elements which can be added together and multiplied with a scalar (in our case also `f64`). Instead of interpolating floats, one could interpolate coordinates, rotations, transformations, velocities, geometries, sound, colors and so on.
@@ -82,9 +82,6 @@ fn main() -> Result<(), BSplineError> {
 ```
 
 For further information how to use any curve, one may look at the main traits of this crate: [`Signal`] and [`Curve`].
-
-[`Signal`]: https://docs.rs/enterpolation/0.3.0/enterpolation/trait.Signal.html
-[`Curve`]: https://docs.rs/enterpolation/0.3.0/enterpolation/trait.Curve.html
 
 ### Further Examples
 
@@ -150,16 +147,12 @@ Elements can be given to the curve with an array, a vector or by implementing th
 [multiplication]: https://doc.rust-lang.org/core/ops/trait.Mul.html
 [Merge]: https://docs.rs/topology-traits/0.1.1/topology_traits/trait.Merge.html
 [Default]: https://doc.rust-lang.org/beta/core/default/trait.Default.html
-[Chain]: https://docs.rs/enterpolation/0.3.0/enterpolation/trait.Chain.html
 
 #### Requirements for Knots
 
 Knots represent the location of the elements in the input space. Such knots are usually of the same type as your input for the interpolation itself. As all interpolations (yet) are curves, usually knots are `f32` or `f64`. Elements must be multipliable with knots and knots have to be sorted with the smallest knot at index zero.
 
 Knots also can be given via an array or a vector, or some other type which implements the [`Chain`] trait. One may also implement the [`SortedChain`] trait if the type is always guaranteed to represent sorted knots.
-
-[`Chain`]: https://docs.rs/enterpolation/0.3.0/enterpolation/trait.Chain.html
-[`SortedChain`]: https://docs.rs/enterpolation/0.3.0/enterpolation/trait.SortedChain.html
 
 #### B-spline Peculiarity
 
