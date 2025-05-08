@@ -1,7 +1,7 @@
 //! All error types for linear interpolation.
 
-pub use crate::builder::TooFewElements;
 pub use crate::NotSorted;
+pub use crate::builder::TooFewElements;
 use core::{convert::From, fmt};
 
 #[cfg(feature = "std")]

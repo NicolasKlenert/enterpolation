@@ -4,8 +4,8 @@
 //! a real number in [0.0,1.0] and return a real number in [0.0,1.0].
 
 use crate::{Curve, Signal};
-use num_traits::real::Real;
 use num_traits::FromPrimitive;
+use num_traits::real::Real;
 
 mod plateau;
 pub use plateau::Plateau;

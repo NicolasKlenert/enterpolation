@@ -1,7 +1,7 @@
 use crate::easing::smoothstep;
 use crate::{Curve, Signal};
-use num_traits::real::Real;
 use num_traits::FromPrimitive;
+use num_traits::real::Real;
 
 /// Plateau is an easing curve which - therefore the name - create constant plateaus if given to
 /// an interpolation which works with factors for which an easing function gets applied.
