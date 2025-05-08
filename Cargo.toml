@@ -8,7 +8,7 @@ license = "MIT OR Apache-2.0"
 documentation = "https://docs.rs/enterpolation"
 repository = "https://github.com/NicolasKlenert/enterpolation"
 readme = "README.md"
-keywords = ["interpolation", "curve", "spline", "bspline", "bezier", "nurbs"]
+keywords = ["interpolation", "curve", "spline", "bezier", "nurbs"]
 categories = ["graphics", "mathematics", "no-std"]
 version = "0.3.0"
 
