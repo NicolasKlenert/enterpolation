@@ -211,7 +211,7 @@ impl<R, T, const N: usize> Linear<ConstEquidistant<R, N>, [T; N], Identity> {
 ///
 /// This alias is used for convenience to help create constant curves.
 ///
-/// **Because this is an alias, not all its methods are listed here. See the [`Linear`](crate::linear::Linear) type too.**
+/// **Because this is an alias, not all its methods are listed here. See the [`Linear`] type too.**
 pub type ConstEquidistantLinear<R, T, const N: usize> =
     Linear<ConstEquidistant<R, N>, [T; N], Identity>;
 
