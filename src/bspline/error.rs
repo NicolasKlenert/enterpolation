@@ -1,8 +1,8 @@
 //! All error types for bspline interpolation.
 #[allow(unreachable_pub)]
-pub use crate::builder::{TooFewElements, TooFewKnots, TooSmallWorkspace};
-#[allow(unreachable_pub)]
 pub use crate::NotSorted;
+#[allow(unreachable_pub)]
+pub use crate::builder::{TooFewElements, TooFewKnots, TooSmallWorkspace};
 
 use core::{convert::From, fmt};
 #[cfg(feature = "std")]

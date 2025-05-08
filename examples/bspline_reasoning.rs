@@ -1,6 +1,6 @@
 //! This example shall illustrate bsplines and how to corrolate to other curves.
 
-use enterpolation::{bezier::Bezier, bspline::BSpline, linear::Linear, Curve};
+use enterpolation::{Curve, bezier::Bezier, bspline::BSpline, linear::Linear};
 #[macro_use]
 extern crate assert_float_eq;
 
